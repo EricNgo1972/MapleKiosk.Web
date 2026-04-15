@@ -1,50 +1,52 @@
+@inject LocalizationService L
+
 <section class="section fade-in" id="pricing">
     <div class="container" style="text-align:center">
-        <span class="eyebrow">Pricing</span>
-        <h2 style="font-size:clamp(32px,4vw,52px);margin-top:16px">Simple plans. No surprises.</h2>
-        <p style="color:var(--muted);max-width:520px;margin:16px auto 0">Every plan includes a 14-day free trial, Canadian support and unlimited transactions.</p>
+        <span class="eyebrow">@L["price.eyebrow"]</span>
+        <h2 style="font-size:clamp(32px,4vw,52px);margin-top:16px">@L["price.title"]</h2>
+        <p style="color:var(--muted);max-width:520px;margin:16px auto 0">@L["price.sub"]</p>
         <div class="pricing__grid">
             <div class="plan">
-                <div class="plan__name">Starter</div>
-                <div class="plan__price">$29 <small>/ mo</small></div>
-                <div class="plan__tag">For small shops just getting started</div>
+                <div class="plan__name">@L["price.starter.name"]</div>
+                <div class="plan__price">$29 <small>@L["price.per"]</small></div>
+                <div class="plan__tag">@L["price.starter.tag"]</div>
                 <ul>
-                    <li>Smart Point of Sale</li>
-                    <li>Up to 3 staff accounts</li>
-                    <li>Basic analytics</li>
-                    <li>Online booking</li>
-                    <li>Email support</li>
+                    <li>@L["price.starter.f1"]</li>
+                    <li>@L["price.starter.f2"]</li>
+                    <li>@L["price.starter.f3"]</li>
+                    <li>@L["price.starter.f4"]</li>
+                    <li>@L["price.starter.f5"]</li>
                 </ul>
-                <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>Start free trial</a>
+                <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>@L["price.starter.cta"]</a>
             </div>
             <div class="plan plan--featured">
-                <span class="plan__badge">Most popular</span>
-                <div class="plan__name">Professional</div>
-                <div class="plan__price">$69 <small>/ mo</small></div>
-                <div class="plan__tag">For growing, busy businesses</div>
+                <span class="plan__badge">@L["price.pro.badge"]</span>
+                <div class="plan__name">@L["price.pro.name"]</div>
+                <div class="plan__price">$69 <small>@L["price.per"]</small></div>
+                <div class="plan__tag">@L["price.pro.tag"]</div>
                 <ul>
-                    <li>Everything in Starter</li>
-                    <li>Unlimited staff</li>
-                    <li>Advanced analytics</li>
-                    <li>Loyalty &amp; gift cards</li>
-                    <li>Inventory management</li>
-                    <li>Priority support</li>
+                    <li>@L["price.pro.f1"]</li>
+                    <li>@L["price.pro.f2"]</li>
+                    <li>@L["price.pro.f3"]</li>
+                    <li>@L["price.pro.f4"]</li>
+                    <li>@L["price.pro.f5"]</li>
+                    <li>@L["price.pro.f6"]</li>
                 </ul>
-                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>Start free trial</a>
+                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["price.pro.cta"]</a>
             </div>
             <div class="plan">
-                <div class="plan__name">Enterprise</div>
-                <div class="plan__price">Custom</div>
-                <div class="plan__tag">For multi-location operators</div>
+                <div class="plan__name">@L["price.ent.name"]</div>
+                <div class="plan__price">@L["price.ent.price"]</div>
+                <div class="plan__tag">@L["price.ent.tag"]</div>
                 <ul>
-                    <li>Everything in Professional</li>
-                    <li>Unlimited locations</li>
-                    <li>Custom integrations</li>
-                    <li>Dedicated account manager</li>
-                    <li>SLA &amp; uptime guarantees</li>
-                    <li>White-label branding</li>
+                    <li>@L["price.ent.f1"]</li>
+                    <li>@L["price.ent.f2"]</li>
+                    <li>@L["price.ent.f3"]</li>
+                    <li>@L["price.ent.f4"]</li>
+                    <li>@L["price.ent.f5"]</li>
+                    <li>@L["price.ent.f6"]</li>
                 </ul>
-                <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>Talk to sales</a>
+                <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>@L["price.ent.cta"]</a>
             </div>
         </div>
     </div>

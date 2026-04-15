@@ -80,6 +80,11 @@ html.fade-ready .fade-in.visible{opacity:1;transform:none}
 .nav__links a{font-size:14px;color:var(--text);opacity:.8;transition:opacity .2s,color .2s}
 .nav__links a:hover{opacity:1;color:var(--red)}
 .nav__cta{padding:10px 20px;font-size:14px}
+.lang-switch{display:inline-flex;gap:2px;padding:4px;border:1px solid var(--border);border-radius:999px;margin-right:12px}
+.lang-switch a{font-size:12px;font-weight:600;letter-spacing:0.05em;color:var(--muted);padding:4px 10px;border-radius:999px;transition:color .2s,background .2s}
+.lang-switch a:hover{color:var(--text)}
+.lang-switch a.active{background:var(--red);color:#fff}
+@media (max-width:900px){ .lang-switch{margin-right:8px} }
 
 /* ============ HERO ============ */
 .hero{min-height:100vh;display:flex;align-items:center;padding-top:80px;position:relative;overflow:hidden}

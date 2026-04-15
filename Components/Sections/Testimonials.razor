@@ -1,14 +1,16 @@
+@inject LocalizationService L
+
 <section class="section fade-in">
     <div class="container">
-        <span class="eyebrow">Testimonials</span>
-        <h2 style="font-size:clamp(32px,4vw,52px);margin-top:16px;max-width:640px">Loved by owners from coast to coast.</h2>
+        <span class="eyebrow">@L["test.eyebrow"]</span>
+        <h2 style="font-size:clamp(32px,4vw,52px);margin-top:16px;max-width:640px">@L["test.title"]</h2>
         <div class="testimonials__grid">
             @foreach (var t in _items)
             {
                 <div class="tcard">
                     <span class="tcard__quote">&ldquo;</span>
                     <div class="stars">★★★★★</div>
-                    <p class="tcard__text">@t.Text</p>
+                    <p class="tcard__text">@L[t.QuoteKey]</p>
                     <div class="tcard__author">
                         <div class="avatar">@t.Initials</div>
                         <div>
@@ -23,11 +25,11 @@
 </section>
 
 @code {
-    private record T(string Initials, string Name, string Biz, string Text);
+    private record T(string Initials, string Name, string Biz, string QuoteKey);
     private readonly T[] _items = new[]
     {
-        new T("SL","Sophie Leblanc","Nails & Co. — Montreal","MapleKiosk replaced three apps and a spreadsheet. Bookings are up 28% and my staff actually enjoys the software."),
-        new T("MC","Marc Charbonneau","Pro Auto Service — Laval","The dashboard tells me which jobs are most profitable before I even finish my coffee. Game changer for the garage."),
-        new T("AK","Anika Kapoor","The Spice Route — Ottawa","From the POS to the loyalty program, everything just feels considered. Our regulars love the rewards we can finally offer."),
+        new T("SL","Sophie Leblanc","Nails & Co. — Montreal","test.q1"),
+        new T("MC","Marc Charbonneau","Pro Auto Service — Laval","test.q2"),
+        new T("AK","Anika Kapoor","The Spice Route — Ottawa","test.q3"),
     };
 }

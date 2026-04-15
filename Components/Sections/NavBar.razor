@@ -1,14 +1,22 @@
+@inject LocalizationService L
+
 <nav class="nav">
     <div class="nav__inner">
-        <a class="nav__logo" href="#top">
+        <a class="nav__logo" href="@L.Path(L.Culture)#top">
             <img src="MapleKiosk_rectangle.png" alt="MapleKiosk" />
         </a>
         <div class="nav__links">
-            <a href="#features">Features</a>
-            <a href="#industries">Industries</a>
-            <a href="#how">How it works</a>
-            <a href="#pricing">Pricing</a>
+            <a href="#features">@L["nav.features"]</a>
+            <a href="#industries">@L["nav.industries"]</a>
+            <a href="#how">@L["nav.how"]</a>
+            <a href="#pricing">@L["nav.pricing"]</a>
         </div>
-        <a class="btn btn-primary nav__cta" href="javascript:void(0)" data-open-trial>Start free trial</a>
+        <div class="lang-switch">
+            <a href="/"   class="@(L.Culture == "en" ? "active" : "")">EN</a>
+            <a href="/fr" class="@(L.Culture == "fr" ? "active" : "")">FR</a>
+            <a href="/vi" class="@(L.Culture == "vi" ? "active" : "")">VI</a>
+            <a href="/ru" class="@(L.Culture == "ru" ? "active" : "")">RU</a>
+        </div>
+        <a class="btn btn-primary nav__cta" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
     </div>
 </nav>

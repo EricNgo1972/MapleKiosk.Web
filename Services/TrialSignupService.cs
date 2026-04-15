@@ -16,7 +16,7 @@ public class TrialSignup
     [Required, StringLength(80)]
     public string City { get; set; } = "";
 
-    [Required, StringLength(12)]
+    [Required, StringLength(12), PostalCode]
     public string PostalCode { get; set; } = "";
 
     [Required]
@@ -32,6 +32,8 @@ public class TrialSignup
     public string Phone { get; set; } = "";
 
     public DateTimeOffset SubmittedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    public string Culture { get; set; } = "en";
 }
 
 internal class ClientRequestEntity : ITableEntity
@@ -50,6 +52,7 @@ internal class ClientRequestEntity : ITableEntity
     public string Email { get; set; } = "";
     public string Phone { get; set; } = "";
     public DateTimeOffset SubmittedAt { get; set; }
+    public string Culture { get; set; } = "en";
 }
 
 public class TrialSignupService
@@ -110,6 +113,7 @@ public class TrialSignupService
             PostalCode = signup.PostalCode,
             BusinessType = signup.BusinessType,
             ContactName = signup.ContactName,
+            Culture = signup.Culture,
             Email = signup.Email,
             Phone = signup.Phone,
             SubmittedAt = signup.SubmittedAt,
@@ -129,6 +133,7 @@ public class TrialSignupService
 
     private async Task SendNotificationEmailsAsync(TrialSignup s)
     {
+        // Sales email — always English, internal consumption.
         var salesHtml = $"""
             <h2>New MapleKiosk trial signup</h2>
             <table cellpadding="6" style="font-family:Arial,sans-serif;font-size:14px">
@@ -140,24 +145,30 @@ public class TrialSignupService
               <tr><td><b>Postal code</b></td><td>{WebUtility.HtmlEncode(s.PostalCode)}</td></tr>
               <tr><td><b>Email</b></td><td>{WebUtility.HtmlEncode(s.Email)}</td></tr>
               <tr><td><b>Phone</b></td><td>{WebUtility.HtmlEncode(s.Phone)}</td></tr>
+              <tr><td><b>Culture</b></td><td>{s.Culture}</td></tr>
               <tr><td><b>Submitted</b></td><td>{s.SubmittedAt:u}</td></tr>
             </table>
             """;
 
+        // Client email — localized to submitter's culture.
+        var culture = Translations.All.ContainsKey(s.Culture) ? s.Culture : "en";
+        var t = Translations.All[culture];
+        string T(string k) => t.TryGetValue(k, out var v) ? v : Translations.All["en"][k];
+
         var clientHtml = $"""
             <div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#222">
-              <h2 style="color:#c0392b">Welcome to MapleKiosk, {WebUtility.HtmlEncode(s.CompanyName)}!</h2>
-              <p>Thank you for registering for your free trial. Your account is being set up — our team will reach out shortly to help you get started.</p>
-              <p>In the meantime, you can try our demo app right now:</p>
-              <p><a href="{DemoUrl}" style="display:inline-block;background:#c0392b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:600">Open the demo app</a></p>
-              <p style="color:#666;font-size:13px">Or paste this link into your browser: <a href="{DemoUrl}">{DemoUrl}</a></p>
+              <h2 style="color:#c0392b">{WebUtility.HtmlEncode(string.Format(T("email.client.h1"), s.CompanyName))}</h2>
+              <p>{WebUtility.HtmlEncode(T("email.client.p1"))}</p>
+              <p>{WebUtility.HtmlEncode(T("email.client.p2"))}</p>
+              <p><a href="{DemoUrl}" style="display:inline-block;background:#c0392b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:600">{WebUtility.HtmlEncode(T("email.client.btn"))}</a></p>
+              <p style="color:#666;font-size:13px">{WebUtility.HtmlEncode(T("email.client.alt"))} <a href="{DemoUrl}">{DemoUrl}</a></p>
               <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
               <p style="color:#888;font-size:12px">MapleKiosk — Made in Canada 🍁</p>
             </div>
             """;
 
         var salesTask  = _email.SendAsync(SalesInbox, $"New trial signup: {s.CompanyName}", salesHtml);
-        var clientTask = _email.SendAsync(s.Email, "Thank you for registering with MapleKiosk", clientHtml);
+        var clientTask = _email.SendAsync(s.Email, T("email.client.subject"), clientHtml);
         await Task.WhenAll(salesTask, clientTask);
     }
 }

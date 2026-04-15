@@ -1,20 +1,22 @@
+@inject LocalizationService L
+
 <section class="section section--surface fade-in" id="features">
     <div class="container">
         <div class="features__head">
             <div>
-                <span class="eyebrow">Features</span>
-                <h2>Every tool your business actually needs.</h2>
+                <span class="eyebrow">@L["features.eyebrow"]</span>
+                <h2>@L["features.title"]</h2>
             </div>
-            <p>From the first customer to the thousandth transaction, MapleKiosk replaces a drawer full of apps with one calm, cohesive system.</p>
+            <p>@L["features.desc"]</p>
         </div>
         <div class="features__grid">
-            @foreach (var f in _features)
+            @foreach (var (num, icon, keyPrefix) in _features)
             {
                 <div class="feature">
-                    <span class="feature__num">@f.Num</span>
-                    <div class="feature__icon">@f.Icon</div>
-                    <h3>@f.Title</h3>
-                    <p>@f.Desc</p>
+                    <span class="feature__num">@num</span>
+                    <div class="feature__icon">@icon</div>
+                    <h3>@L[$"{keyPrefix}.title"]</h3>
+                    <p>@L[$"{keyPrefix}.desc"]</p>
                 </div>
             }
         </div>
@@ -22,14 +24,13 @@
 </section>
 
 @code {
-    private record F(string Num, string Icon, string Title, string Desc);
-    private readonly F[] _features = new[]
+    private readonly (string num, string icon, string prefix)[] _features = new[]
     {
-        new F("01","🛒","Smart Point of Sale","Fast, flexible checkout that runs on any device — cash, card, tap or QR."),
-        new F("02","📅","Appointment & Booking","Online booking, reminders and no-show protection baked in."),
-        new F("03","📊","Analytics Dashboard","Real-time revenue, staff and product insights at a glance."),
-        new F("04","👥","Staff Management","Shifts, commissions, permissions and payroll exports handled."),
-        new F("05","🎁","Loyalty & Promotions","Built-in gift cards, points, referrals and campaigns."),
-        new F("06","📱","Multi-device Access","Seamless sync across iPad, phone, desktop and kiosk terminals."),
+        ("01","🛒","features.01"),
+        ("02","📅","features.02"),
+        ("03","📊","features.03"),
+        ("04","👥","features.04"),
+        ("05","🎁","features.05"),
+        ("06","📱","features.06"),
     };
 }

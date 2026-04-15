@@ -1,4 +1,9 @@
 @page "/"
+@page "/fr"
+@page "/vi"
+@page "/ru"
+@inject LocalizationService L
+@inject NavigationManager Nav
 @inject CartService Cart
 
 <NavBar />
@@ -11,5 +16,14 @@
 <DashboardPreview />
 <Pricing />
 <CtaBanner />
-<TrialForm />
+<TrialForm Culture="@L.Culture" />
 <Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}
