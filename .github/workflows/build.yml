@@ -1,7 +1,7 @@
 name: Build (Linux release)
 
-# Manual-only. Does NOT upload any artifact or create a GitHub Release —
-# it just verifies a clean `dotnet publish` succeeds for linux-x64.
+# Manual-only. Builds a linux-x64 release, packages it as a .tar.gz,
+# and publishes it as a GitHub Release. No Actions artifacts are uploaded.
 on:
   workflow_dispatch:
     inputs:
@@ -9,10 +9,18 @@ on:
         description: 'Release version (e.g. 1.2.0)'
         required: true
         type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # required to create the GitHub Release
 
 jobs:
   build:
-    name: Publish ${{ inputs.version }} (linux-x64)
+    name: Publish v${{ inputs.version }} (linux-x64)
     runs-on: ubuntu-latest
 
     steps:
@@ -38,10 +46,22 @@ jobs:
             -p:FileVersion=${{ inputs.version }}.0 \
             -o publish
 
-      - name: Summary
+      - name: Package tarball
+        id: pkg
         run: |
-          echo "### MapleKiosk v${{ inputs.version }} — build OK" >> "$GITHUB_STEP_SUMMARY"
+          NAME="maplekiosk-${{ inputs.version }}-linux-x64.tar.gz"
+          tar -C publish -czf "$NAME" .
+          echo "file=$NAME" >> "$GITHUB_OUTPUT"
+          echo "### MapleKiosk v${{ inputs.version }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          du -sh publish | tee -a "$GITHUB_STEP_SUMMARY"
-          ls -la publish | head -30 >> "$GITHUB_STEP_SUMMARY"
+          ls -lh "$NAME" | tee -a "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: v${{ inputs.version }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          files: ${{ steps.pkg.outputs.file }}
