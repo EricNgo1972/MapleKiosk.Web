@@ -1,0 +1,126 @@
+@rendermode InteractiveServer
+@inject TrialSignupService Signups
+
+<div class="modal" id="trialModal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
+    <div class="modal__backdrop" data-close-trial></div>
+    <div class="modal__dialog">
+        <button type="button" class="modal__close" aria-label="Close" data-close-trial>&times;</button>
+        <div class="trial__intro">
+            <span class="eyebrow">Start free trial</span>
+            <h2 id="trial-title">Create your MapleKiosk account.</h2>
+            <p>14 days free. No credit card required — we'll email your login details to the address below.</p>
+        </div>
+
+        <div class="trial__card">
+            @if (_submitted)
+            {
+                <div class="trial__success">
+                    <div class="trial__success-icon">✓</div>
+                    <h3>Welcome to MapleKiosk, @_savedCompany!</h3>
+                    <p>We've received your account request. Check <strong>@_savedEmail</strong> in the next few minutes for your login and onboarding details.</p>
+                    <button type="button" class="btn btn-ghost" @onclick="Reset">Submit another</button>
+                </div>
+            }
+            else
+            {
+                <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="trial-signup">
+                    <DataAnnotationsValidator />
+
+                    <div class="field">
+                        <label>Company name</label>
+                        <InputText @bind-Value="_model.CompanyName" placeholder="Acme Nail Studio" />
+                        <ValidationMessage For="() => _model.CompanyName" />
+                    </div>
+
+                    <div class="field">
+                        <label>Address</label>
+                        <InputText @bind-Value="_model.Address" placeholder="123 Main St" />
+                        <ValidationMessage For="() => _model.Address" />
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field">
+                            <label>City</label>
+                            <InputText @bind-Value="_model.City" placeholder="Montreal" />
+                            <ValidationMessage For="() => _model.City" />
+                        </div>
+                        <div class="field">
+                            <label>Postal code</label>
+                            <InputText @bind-Value="_model.PostalCode" placeholder="H2X 1Y4" />
+                            <ValidationMessage For="() => _model.PostalCode" />
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label>Business type</label>
+                        <InputSelect @bind-Value="_model.BusinessType">
+                            <option value="">Select one…</option>
+                            <option value="Nail Salon">Nail &amp; Beauty Salon</option>
+                            <option value="Restaurant">Restaurant / Fast Food</option>
+                            <option value="Retail">Retail / Shop</option>
+                            <option value="Garage">Garage / Auto Service</option>
+                            <option value="Startup">Startup / Office</option>
+                            <option value="Other">Other</option>
+                        </InputSelect>
+                        <ValidationMessage For="() => _model.BusinessType" />
+                    </div>
+
+                    <div class="field-row field-row--3">
+                        <div class="field">
+                            <label>Contact name</label>
+                            <InputText @bind-Value="_model.ContactName" placeholder="Jane Tremblay" />
+                            <ValidationMessage For="() => _model.ContactName" />
+                        </div>
+                        <div class="field">
+                            <label>Contact email</label>
+                            <InputText type="email" @bind-Value="_model.Email" placeholder="you@company.com" />
+                            <ValidationMessage For="() => _model.Email" />
+                        </div>
+                        <div class="field">
+                            <label>Phone</label>
+                            <InputText type="tel" @bind-Value="_model.Phone" placeholder="+1 514 555 0199" />
+                            <ValidationMessage For="() => _model.Phone" />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary trial__submit" disabled="@_submitting">
+                        @(_submitting ? "Creating account…" : "Create account")
+                    </button>
+                    <p class="trial__fine">By creating an account you agree to our Terms and Privacy Policy.</p>
+                </EditForm>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private TrialSignup _model = new();
+    private bool _submitting;
+    private bool _submitted;
+    private string? _savedCompany;
+    private string? _savedEmail;
+
+    private async Task HandleSubmit()
+    {
+        _submitting = true;
+        try
+        {
+            await Signups.CreateAsync(_model);
+            _savedCompany = _model.CompanyName;
+            _savedEmail = _model.Email;
+            _submitted = true;
+            _model = new();
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _submitted = false;
+        _savedCompany = null;
+        _savedEmail = null;
+    }
+}

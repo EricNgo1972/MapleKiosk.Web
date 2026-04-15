@@ -1,0 +1,33 @@
+[Unit]
+Description=MapleKiosk Blazor Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+WorkingDirectory=/var/www/maplekiosk
+ExecStart=/usr/bin/dotnet /var/www/maplekiosk/MapleKiosk.Web.dll
+Restart=always
+RestartSec=5
+KillSignal=SIGINT
+SyslogIdentifier=maplekiosk
+User=www-data
+Group=www-data
+
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
+Environment=DOTNET_NOLOGO=true
+# Azure Storage connection string for the 'clientrequest' table.
+# Set on the host via:  sudo systemctl edit maplekiosk
+# then add:             [Service]
+#                       Environment="STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=..."
+EnvironmentFile=-/etc/maplekiosk.env
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

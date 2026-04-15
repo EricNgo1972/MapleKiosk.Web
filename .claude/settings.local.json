@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet --list-sdks)",
+      "Bash(dotnet new *)",
+      "Bash(ASPNETCORE_URLS=\"http://localhost:5123\" timeout 10 dotnet run --no-build)",
+      "Bash(chmod +x /mnt/c/MapleKiosk/WWW/deploy/install.sh)",
+      "Bash(netstat -ltnp)",
+      "Bash(curl -sI http://localhost:5500/maplekiosk.svg)"
+    ]
+  }
+}
