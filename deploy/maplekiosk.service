@@ -11,8 +11,8 @@ Restart=always
 RestartSec=5
 KillSignal=SIGINT
 SyslogIdentifier=maplekiosk
-User=www-data
-Group=www-data
+User=eric
+Group=eric
 
 Environment=ASPNETCORE_ENVIRONMENT=Production
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false

@@ -1,0 +1,47 @@
+name: Build (Linux release)
+
+# Manual-only. Does NOT upload any artifact or create a GitHub Release —
+# it just verifies a clean `dotnet publish` succeeds for linux-x64.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.0)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Publish ${{ inputs.version }} (linux-x64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore MapleKiosk.Web.csproj
+
+      - name: Publish (Release, linux-x64)
+        run: |
+          dotnet publish MapleKiosk.Web.csproj \
+            -c Release \
+            -r linux-x64 \
+            --no-self-contained \
+            -p:Version=${{ inputs.version }} \
+            -p:AssemblyVersion=${{ inputs.version }}.0 \
+            -p:FileVersion=${{ inputs.version }}.0 \
+            -o publish
+
+      - name: Summary
+        run: |
+          echo "### MapleKiosk v${{ inputs.version }} — build OK" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          du -sh publish | tee -a "$GITHUB_STEP_SUMMARY"
+          ls -la publish | head -30 >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
