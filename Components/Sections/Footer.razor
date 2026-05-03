@@ -37,8 +37,8 @@
             <div class="footer__col">
                 <h5>@L["foot.legal"]</h5>
                 <ul>
-                    <li><a href="#">@L["foot.privacy"]</a></li>
-                    <li><a href="#">@L["foot.terms"]</a></li>
+                    <li><a href="@LegalPath("privacy")">@L["foot.privacy"]</a></li>
+                    <li><a href="@LegalPath("terms")">@L["foot.terms"]</a></li>
                     <li><a href="#">@L["foot.security"]</a></li>
                     <li><a href="#">@L["foot.cookies"]</a></li>
                 </ul>
@@ -50,3 +50,11 @@
         </div>
     </div>
 </footer>
+
+@code {
+    private string LegalPath(string page)
+    {
+        var root = L.Path(L.Culture).TrimEnd('/');
+        return string.IsNullOrEmpty(root) ? $"/{page}" : $"{root}/{page}";
+    }
+}

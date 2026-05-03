@@ -1,0 +1,80 @@
+@page "/terms"
+@page "/tos"
+@page "/fr/terms"
+@page "/fr/tos"
+@page "/vi/terms"
+@page "/vi/tos"
+@page "/ru/terms"
+@page "/ru/tos"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<NavBar />
+
+<main class="legal-page">
+    <div class="container">
+        <div class="legal-page__head">
+            <span class="eyebrow">@L["foot.legal"]</span>
+            <h1>Terms of Service</h1>
+            <p>Last updated: May 3, 2026</p>
+        </div>
+
+        <div class="legal-page__body">
+            <section>
+                <h2>Agreement</h2>
+                <p>These terms apply when you use MapleKiosk websites, software, apps, or services. By using MapleKiosk, you agree to follow them.</p>
+            </section>
+
+            <section>
+                <h2>Accounts</h2>
+                <p>You are responsible for your account information, password security, and activity under your account. Tell us quickly if you suspect unauthorized access.</p>
+            </section>
+
+            <section>
+                <h2>Acceptable Use</h2>
+                <p>Use MapleKiosk for lawful business purposes only. Do not misuse the service, disrupt it, attempt unauthorized access, or use it for illegal or harmful activity.</p>
+            </section>
+
+            <section>
+                <h2>Customer Data</h2>
+                <p>You own the business data you put into MapleKiosk. You allow us to host, process, back up, and display that data so we can provide the service.</p>
+            </section>
+
+            <section>
+                <h2>Billing</h2>
+                <p>Plan prices, billing cycles, trials, taxes, cancellations, and refunds are based on the plan or agreement you choose. Fees are non-refundable unless stated otherwise or required by law.</p>
+            </section>
+
+            <section>
+                <h2>Service Changes</h2>
+                <p>We may update, improve, suspend, or discontinue parts of MapleKiosk as needed. We work to keep the service reliable, but we do not promise uninterrupted access.</p>
+            </section>
+
+            <section>
+                <h2>Liability</h2>
+                <p>MapleKiosk is provided as available. To the extent allowed by law, we are not responsible for indirect losses such as lost profits, revenue, data, or business opportunities.</p>
+            </section>
+
+            <section>
+                <h2>Termination</h2>
+                <p>You may stop using MapleKiosk at any time. We may suspend or end access if these terms are violated, fees are unpaid, or continued use creates legal, security, or operational risk.</p>
+            </section>
+
+            <section>
+                <h2>Contact</h2>
+                <p>For questions about these terms, contact us at <a href="mailto:legal@maplekiosk.com">legal@maplekiosk.com</a>.</p>
+            </section>
+        </div>
+    </div>
+</main>
+
+<Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

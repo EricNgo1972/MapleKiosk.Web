@@ -209,6 +209,18 @@ html.fade-ready .fade-in.visible{opacity:1;transform:none}
 .footer__col a:hover{color:var(--text)}
 .footer__bottom{padding-top:28px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted)}
 
+/* ============ LEGAL PAGES ============ */
+.legal-page{padding:150px 0 100px;position:relative;z-index:1}
+.legal-page__head{max-width:820px;margin-bottom:48px}
+.legal-page__head h1{font-size:clamp(38px,5vw,64px);margin:18px 0 12px}
+.legal-page__head p{color:var(--muted);font-size:15px}
+.legal-page__body{max-width:820px;background:rgba(22,22,26,0.72);border:1px solid var(--border);border-radius:14px;padding:36px;box-shadow:0 40px 90px -50px rgba(0,0,0,0.9)}
+.legal-page__body section+section{margin-top:24px;padding-top:24px;border-top:1px solid var(--border)}
+.legal-page__body h2{font-family:'DM Sans',system-ui,sans-serif;font-size:18px;font-weight:700;margin-bottom:12px;color:var(--text)}
+.legal-page__body p{color:var(--muted);font-size:15px}
+.legal-page__body a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.legal-page__body a:hover{color:var(--text)}
+
 /* ============ TRIAL MODAL ============ */
 .modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:24px}
 .modal.open{display:flex;animation:modalFade .2s ease-out}
@@ -265,4 +277,6 @@ body.modal-open{overflow:hidden}
   .plan--featured:hover{transform:translateY(-4px)}
   .footer__bottom{flex-direction:column;gap:12px}
   .hero__stats{grid-template-columns:repeat(3,1fr);gap:16px}
+  .legal-page{padding:128px 0 72px}
+  .legal-page__body{padding:28px}
 }

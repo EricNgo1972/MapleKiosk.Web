@@ -1,0 +1,71 @@
+@page "/privacy"
+@page "/fr/privacy"
+@page "/vi/privacy"
+@page "/ru/privacy"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<NavBar />
+
+<main class="legal-page">
+    <div class="container">
+        <div class="legal-page__head">
+            <span class="eyebrow">@L["foot.legal"]</span>
+            <h1>Privacy Policy</h1>
+            <p>Last updated: May 3, 2026</p>
+        </div>
+
+        <div class="legal-page__body">
+            <section>
+                <h2>What This Covers</h2>
+                <p>This policy explains how MapleKiosk Inc. handles information when you visit our website, request a trial, or use MapleKiosk services.</p>
+            </section>
+
+            <section>
+                <h2>Information We Collect</h2>
+                <p>We collect the details you send us, such as company name, contact name, email, phone, address, postal code, and business type. If you use MapleKiosk, we also process the account and business data needed to run the service.</p>
+            </section>
+
+            <section>
+                <h2>How We Use It</h2>
+                <p>We use information to create accounts, provide support, operate MapleKiosk, improve the product, protect the service, and send important service messages.</p>
+            </section>
+
+            <section>
+                <h2>Sharing</h2>
+                <p>We do not sell personal information. We share information only with trusted service providers, when required by law, or when needed to protect MapleKiosk, our customers, or the public.</p>
+            </section>
+
+            <section>
+                <h2>Security</h2>
+                <p>We use reasonable safeguards to protect information. No online service can be completely secure, but we work to prevent unauthorized access, loss, and misuse.</p>
+            </section>
+
+            <section>
+                <h2>Retention</h2>
+                <p>We keep information only as long as needed to provide the service, keep business records, meet legal requirements, and resolve issues.</p>
+            </section>
+
+            <section>
+                <h2>Your Choices</h2>
+                <p>You can ask to access, correct, delete, or export your personal information, subject to legal and service limits. You can also opt out of marketing emails.</p>
+            </section>
+
+            <section>
+                <h2>Contact</h2>
+                <p>For privacy questions, contact us at <a href="mailto:privacy@maplekiosk.com">privacy@maplekiosk.com</a>.</p>
+            </section>
+        </div>
+    </div>
+</main>
+
+<Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}
