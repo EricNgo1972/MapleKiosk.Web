@@ -1,6 +1,11 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿<Router AppAssembly="typeof(Program).Assembly"
+        AdditionalAssemblies="new[] { typeof(MapleShop.UI.Components.ShopWidget).Assembly }">
     <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <RedirectToSignin />
+            </NotAuthorized>
+        </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router>

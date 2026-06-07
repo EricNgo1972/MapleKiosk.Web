@@ -1,0 +1,26 @@
+@page "/signin"
+@attribute [AllowAnonymous]
+@inject NavigationManager Nav
+
+<section class="mshop-result">
+    <div class="mshop-result__card">
+        <h1>Sign in</h1>
+        <p style="color:var(--muted)">Access is restricted to MapleKiosk team accounts.</p>
+        <a class="mshop-btn mshop-btn--primary" href="@LoginUrl">Sign in with your MapleKiosk account</a>
+        <p style="color:var(--muted);font-size:13px;margin-top:16px">
+            You'll be redirected to <code>oauth.maplekiosk.ca</code>.
+        </p>
+    </div>
+</section>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    // /login is the server endpoint from SPC.Infrastructure.Auth that bounces to
+    // the central OAuth host and back to /auth/callback.
+    private string LoginUrl =>
+        string.IsNullOrWhiteSpace(ReturnUrl)
+            ? "/login"
+            : $"/login?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
+}

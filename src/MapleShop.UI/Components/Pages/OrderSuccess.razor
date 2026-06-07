@@ -1,0 +1,48 @@
+@page "/shop/success"
+@rendermode InteractiveServer
+@inject CartState Cart
+@inject MapleShopClient Client
+
+<section class="mshop-result">
+    <div class="mshop-result__card">
+        <div class="mshop-result__icon">✓</div>
+        <h1>Thank you for your purchase</h1>
+        @if (!string.IsNullOrWhiteSpace(Ref))
+        {
+            <p>Your order reference is <code>@Ref</code>.</p>
+            @if (_status is not null && string.Equals(_status, "Paid", StringComparison.OrdinalIgnoreCase))
+            {
+                <p class="mshop-result__ok">Payment confirmed. A receipt is on its way to your inbox.</p>
+            }
+            else
+            {
+                <p class="mshop-result__pending">We're finalizing your payment confirmation…</p>
+            }
+        }
+        else
+        {
+            <p>Your order is complete.</p>
+        }
+        <a class="mshop-btn mshop-btn--primary" href="/">Back to home</a>
+    </div>
+</section>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "ref")]
+    public string? Ref { get; set; }
+
+    private string? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Stripe redirects here on success; the webhook is what actually flips the
+        // order to Paid, so reflect whatever state we can read and clear the cart.
+        Cart.Clear();
+
+        if (!string.IsNullOrWhiteSpace(Ref))
+        {
+            var status = await Client.GetStatusAsync(Ref!);
+            _status = status?.Status;
+        }
+    }
+}

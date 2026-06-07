@@ -1,0 +1,262 @@
+@page "/shop/admin"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using MapleKiosk.Web.Shop.Catalog
+@inject CatalogStore Store
+@inject BlobImageUploader Uploader
+
+<section class="section">
+    <div class="container" style="max-width:1000px">
+        <h1 style="font-size:clamp(26px,3vw,40px)">Product catalog</h1>
+        <p style="color:var(--muted)">Add, edit, or remove the SaaS plans sold in the shop. Saved to Azure Storage.</p>
+
+        @if (!Store.IsConfigured)
+        {
+            <p class="mshop-error">Catalog storage is not configured (STORAGE_CONNECTION_STRING).</p>
+        }
+
+        <!-- Editor -->
+        <div class="cat-card">
+            <h3>@(_isNew ? "Add plan" : $"Edit “{_edit.Sku}”")</h3>
+            <div class="cat-grid">
+                <label>SKU
+                    <input @bind="_edit.Sku" disabled="@(!_isNew)" placeholder="starter" />
+                </label>
+                <label>Name
+                    <input @bind="_edit.Name" placeholder="Starter" />
+                </label>
+
+                <label>Billing
+                    <select @bind="_edit.BillingInterval">
+                        <option value="@BillingIntervals.OneTime">One-time</option>
+                        <option value="@BillingIntervals.Monthly">Monthly</option>
+                        <option value="@BillingIntervals.Yearly">Yearly</option>
+                    </select>
+                </label>
+                <label>Free trial (days)
+                    <input type="number" min="0" step="1" @bind="_edit.TrialDays" />
+                </label>
+
+                <label>Price USD
+                    <input type="number" step="0.01" @bind="_edit.PriceUsd" />
+                </label>
+                <label>Price VND
+                    <input type="number" step="1" @bind="_edit.PriceVnd" />
+                </label>
+
+                <label style="grid-column:1/-1">Description
+                    <input @bind="_edit.Description" placeholder="Short description" />
+                </label>
+
+                <label style="grid-column:1/-1">Features (one per line)
+                    <textarea rows="4" @bind="_featuresText" placeholder="Unlimited invoices&#10;Priority support"></textarea>
+                </label>
+
+                <label style="grid-column:1/-1">Image
+                    <InputFile OnChange="OnImageSelected" accept="image/*" />
+                    @if (_uploading)
+                    {
+                        <span style="color:var(--muted)">Uploading…</span>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_edit.ImageUrl))
+                    {
+                        <img src="@_edit.ImageUrl" alt="" style="height:64px;border-radius:8px;margin-top:6px" />
+                    }
+                </label>
+
+                <label class="cat-check">
+                    <input type="checkbox" @bind="_edit.Active" /> Active (visible in shop)
+                </label>
+            </div>
+
+            @if (_error is not null)
+            {
+                <p class="mshop-error">@_error</p>
+            }
+
+            <div class="cat-actions">
+                <button class="btn btn-primary" disabled="@_busy" @onclick="Save">
+                    @(_busy ? "Saving…" : _isNew ? "Add plan" : "Save changes")
+                </button>
+                @if (!_isNew)
+                {
+                    <button class="btn btn-ghost" @onclick="NewProduct">Cancel</button>
+                }
+                <button class="btn btn-ghost" style="margin-left:auto" @onclick="SeedDefaults">Seed defaults</button>
+            </div>
+        </div>
+
+        <!-- List -->
+        @if (_loading)
+        {
+            <p style="color:var(--muted)">Loading…</p>
+        }
+        else if (_products.Count == 0)
+        {
+            <p style="color:var(--muted)">No plans yet. Add one above or seed defaults.</p>
+        }
+        else
+        {
+            <table class="cat-table">
+                <thead>
+                    <tr><th>SKU</th><th>Name</th><th>Billing</th><th>USD</th><th>VND</th><th>Active</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in _products)
+                    {
+                        <tr>
+                            <td><code>@p.Sku</code></td>
+                            <td>@p.Name</td>
+                            <td>@p.BillingInterval@(p.TrialDays > 0 ? $" · {p.TrialDays}d trial" : "")</td>
+                            <td>$@p.PriceUsd.ToString("0.##")</td>
+                            <td>@p.PriceVnd.ToString("0")</td>
+                            <td>@(p.Active ? "✓" : "—")</td>
+                            <td class="cat-row-actions">
+                                <button class="btn btn-ghost" @onclick="() => Edit(p)">Edit</button>
+                                <button class="btn btn-ghost cat-del" @onclick="() => Delete(p.Sku)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</section>
+
+@code {
+    private List<AppProduct> _products = new();
+    private AppProduct _edit = new() { Active = true };
+    private string _featuresText = "";
+    private bool _isNew = true;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _uploading;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _products = (await Store.GetAllAsync()).ToList();
+        _loading = false;
+    }
+
+    private void NewProduct()
+    {
+        _edit = new AppProduct { Active = true };
+        _featuresText = "";
+        _isNew = true;
+        _error = null;
+    }
+
+    private void Edit(AppProduct p)
+    {
+        _edit = new AppProduct
+        {
+            Sku = p.Sku, Name = p.Name, Description = p.Description,
+            PriceUsd = p.PriceUsd, PriceVnd = p.PriceVnd, ImageUrl = p.ImageUrl, Active = p.Active,
+            BillingInterval = p.BillingInterval, TrialDays = p.TrialDays, Features = new List<string>(p.Features)
+        };
+        _featuresText = string.Join("\n", p.Features);
+        _isNew = false;
+        _error = null;
+    }
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        _uploading = true;
+        try
+        {
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(5 * 1024 * 1024).CopyToAsync(ms);
+            ms.Position = 0;
+            _edit.ImageUrl = await Uploader.UploadAsync(ms, e.File.Name, e.File.ContentType);
+        }
+        catch (Exception ex)
+        {
+            _error = $"Image upload failed: {ex.Message}";
+        }
+        finally { _uploading = false; }
+    }
+
+    private async Task Save()
+    {
+        _error = null;
+
+        if (!CatalogStore.IsValidSku(_edit.Sku))
+        {
+            _error = "SKU must be 1–64 chars: letters, digits, dash or underscore.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_edit.Name))
+        {
+            _error = "Name is required.";
+            return;
+        }
+
+        _edit.Features = _featuresText
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        _busy = true;
+        try
+        {
+            await Store.UpsertAsync(_edit);
+            await ReloadAsync();
+            NewProduct();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task Delete(string sku)
+    {
+        await Store.DeleteAsync(sku);
+        if (!_isNew && string.Equals(_edit.Sku, sku, StringComparison.OrdinalIgnoreCase))
+            NewProduct();
+        await ReloadAsync();
+    }
+
+    private async Task SeedDefaults()
+    {
+        _busy = true;
+        try
+        {
+            foreach (var p in DefaultPlans())
+                await Store.UpsertAsync(p);
+            await ReloadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private static IEnumerable<AppProduct> DefaultPlans() => new[]
+    {
+        new AppProduct
+        {
+            Sku = "starter", Name = "Starter", BillingInterval = BillingIntervals.Monthly,
+            PriceUsd = 29, PriceVnd = 700000, TrialDays = 14, Active = true,
+            Description = "Everything to get started.",
+            Features = new() { "1 location", "Up to 3 staff", "Core POS & booking", "Email support" }
+        },
+        new AppProduct
+        {
+            Sku = "pro", Name = "Professional", BillingInterval = BillingIntervals.Monthly,
+            PriceUsd = 69, PriceVnd = 1700000, TrialDays = 14, Active = true,
+            Description = "For growing businesses.",
+            Features = new() { "Up to 5 locations", "Unlimited staff", "Analytics & loyalty", "Priority support" }
+        },
+        new AppProduct
+        {
+            Sku = "enterprise", Name = "Enterprise", BillingInterval = BillingIntervals.Yearly,
+            PriceUsd = 990, PriceVnd = 24000000, TrialDays = 0, Active = true,
+            Description = "Custom scale and support.",
+            Features = new() { "Unlimited locations", "Dedicated success manager", "SSO & custom integrations" }
+        }
+    };
+}

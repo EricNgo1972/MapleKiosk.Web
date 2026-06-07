@@ -1,0 +1,252 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@inject CartState Cart
+@inject MapleShopClient Client
+@inject NavigationManager Nav
+
+<div class="mshop">
+    <button class="mshop-fab" @onclick="Open" aria-label="Open cart">
+        🛒
+        @if (Cart.Count > 0)
+        {
+            <span class="mshop-badge">@Cart.Count</span>
+        }
+    </button>
+
+    @if (_open)
+    {
+        <div class="mshop-overlay" @onclick="Close"></div>
+        <aside class="mshop-drawer" @onclick:stopPropagation="true">
+            <header class="mshop-drawer__head">
+                <h3>@HeaderText</h3>
+                <button class="mshop-x" @onclick="Close" aria-label="Close">✕</button>
+            </header>
+
+            @if (_view == View.Cart)
+            {
+                @if (Cart.Lines.Count == 0)
+                {
+                    <p class="mshop-empty">Your cart is empty.</p>
+                }
+                else
+                {
+                    <ul class="mshop-lines">
+                        @foreach (var line in Cart.Lines)
+                        {
+                            <li class="mshop-line">
+                                <div class="mshop-line__main">
+                                    <span class="mshop-line__name">@line.Name</span>
+                                    <span class="mshop-line__price">$@line.PriceUsd.ToString("0.##")</span>
+                                </div>
+                                <button class="mshop-remove" @onclick="() => Cart.Remove(line.Sku)">Remove</button>
+                            </li>
+                        }
+                    </ul>
+                    <div class="mshop-total">
+                        <span>Total</span>
+                        <strong>$@Cart.TotalUsd.ToString("0.##") USD</strong>
+                    </div>
+                    <button class="mshop-btn mshop-btn--primary" @onclick="GoCheckout">Checkout</button>
+                }
+            }
+            else if (_view == View.Checkout)
+            {
+                <div class="mshop-field">
+                    <label>Email for your receipt</label>
+                    <input type="email" @bind="_email" placeholder="you@example.com" />
+                </div>
+
+                <div class="mshop-field">
+                    <label>Payment method</label>
+                    <div class="mshop-methods">
+                        <label class="@MethodClass("Stripe")">
+                            <input type="radio" name="method" value="Stripe"
+                                   checked="@(_method == "Stripe")" @onchange="@(() => _method = "Stripe")" />
+                            Card (Stripe)
+                        </label>
+                        @if (!Cart.HasSubscription)
+                        {
+                            <label class="@MethodClass("VietQR")">
+                                <input type="radio" name="method" value="VietQR"
+                                       checked="@(_method == "VietQR")" @onchange="@(() => _method = "VietQR")" />
+                                VietQR (VND)
+                            </label>
+                        }
+                    </div>
+                    @if (Cart.HasSubscription)
+                    {
+                        <p class="mshop-vqr__hint">Subscriptions are billed by card.</p>
+                    }
+                </div>
+
+                @if (_error is not null)
+                {
+                    <p class="mshop-error">@_error</p>
+                }
+
+                <button class="mshop-btn mshop-btn--primary" disabled="@_busy" @onclick="Pay">
+                    @(_busy ? "Processing…" : "Pay now")
+                </button>
+                <button class="mshop-btn mshop-btn--ghost" @onclick="() => _view = View.Cart">Back</button>
+            }
+            else if (_view == View.VietQr)
+            {
+                <p class="mshop-vqr__hint">Scan with your banking app. This page updates automatically once payment arrives.</p>
+                @if (_qrImage is not null)
+                {
+                    <img class="mshop-vqr__img" src="@_qrImage" alt="VietQR payment code" />
+                }
+                <div class="mshop-total">
+                    <span>Amount</span>
+                    <strong>@_qrAmount.ToString("0") VND</strong>
+                </div>
+                <p class="mshop-vqr__ref">Reference: <code>@_orderRef</code></p>
+                <p class="mshop-vqr__status">Waiting for payment…</p>
+                <button class="mshop-btn mshop-btn--ghost" @onclick="CancelVietQr">Cancel</button>
+            }
+        </aside>
+    }
+</div>
+
+@code {
+    private enum View { Cart, Checkout, VietQr }
+
+    private bool _open;
+    private View _view = View.Cart;
+    private string? _email;
+    private string _method = "Stripe";
+    private bool _busy;
+    private string? _error;
+
+    private string? _orderRef;
+    private string? _qrImage;
+    private decimal _qrAmount;
+    private CancellationTokenSource? _pollCts;
+
+    private string HeaderText => _view switch
+    {
+        View.Checkout => "Checkout",
+        View.VietQr => "Scan to pay",
+        _ => "Your cart"
+    };
+
+    protected override void OnInitialized() => Cart.OnChange += OnCartChanged;
+
+    private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
+
+    private void Open() { _open = true; _view = View.Cart; }
+
+    private void Close()
+    {
+        _open = false;
+        StopPolling();
+    }
+
+    private void GoCheckout()
+    {
+        _error = null;
+        if (Cart.HasSubscription) _method = "Stripe"; // VietQR can't auto-renew
+        _view = View.Checkout;
+    }
+
+    private string MethodClass(string method)
+        => _method == method ? "mshop-method mshop-method--on" : "mshop-method";
+
+    private async Task Pay()
+    {
+        if (Cart.Lines.Count == 0) { _error = "Your cart is empty."; return; }
+
+        _busy = true;
+        _error = null;
+
+        var request = new CreateOrderRequest
+        {
+            Method = _method,
+            Email = _email,
+            SuccessUrl = Nav.BaseUri + "shop/success",
+            CancelUrl = Nav.BaseUri + "shop/cancel",
+            Items = Cart.Lines.Select(l => new CheckoutItem { Sku = l.Sku, Quantity = 1 }).ToList()
+        };
+
+        var result = await Client.CreateOrderAsync(request);
+        _busy = false;
+
+        if (!result.Success)
+        {
+            _error = result.Error ?? "Could not start checkout.";
+            return;
+        }
+
+        _orderRef = result.OrderRef;
+
+        if (_method == "VietQR")
+        {
+            _qrImage = result.QrImageDataUri;
+            _qrAmount = result.Total;
+            _view = View.VietQr;
+            StartPolling();
+        }
+        else if (!string.IsNullOrWhiteSpace(result.StripeUrl))
+        {
+            Nav.NavigateTo(result.StripeUrl!, forceLoad: true);
+        }
+        else
+        {
+            _error = "Checkout did not return a payment link.";
+        }
+    }
+
+    private void StartPolling()
+    {
+        StopPolling();
+        _pollCts = new CancellationTokenSource();
+        _ = PollLoopAsync(_orderRef!, _pollCts.Token);
+    }
+
+    private async Task PollLoopAsync(string orderRef, CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(4));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                var status = await Client.GetStatusAsync(orderRef, ct);
+                if (status is null) continue;
+
+                if (string.Equals(status.Status, "Paid", StringComparison.OrdinalIgnoreCase))
+                {
+                    Nav.NavigateTo($"shop/success?ref={Uri.EscapeDataString(orderRef)}");
+                    return;
+                }
+                if (string.Equals(status.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(status.Status, "Failed", StringComparison.OrdinalIgnoreCase))
+                {
+                    _error = "This payment session has expired. Please try again.";
+                    _view = View.Checkout;
+                    await InvokeAsync(StateHasChanged);
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) { /* drawer closed / cancelled */ }
+    }
+
+    private void CancelVietQr()
+    {
+        StopPolling();
+        _view = View.Cart;
+    }
+
+    private void StopPolling()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = null;
+    }
+
+    public void Dispose()
+    {
+        Cart.OnChange -= OnCartChanged;
+        StopPolling();
+    }
+}

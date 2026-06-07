@@ -1,0 +1,11 @@
+@inject NavigationManager Nav
+
+@code {
+    // Sends an unauthenticated user to the sign-in page, preserving where they
+    // were headed. forceLoad so the cookie/OAuth server endpoints handle it.
+    protected override void OnInitialized()
+    {
+        var returnUrl = Uri.EscapeDataString(Nav.ToBaseRelativePath(Nav.Uri));
+        Nav.NavigateTo($"/signin?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

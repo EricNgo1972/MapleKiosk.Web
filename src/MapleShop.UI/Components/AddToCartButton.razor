@@ -1,0 +1,36 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@inject CartState Cart
+
+<button class="@CssClass" disabled="@InCart" @onclick="Add">
+    @(InCart ? "In cart ✓" : Label)
+</button>
+
+@code {
+    /// <summary>Product SKU — must match a catalog SKU on the backend.</summary>
+    [Parameter, EditorRequired] public string Sku { get; set; } = "";
+
+    /// <summary>Display name shown in the cart.</summary>
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+
+    /// <summary>USD price for cart display (the charge is recomputed server-side).</summary>
+    [Parameter] public decimal PriceUsd { get; set; }
+
+    [Parameter] public string Label { get; set; } = "Add to cart";
+
+    /// <summary>OneTime / Monthly / Yearly — must match the catalog for this SKU.</summary>
+    [Parameter] public string BillingInterval { get; set; } = "OneTime";
+
+    /// <summary>Extra CSS classes so the button can match the host's button styles.</summary>
+    [Parameter] public string CssClass { get; set; } = "btn btn-primary";
+
+    private bool InCart => Cart.Contains(Sku);
+
+    protected override void OnInitialized() => Cart.OnChange += OnCartChanged;
+
+    private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
+
+    private void Add() => Cart.Add(Sku, Name, PriceUsd, BillingInterval);
+
+    public void Dispose() => Cart.OnChange -= OnCartChanged;
+}

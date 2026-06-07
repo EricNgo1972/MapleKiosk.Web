@@ -10,6 +10,7 @@
             <a href="#industries">@L["nav.industries"]</a>
             <a href="#how">@L["nav.how"]</a>
             <a href="#pricing">@L["nav.pricing"]</a>
+            <a href="/shop">Shop</a>
         </div>
         <div class="lang-switch">
             <a href="/"   class="@(L.Culture == "en" ? "active" : "")">EN</a>
@@ -18,5 +19,17 @@
             <a href="/ru" class="@(L.Culture == "ru" ? "active" : "")">RU</a>
         </div>
         <a class="btn btn-primary nav__cta" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+        <AuthorizeView>
+            <Authorized>
+                <a class="btn btn-ghost" href="/shop/admin">Catalog</a>
+                <span class="nav__user">@context.User.Identity?.Name</span>
+                <form method="post" action="/logout" style="display:inline">
+                    <button type="submit" class="btn btn-ghost">Sign out</button>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <a class="btn btn-ghost" href="/login">Sign in</a>
+            </NotAuthorized>
+        </AuthorizeView>
     </div>
 </nav>

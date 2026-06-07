@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36908.2 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapleKiosk.Web", "MapleKiosk.Web.csproj", "{3FD9BF09-8C66-D0CA-9449-76F45540BA86}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MapleShop.UI", "src\MapleShop.UI\MapleShop.UI.csproj", "{A1FE3731-8E65-4CEF-9433-952721164E61}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\build.yml = .github\workflows\build.yml
@@ -20,6 +22,10 @@ Global
 		{3FD9BF09-8C66-D0CA-9449-76F45540BA86}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3FD9BF09-8C66-D0CA-9449-76F45540BA86}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3FD9BF09-8C66-D0CA-9449-76F45540BA86}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1FE3731-8E65-4CEF-9433-952721164E61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1FE3731-8E65-4CEF-9433-952721164E61}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1FE3731-8E65-4CEF-9433-952721164E61}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1FE3731-8E65-4CEF-9433-952721164E61}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

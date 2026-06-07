@@ -1,0 +1,71 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@inject MapleShopClient Client
+@inject CartState Cart
+
+<section class="mshop-catalog">
+    @if (_loading)
+    {
+        <p class="mshop-catalog__msg">Loading products…</p>
+    }
+    else if (_products.Count == 0)
+    {
+        <p class="mshop-catalog__msg">No products are available right now.</p>
+    }
+    else
+    {
+        <div class="mshop-catalog__grid">
+            @foreach (var p in _products)
+            {
+                <div class="mshop-card">
+                    @if (!string.IsNullOrWhiteSpace(p.ImageUrl))
+                    {
+                        <img class="mshop-card__img" src="@p.ImageUrl" alt="@p.Name" />
+                    }
+                    <div class="mshop-card__name">@p.Name</div>
+                    @if (p.TrialDays > 0)
+                    {
+                        <span class="mshop-card__trial">@p.TrialDays-day free trial</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(p.Description))
+                    {
+                        <div class="mshop-card__desc">@p.Description</div>
+                    }
+                    @if (p.Features.Count > 0)
+                    {
+                        <ul class="mshop-card__features">
+                            @foreach (var f in p.Features)
+                            {
+                                <li>@f</li>
+                            }
+                        </ul>
+                    }
+                    <div class="mshop-card__price">
+                        $@p.PriceUsd.ToString("0.##") <small>USD@p.PriceSuffix</small>
+                    </div>
+                    <button class="mshop-btn mshop-btn--primary"
+                            disabled="@Cart.Contains(p.Sku)"
+                            @onclick="() => Cart.Add(p.Sku, p.Name, p.PriceUsd, p.BillingInterval)">
+                        @(Cart.Contains(p.Sku) ? "In cart ✓" : p.IsRecurring ? "Subscribe" : "Add to cart")
+                    </button>
+                </div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private List<CatalogProduct> _products = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Cart.OnChange += OnCartChanged;
+        _products = await Client.GetCatalogAsync();
+        _loading = false;
+    }
+
+    private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Cart.OnChange -= OnCartChanged;
+}

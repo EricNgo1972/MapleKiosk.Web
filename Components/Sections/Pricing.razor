@@ -17,7 +17,8 @@
                     <li>@L["price.starter.f4"]</li>
                     <li>@L["price.starter.f5"]</li>
                 </ul>
-                <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>@L["price.starter.cta"]</a>
+                <AddToCartButton Sku="starter" Name="@L["price.starter.name"]" PriceUsd="29"
+                                 BillingInterval="Monthly" Label="Add to cart" CssClass="btn btn-ghost" />
             </div>
             <div class="plan plan--featured">
                 <span class="plan__badge">@L["price.pro.badge"]</span>
@@ -32,7 +33,8 @@
                     <li>@L["price.pro.f5"]</li>
                     <li>@L["price.pro.f6"]</li>
                 </ul>
-                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["price.pro.cta"]</a>
+                <AddToCartButton Sku="pro" Name="@L["price.pro.name"]" PriceUsd="69"
+                                 BillingInterval="Monthly" Label="Add to cart" CssClass="btn btn-primary" />
             </div>
             <div class="plan">
                 <div class="plan__name">@L["price.ent.name"]</div>
