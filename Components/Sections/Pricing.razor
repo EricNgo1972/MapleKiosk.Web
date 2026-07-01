@@ -1,55 +1,77 @@
 @inject LocalizationService L
+@inject FamilyAppCatalog Catalog
 
 <section class="section fade-in" id="pricing">
-    <div class="container" style="text-align:center">
-        <span class="eyebrow">@L["price.eyebrow"]</span>
-        <h2 style="font-size:clamp(32px,4vw,52px);margin-top:16px">@L["price.title"]</h2>
-        <p style="color:var(--muted);max-width:520px;margin:16px auto 0">@L["price.sub"]</p>
-        <div class="pricing__grid">
-            <div class="plan">
-                <div class="plan__name">@L["price.starter.name"]</div>
-                <div class="plan__price">$29 <small>@L["price.per"]</small></div>
-                <div class="plan__tag">@L["price.starter.tag"]</div>
-                <ul>
-                    <li>@L["price.starter.f1"]</li>
-                    <li>@L["price.starter.f2"]</li>
-                    <li>@L["price.starter.f3"]</li>
-                    <li>@L["price.starter.f4"]</li>
-                    <li>@L["price.starter.f5"]</li>
-                </ul>
-                <AddToCartButton Sku="starter" Name="@L["price.starter.name"]" PriceUsd="29"
-                                 BillingInterval="Monthly" Label="Add to cart" CssClass="btn btn-ghost" />
-            </div>
-            <div class="plan plan--featured">
-                <span class="plan__badge">@L["price.pro.badge"]</span>
-                <div class="plan__name">@L["price.pro.name"]</div>
-                <div class="plan__price">$69 <small>@L["price.per"]</small></div>
-                <div class="plan__tag">@L["price.pro.tag"]</div>
-                <ul>
-                    <li>@L["price.pro.f1"]</li>
-                    <li>@L["price.pro.f2"]</li>
-                    <li>@L["price.pro.f3"]</li>
-                    <li>@L["price.pro.f4"]</li>
-                    <li>@L["price.pro.f5"]</li>
-                    <li>@L["price.pro.f6"]</li>
-                </ul>
-                <AddToCartButton Sku="pro" Name="@L["price.pro.name"]" PriceUsd="69"
-                                 BillingInterval="Monthly" Label="Add to cart" CssClass="btn btn-primary" />
-            </div>
-            <div class="plan">
-                <div class="plan__name">@L["price.ent.name"]</div>
-                <div class="plan__price">@L["price.ent.price"]</div>
-                <div class="plan__tag">@L["price.ent.tag"]</div>
-                <ul>
-                    <li>@L["price.ent.f1"]</li>
-                    <li>@L["price.ent.f2"]</li>
-                    <li>@L["price.ent.f3"]</li>
-                    <li>@L["price.ent.f4"]</li>
-                    <li>@L["price.ent.f5"]</li>
-                    <li>@L["price.ent.f6"]</li>
-                </ul>
-                <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>@L["price.ent.cta"]</a>
-            </div>
+    <div class="container">
+        <div class="pricing__intro">
+            <span class="eyebrow">@L["price.eyebrow"]</span>
+            <h2>@L["price.title"]</h2>
+            <p>@L["price.sub"]</p>
+        </div>
+
+        <div class="price-table-wrap">
+            <table class="price-table">
+                <thead>
+                    <tr>
+                        <th>@L["price.col.app"]</th>
+                        <th>@L["price.col.saas"]<span>@L["price.col.saas.note"]</span></th>
+                        <th>@L["price.col.onprem"]<span>@L["price.col.onprem.note"]</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var app in _apps)
+                    {
+                        <tr class="@(app.IsFeatured ? "is-featured" : "")">
+                            <td class="price-table__app">
+                                <span class="price-table__icon">@app.Icon</span>
+                                <span class="price-table__name">
+                                    @app.Title
+                                    @if (app.IsFeatured)
+                                    {
+                                        <em class="price-table__flag">@L["apps.featured"]</em>
+                                    }
+                                </span>
+                            </td>
+                            <td>
+                                @if (app.SaasMonthlyUsd is decimal saas)
+                                {
+                                    <span class="price-table__price">$@saas.ToString("0.##")<small>@L["price.per.mo"]</small></span>
+                                }
+                                else
+                                {
+                                    <span class="price-table__custom">@L["price.custom"]</span>
+                                }
+                            </td>
+                            <td>
+                                @if (app.OnPremiseUsd is decimal onprem)
+                                {
+                                    <span class="price-table__price">$@onprem.ToString("0.##")<small>@L["price.per.once"]</small></span>
+                                }
+                                else
+                                {
+                                    <a class="price-table__call" href="javascript:void(0)" data-open-trial>@L["price.call"]</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <p class="price-table__fine">@L["price.fine"]</p>
+
+        <div class="pricing__cta">
+            <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["price.cta.trial"]</a>
+            <a class="btn btn-ghost" href="javascript:void(0)" data-open-trial>@L["price.cta.sales"]</a>
         </div>
     </div>
 </section>
+
+@code {
+    private IReadOnlyList<FamilyApp> _apps = Array.Empty<FamilyApp>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _apps = await Catalog.GetAppsAsync();
+    }
+}

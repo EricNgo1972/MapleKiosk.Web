@@ -1,0 +1,38 @@
+@inject LocalizationService L
+@inject FamilyAppCatalog Catalog
+
+<section class="section section--surface fade-in" id="apps">
+    <div class="container">
+        <div class="features__head">
+            <div>
+                <span class="eyebrow">@L["apps.eyebrow"]</span>
+                <h2>@L["apps.title"]</h2>
+            </div>
+            <p>@L["apps.desc"]</p>
+        </div>
+        <div class="features__grid">
+            @foreach (var app in _apps)
+            {
+                <div class="feature @(app.IsFeatured ? "feature--featured" : "")">
+                    @if (app.IsFeatured)
+                    {
+                        <span class="feature__flag">@L["apps.featured"]</span>
+                    }
+                    <span class="feature__num">@app.Number</span>
+                    <div class="feature__icon">@app.Icon</div>
+                    <h3>@app.Title</h3>
+                    <p>@app.Description</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@code {
+    private IReadOnlyList<FamilyApp> _apps = Array.Empty<FamilyApp>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _apps = await Catalog.GetAppsAsync();
+    }
+}

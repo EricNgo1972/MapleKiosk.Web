@@ -36,11 +36,16 @@ jobs:
         run: dotnet restore MapleKiosk.Web.csproj
 
       - name: Publish (Release, linux-x64)
+        # Self-contained: the deploy host (phoebus) has a split-brain dotnet
+        # install (runtime under /usr/lib/dotnet, host/fxr under /usr/share/dotnet —
+        # neither a complete root), so a framework-dependent apphost can't resolve a
+        # runtime and crash-loops with "No frameworks were found" (exit 150). Bundling
+        # the runtime makes the release tarball self-sufficient.
         run: |
           dotnet publish MapleKiosk.Web.csproj \
             -c Release \
             -r linux-x64 \
-            --no-self-contained \
+            --self-contained true \
             -p:Version=${{ inputs.version }} \
             -p:AssemblyVersion=${{ inputs.version }}.0 \
             -p:FileVersion=${{ inputs.version }}.0 \

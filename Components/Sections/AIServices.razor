@@ -1,0 +1,36 @@
+@inject LocalizationService L
+
+<section class="section fade-in" id="ai">
+    <div class="container">
+        <div class="features__head">
+            <div>
+                <span class="eyebrow">@L["ai.eyebrow"]</span>
+                <h2>@L["ai.title"]</h2>
+            </div>
+            <p>@L["ai.desc"]</p>
+        </div>
+        <div class="features__grid">
+            @foreach (var (num, icon, keyPrefix) in _services)
+            {
+                <div class="feature">
+                    <span class="feature__num">@num</span>
+                    <div class="feature__icon">@icon</div>
+                    <h3>@L[$"{keyPrefix}.title"]</h3>
+                    <p>@L[$"{keyPrefix}.desc"]</p>
+                </div>
+            }
+        </div>
+        <div class="ai__cta">
+            <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["ai.cta"]</a>
+        </div>
+    </div>
+</section>
+
+@code {
+    private readonly (string num, string icon, string prefix)[] _services = new[]
+    {
+        ("01","💬","ai.01"),
+        ("02","⚙️","ai.02"),
+        ("03","🤖","ai.03"),
+    };
+}

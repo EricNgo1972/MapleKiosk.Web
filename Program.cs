@@ -31,6 +31,10 @@ builder.Services.AddScoped<LocalizationService>();
 builder.Services.AddSingleton<TrialSignupService>();
 builder.Services.AddSingleton<EmailService>();
 
+// Azure-Table-backed "MapleKiosk family" apps showcase (one card per product).
+// Uses STORAGE_CONNECTION_STRING; seeds/falls back to FamilyAppCatalog.DefaultApps().
+builder.Services.AddSingleton<FamilyAppCatalog>();
+
 // Central OAuth login (oauth.maplekiosk.ca), exactly like MapleTKT. AuthHostUrl
 // + signing key resolve config-free (env → Azure Table Authentication/*) and are
 // injected into IConfiguration so AddSPCAuth binds them.

@@ -6,9 +6,9 @@
             <img src="MapleKiosk_rectangle.png" alt="MapleKiosk" />
         </a>
         <div class="nav__links">
-            <a href="#features">@L["nav.features"]</a>
+            <a href="#apps">@L["nav.apps"]</a>
+            <a href="#ai">@L["nav.ai"]</a>
             <a href="#industries">@L["nav.industries"]</a>
-            <a href="#how">@L["nav.how"]</a>
             <a href="#pricing">@L["nav.pricing"]</a>
             <a href="/shop">Shop</a>
         </div>
@@ -21,14 +21,34 @@
         <a class="btn btn-primary nav__cta" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
         <AuthorizeView>
             <Authorized>
-                <a class="btn btn-ghost" href="/shop/admin">Catalog</a>
-                <span class="nav__user">@context.User.Identity?.Name</span>
-                <form method="post" action="/logout" style="display:inline">
-                    <button type="submit" class="btn btn-ghost">Sign out</button>
-                </form>
+                <div class="user-menu">
+                    <button type="button" class="user-badge" data-user-menu aria-haspopup="true" aria-expanded="false">
+                        <span class="user-badge__name">@context.User.Identity?.Name</span>
+                        <span class="user-badge__chev" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="user-pop" data-user-pop>
+                        <button type="button" class="user-pop__item" data-theme-toggle>
+                            <span class="user-pop__icon theme-toggle__icon" aria-hidden="true"></span>
+                            <span>@L["nav.theme"]</span>
+                        </button>
+                        <a class="user-pop__item" href="/shop/admin">
+                            <span class="user-pop__icon" aria-hidden="true">🗂️</span>
+                            <span>@L["nav.catalog"]</span>
+                        </a>
+                        <form method="post" action="/logout" class="user-pop__form">
+                            <button type="submit" class="user-pop__item">
+                                <span class="user-pop__icon" aria-hidden="true">↩︎</span>
+                                <span>@L["nav.signout"]</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </Authorized>
             <NotAuthorized>
-                <a class="btn btn-ghost" href="/login">Sign in</a>
+                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle light and dark theme" title="Toggle theme">
+                    <span class="theme-toggle__icon" aria-hidden="true"></span>
+                </button>
+                <a class="btn btn-ghost" href="/login">@L["nav.signin"]</a>
             </NotAuthorized>
         </AuthorizeView>
     </div>
