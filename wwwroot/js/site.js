@@ -104,4 +104,20 @@
       img.replaceWith(div);
     });
   });
+
+  // ===== Email assembly (defeats Cloudflare "[email protected]" obfuscation) =====
+  // The server HTML never contains a literal user@domain string, so Cloudflare has
+  // nothing to rewrite. We build the mailto link + visible text client-side instead.
+  function wireMail() {
+    document.querySelectorAll('a[data-user][data-domain]').forEach(a => {
+      if (a.dataset.mailWired) return;
+      a.dataset.mailWired = '1';
+      const addr = a.getAttribute('data-user') + '@' + a.getAttribute('data-domain');
+      a.setAttribute('href', 'mailto:' + addr);
+      a.textContent = addr;
+    });
+  }
+  wireMail();
+  // Re-run after Blazor enhanced navigation swaps the DOM.
+  document.addEventListener('enhancedload', wireMail);
 })();
