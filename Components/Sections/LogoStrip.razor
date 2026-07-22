@@ -4,11 +4,36 @@
     <div class="container">
         <div class="logo-strip__label">@L["strip.label"]</div>
         <div class="logo-strip__badges">
-            <span class="badge">@L["strip.nail"]</span>
-            <span class="badge">@L["strip.resto"]</span>
-            <span class="badge">@L["strip.garage"]</span>
-            <span class="badge">@L["strip.retail"]</span>
-            <span class="badge">@L["strip.startup"]</span>
+            @foreach (var v in _verticals)
+            {
+                @if (v.Href is not null)
+                {
+                    <a class="badge badge--link" href="@Localized(v.Href)">@L[v.Key]<span class="badge__arrow" aria-hidden="true">→</span></a>
+                }
+                else
+                {
+                    <span class="badge">@L[v.Key]</span>
+                }
+            }
         </div>
     </div>
 </section>
+
+@code {
+    private record Vertical(string Key, string? Href);
+
+    // Each vertical links to its own page. Only Nail Salons (MapleSpa) has one for
+    // now; give the others an Href here as their pages ship.
+    private readonly Vertical[] _verticals =
+    {
+        new("strip.nail",    "/nails"),
+        new("strip.cafe",    "/coffee"),
+        new("strip.resto",   "/restaurants"),
+        new("strip.garage",  null),
+        new("strip.retail",  null),
+        new("strip.startup", null),
+    };
+
+    // Localize an internal path to the current culture (/nails -> /fr/nails, ...).
+    private string Localized(string path) => L.Culture == "en" ? path : $"/{L.Culture}{path}";
+}

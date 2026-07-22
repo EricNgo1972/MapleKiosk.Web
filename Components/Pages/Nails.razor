@@ -1,0 +1,253 @@
+@page "/nails"
+@page "/fr/nails"
+@page "/vi/nails"
+@page "/ru/nails"
+@layout Layout.NailsLayout
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["spa.meta.title"]</PageTitle>
+
+<NavBar ShowCta="false" />
+
+<main class="lp">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="lp-hero" id="top">
+        <div class="container lp-hero__grid">
+            <div class="lp-hero__content">
+                <span class="eyebrow">@L["spa.hero.eyebrow"]</span>
+                <h1 class="lp-hero__title">@L["spa.hero.title.a"] <span>@L["spa.hero.title.b"]</span></h1>
+                <p class="lp-hero__sub">@L["spa.hero.sub"]</p>
+                <div class="lp-hero__ctas">
+                    <a class="btn btn-primary" href="https://nails.maplekiosk.ca" target="_blank" rel="noopener">@L["spa.cta.trial"]</a>
+                    <a class="btn btn-ghost" href="#floor">@L["spa.hero.cta2"]</a>
+                </div>
+                <p class="lp-hero__note">@L["spa.hero.note"] · English · Français · Tiếng Việt · Русский</p>
+            </div>
+            <div class="lp-hero__media">
+                <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&q=80"
+                     alt="" loading="lazy" data-fallback="Nail salon" />
+                <div class="lp-hero__chip lp-hero__chip--a">@L["spa.hero.chip.a"]</div>
+                <div class="lp-hero__chip lp-hero__chip--b">@L["spa.hero.chip.b"]</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== FLUENCY BAND ===================== -->
+    <section class="section section--surface fade-in">
+        <div class="container">
+            <div class="lp-band__head">
+                <span class="eyebrow">@L["spa.band1.eyebrow"]</span>
+                <h2>@L["spa.band1.title"]</h2>
+                <p>@L["spa.band1.desc"]</p>
+            </div>
+            <div class="lp-fluency">
+                <div class="lp-fluency__item">
+                    <span class="lp-fluency__q">@L["spa.fluency.1.q"]</span>
+                    <p>@L["spa.fluency.1.d"]</p>
+                </div>
+                <div class="lp-fluency__item">
+                    <span class="lp-fluency__q">@L["spa.fluency.2.q"]</span>
+                    <p>@L["spa.fluency.2.d"]</p>
+                </div>
+                <div class="lp-fluency__item">
+                    <span class="lp-fluency__q">@L["spa.fluency.3.q"]</span>
+                    <p>@L["spa.fluency.3.d"]</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CAPABILITY GRID ===================== -->
+    <section class="section fade-in">
+        <div class="container">
+            <div class="features__head">
+                <div>
+                    <span class="eyebrow">@L["spa.grid.eyebrow"]</span>
+                    <h2>@L["spa.grid.title"]</h2>
+                </div>
+                <p>@L["spa.grid.desc"]</p>
+            </div>
+
+            <div class="features__grid">
+                <div class="feature">
+                    <div class="feature__icon">🔁</div>
+                    <h3>@L["spa.cap.1.title"]</h3>
+                    <p>@L["spa.cap.1.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🧾</div>
+                    <h3>@L["spa.cap.2.title"]</h3>
+                    <p>@L["spa.cap.2.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">💵</div>
+                    <h3>@L["spa.cap.3.title"]</h3>
+                    <p>@L["spa.cap.3.desc"]</p>
+                </div>
+                <div class="feature feature--featured">
+                    <span class="feature__flag">@L["spa.cap.4.flag"]</span>
+                    <div class="feature__icon">💅</div>
+                    <h3>@L["spa.cap.4.title"]</h3>
+                    <p>@L["spa.cap.4.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">📅</div>
+                    <h3>@L["spa.cap.5.title"]</h3>
+                    <p>@L["spa.cap.5.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">📦</div>
+                    <h3>@L["spa.cap.6.title"]</h3>
+                    <p>@L["spa.cap.6.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🎁</div>
+                    <h3>@L["spa.cap.7.title"]</h3>
+                    <p>@L["spa.cap.7.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🧼</div>
+                    <h3>@L["spa.cap.8.title"]</h3>
+                    <p>@L["spa.cap.8.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🤖</div>
+                    <h3>@L["spa.cap.9.title"]</h3>
+                    <p>@L["spa.cap.9.desc"]</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== A DAY ON THE FLOOR ===================== -->
+    <section class="section section--surface fade-in" id="floor">
+        <div class="container">
+            <div class="lp-band__head lp-band__head--center">
+                <span class="eyebrow">@L["spa.floor.eyebrow"]</span>
+                <h2>@L["spa.floor.title"]</h2>
+                <p>@L["spa.floor.desc"]</p>
+            </div>
+
+            <ol class="lp-timeline">
+                <li class="lp-step">
+                    <span class="lp-step__time">9:00</span>
+                    <div class="lp-step__body">
+                        <h3>@L["spa.step.1.t"]</h3>
+                        <p>@L["spa.step.1.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">11:30</span>
+                    <div class="lp-step__body">
+                        <h3>@L["spa.step.2.t"]</h3>
+                        <p>@L["spa.step.2.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">1:15</span>
+                    <div class="lp-step__body">
+                        <h3>@L["spa.step.3.t"]</h3>
+                        <p>@L["spa.step.3.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">6:00</span>
+                    <div class="lp-step__body">
+                        <h3>@L["spa.step.4.t"]</h3>
+                        <p>@L["spa.step.4.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">6:20</span>
+                    <div class="lp-step__body">
+                        <h3>@L["spa.step.5.t"]</h3>
+                        <p>@L["spa.step.5.d"]</p>
+                    </div>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- ===================== DEEP DIVE: PAYROLL ===================== -->
+    <section class="section fade-in">
+        <div class="container lp-split">
+            <div class="lp-split__text">
+                <span class="eyebrow">@L["spa.pay.eyebrow"]</span>
+                <h2>@L["spa.pay.title"]</h2>
+                <p>@L["spa.pay.desc"]</p>
+                <ul class="lp-checks">
+                    <li>@L["spa.pay.check.1"]</li>
+                    <li>@L["spa.pay.check.2"]</li>
+                    <li>@L["spa.pay.check.3"]</li>
+                    <li>@L["spa.pay.check.4"]</li>
+                    <li>@L["spa.pay.check.5"]</li>
+                </ul>
+            </div>
+            <aside class="lp-payout" aria-label="@L["spa.pay.card.aria"]">
+                <div class="lp-payout__head">
+                    <span>@L["spa.pay.card.head"]</span>
+                    <span class="lp-payout__tag">@L["spa.pay.card.tag"]</span>
+                </div>
+                <dl class="lp-payout__rows">
+                    <div><dt>@L["spa.pay.row.1"]</dt><dd>$540.00</dd></div>
+                    <div><dt>@L["spa.pay.row.2"]</dt><dd>$324.00</dd></div>
+                    <div><dt>@L["spa.pay.row.3"]</dt><dd>$86.00</dd></div>
+                    <div><dt>@L["spa.pay.row.4"]</dt><dd>$45.00</dd></div>
+                    <div class="lp-payout__minus"><dt>@L["spa.pay.row.5"]</dt><dd>−$18.00</dd></div>
+                    <div class="lp-payout__total"><dt>@L["spa.pay.row.total"]</dt><dd>$437.00</dd></div>
+                </dl>
+                <p class="lp-payout__foot">@L["spa.pay.card.foot"]</p>
+            </aside>
+        </div>
+    </section>
+
+    <!-- ===================== AI CALLOUT ===================== -->
+    <section class="section section--surface fade-in">
+        <div class="container lp-split lp-split--reverse">
+            <div class="lp-split__text">
+                <span class="eyebrow">@L["spa.ai.eyebrow"]</span>
+                <h2>@L["spa.ai.title"]</h2>
+                <p>@L["spa.ai.desc"]</p>
+                <ul class="lp-checks">
+                    <li>@L["spa.ai.check.1"]</li>
+                    <li>@L["spa.ai.check.2"]</li>
+                    <li>@L["spa.ai.check.3"]</li>
+                    <li>@L["spa.ai.check.4"]</li>
+                    <li>@L["spa.ai.check.5"]</li>
+                </ul>
+                <a class="btn btn-primary" href="https://nails.maplekiosk.ca" target="_blank" rel="noopener">@L["spa.cta.trial"]</a>
+            </div>
+            <div class="lp-split__media">
+                <img src="https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=800&q=80"
+                     alt="" loading="lazy" data-fallback="Salon front desk" />
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CTA ===================== -->
+    <section class="section fade-in">
+        <div class="container lp-cta">
+            <span class="eyebrow">@L["spa.cta.eyebrow"]</span>
+            <h2>@L["spa.cta.title"]</h2>
+            <p>@L["spa.cta.desc"]</p>
+            <div class="lp-cta__actions">
+                <a class="btn btn-primary" href="https://nails.maplekiosk.ca" target="_blank" rel="noopener">@L["spa.cta.trial"]</a>
+                <a class="btn btn-ghost" href="/#pricing">@L["spa.cta.pricing"]</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Localized routes: /nails (en), /fr/nails, /vi/nails, /ru/nails.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

@@ -1,4 +1,5 @@
 @inject LocalizationService L
+@inject NavigationManager Nav
 
 <nav class="nav">
     <div class="nav__inner">
@@ -8,17 +9,19 @@
         <div class="nav__links">
             <a href="#apps">@L["nav.apps"]</a>
             <a href="#ai">@L["nav.ai"]</a>
-            <a href="#industries">@L["nav.industries"]</a>
             <a href="#pricing">@L["nav.pricing"]</a>
             <a href="/shop">Shop</a>
         </div>
         <div class="lang-switch">
-            <a href="/"   class="@(L.Culture == "en" ? "active" : "")">EN</a>
-            <a href="/fr" class="@(L.Culture == "fr" ? "active" : "")">FR</a>
-            <a href="/vi" class="@(L.Culture == "vi" ? "active" : "")">VI</a>
-            <a href="/ru" class="@(L.Culture == "ru" ? "active" : "")">RU</a>
+            <a href="@LangHref("en")" class="@(L.Culture == "en" ? "active" : "")">EN</a>
+            <a href="@LangHref("fr")" class="@(L.Culture == "fr" ? "active" : "")">FR</a>
+            <a href="@LangHref("vi")" class="@(L.Culture == "vi" ? "active" : "")">VI</a>
+            <a href="@LangHref("ru")" class="@(L.Culture == "ru" ? "active" : "")">RU</a>
         </div>
-        <a class="btn btn-primary nav__cta" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+        @if (ShowCta)
+        {
+            <a class="btn btn-primary nav__cta" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+        }
         <AuthorizeView>
             <Authorized>
                 <div class="user-menu">
@@ -48,8 +51,29 @@
                 <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle light and dark theme" title="Toggle theme">
                     <span class="theme-toggle__icon" aria-hidden="true"></span>
                 </button>
-                <a class="btn btn-ghost" href="/login">@L["nav.signin"]</a>
+                <a class="btn btn-ghost nav__signin" href="/login">@L["nav.signin"]</a>
             </NotAuthorized>
         </AuthorizeView>
     </div>
 </nav>
+
+@code {
+    // Top-bar "Start free trial" CTA. Hidden on pages that don't want it (e.g. /nails).
+    [Parameter] public bool ShowCta { get; set; } = true;
+
+    // Base paths that have localized routes (/, /fr/<path>, ...). The language
+    // switch keeps you on the current page for these; anything else falls back to
+    // the localized home so we never link to a non-existent localized route.
+    private static readonly HashSet<string> LocalizedPaths = new() { "", "nails", "privacy", "terms", "tos" };
+
+    private string LangHref(string culture)
+    {
+        var rel = Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].Split('#')[0].Trim('/');
+        var segs = rel.Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (segs.Count > 0 && segs[0] is "fr" or "vi" or "ru") segs.RemoveAt(0);
+        var basePath = string.Join('/', segs);
+        if (!LocalizedPaths.Contains(basePath)) basePath = "";
+        if (culture == "en") return basePath == "" ? "/" : $"/{basePath}";
+        return basePath == "" ? $"/{culture}" : $"/{culture}/{basePath}";
+    }
+}

@@ -15,6 +15,11 @@ public class FamilyApp
     /// <summary>When true the card is highlighted (the flagship MapleKiosk app).</summary>
     public bool IsFeatured { get; set; }
 
+    /// <summary>Translation key for the industry label shown on the card (e.g. "apps.ind.coffee").</summary>
+    public string IndustryKey { get; set; } = "";
+    /// <summary>Path to the product's dedicated page (e.g. "/coffee"); null ⇒ the card is not a link.</summary>
+    public string? PageSlug { get; set; }
+
     /// <summary>Monthly SaaS (hosted) price in USD. null ⇒ shown as "Custom".</summary>
     public decimal? SaasMonthlyUsd { get; set; }
     /// <summary>One-time on-premise (self-hosted) licence price in USD. null ⇒ shown as "Custom".</summary>

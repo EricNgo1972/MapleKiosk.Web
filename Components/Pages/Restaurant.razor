@@ -1,0 +1,252 @@
+@page "/restaurants"
+@page "/fr/restaurants"
+@page "/vi/restaurants"
+@page "/ru/restaurants"
+@layout Layout.RestaurantLayout
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["res.meta.title"]</PageTitle>
+
+<NavBar ShowCta="false" />
+
+<main class="lp">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="lp-hero" id="top">
+        <div class="container lp-hero__grid">
+            <div class="lp-hero__content">
+                <span class="eyebrow">@L["res.hero.eyebrow"]</span>
+                <h1 class="lp-hero__title">@L["res.hero.title.a"] <span>@L["res.hero.title.b"]</span></h1>
+                <p class="lp-hero__sub">@L["res.hero.sub"]</p>
+                <div class="lp-hero__ctas">
+                    <a class="btn btn-primary" href="https://restaurants.maplekiosk.ca" target="_blank" rel="noopener">@L["res.cta.trial"]</a>
+                    <a class="btn btn-ghost" href="#floor">@L["res.hero.cta2"]</a>
+                </div>
+                <p class="lp-hero__note">@L["res.hero.note"] · English · Français · Tiếng Việt · Русский</p>
+            </div>
+            <div class="lp-hero__media">
+                <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80"
+                     alt="" loading="lazy" data-fallback="Restaurant dining room" />
+                <div class="lp-hero__chip lp-hero__chip--a">@L["res.hero.chip.a"]</div>
+                <div class="lp-hero__chip lp-hero__chip--b">@L["res.hero.chip.b"]</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== FLUENCY BAND ===================== -->
+    <section class="section section--surface fade-in">
+        <div class="container">
+            <div class="lp-band__head">
+                <span class="eyebrow">@L["res.band1.eyebrow"]</span>
+                <h2>@L["res.band1.title"]</h2>
+                <p>@L["res.band1.desc"]</p>
+            </div>
+            <div class="lp-fluency">
+                <div class="lp-fluency__item">
+                    <span class="lp-fluency__q">@L["res.fluency.1.q"]</span>
+                    <p>@L["res.fluency.1.d"]</p>
+                </div>
+                <div class="lp-fluency__item">
+                    <span class="lp-fluency__q">@L["res.fluency.2.q"]</span>
+                    <p>@L["res.fluency.2.d"]</p>
+                </div>
+                <div class="lp-fluency__item">
+                    <span class="lp-fluency__q">@L["res.fluency.3.q"]</span>
+                    <p>@L["res.fluency.3.d"]</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CAPABILITY GRID ===================== -->
+    <section class="section fade-in">
+        <div class="container">
+            <div class="features__head">
+                <div>
+                    <span class="eyebrow">@L["res.grid.eyebrow"]</span>
+                    <h2>@L["res.grid.title"]</h2>
+                </div>
+                <p>@L["res.grid.desc"]</p>
+            </div>
+
+            <div class="features__grid">
+                <div class="feature">
+                    <div class="feature__icon">🍽️</div>
+                    <h3>@L["res.cap.1.title"]</h3>
+                    <p>@L["res.cap.1.desc"]</p>
+                </div>
+                <div class="feature feature--featured">
+                    <span class="feature__flag">@L["res.cap.2.flag"]</span>
+                    <div class="feature__icon">🔥</div>
+                    <h3>@L["res.cap.2.title"]</h3>
+                    <p>@L["res.cap.2.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🧾</div>
+                    <h3>@L["res.cap.3.title"]</h3>
+                    <p>@L["res.cap.3.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">📅</div>
+                    <h3>@L["res.cap.4.title"]</h3>
+                    <p>@L["res.cap.4.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">💳</div>
+                    <h3>@L["res.cap.5.title"]</h3>
+                    <p>@L["res.cap.5.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🥗</div>
+                    <h3>@L["res.cap.6.title"]</h3>
+                    <p>@L["res.cap.6.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🚚</div>
+                    <h3>@L["res.cap.7.title"]</h3>
+                    <p>@L["res.cap.7.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">📦</div>
+                    <h3>@L["res.cap.8.title"]</h3>
+                    <p>@L["res.cap.8.desc"]</p>
+                </div>
+                <div class="feature">
+                    <div class="feature__icon">🤖</div>
+                    <h3>@L["res.cap.9.title"]</h3>
+                    <p>@L["res.cap.9.desc"]</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== A DINNER SERVICE ===================== -->
+    <section class="section section--surface fade-in" id="floor">
+        <div class="container">
+            <div class="lp-band__head lp-band__head--center">
+                <span class="eyebrow">@L["res.floor.eyebrow"]</span>
+                <h2>@L["res.floor.title"]</h2>
+                <p>@L["res.floor.desc"]</p>
+            </div>
+
+            <ol class="lp-timeline">
+                <li class="lp-step">
+                    <span class="lp-step__time">4:30</span>
+                    <div class="lp-step__body">
+                        <h3>@L["res.step.1.t"]</h3>
+                        <p>@L["res.step.1.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">6:30</span>
+                    <div class="lp-step__body">
+                        <h3>@L["res.step.2.t"]</h3>
+                        <p>@L["res.step.2.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">7:45</span>
+                    <div class="lp-step__body">
+                        <h3>@L["res.step.3.t"]</h3>
+                        <p>@L["res.step.3.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">9:00</span>
+                    <div class="lp-step__body">
+                        <h3>@L["res.step.4.t"]</h3>
+                        <p>@L["res.step.4.d"]</p>
+                    </div>
+                </li>
+                <li class="lp-step">
+                    <span class="lp-step__time">10:30</span>
+                    <div class="lp-step__body">
+                        <h3>@L["res.step.5.t"]</h3>
+                        <p>@L["res.step.5.d"]</p>
+                    </div>
+                </li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- ===================== DEEP DIVE: THE CHECK ===================== -->
+    <section class="section fade-in">
+        <div class="container lp-split">
+            <div class="lp-split__text">
+                <span class="eyebrow">@L["res.pay.eyebrow"]</span>
+                <h2>@L["res.pay.title"]</h2>
+                <p>@L["res.pay.desc"]</p>
+                <ul class="lp-checks">
+                    <li>@L["res.pay.check.1"]</li>
+                    <li>@L["res.pay.check.2"]</li>
+                    <li>@L["res.pay.check.3"]</li>
+                    <li>@L["res.pay.check.4"]</li>
+                    <li>@L["res.pay.check.5"]</li>
+                </ul>
+            </div>
+            <aside class="lp-payout" aria-label="@L["res.pay.card.aria"]">
+                <div class="lp-payout__head">
+                    <span>@L["res.pay.card.head"]</span>
+                    <span class="lp-payout__tag">@L["res.pay.card.tag"]</span>
+                </div>
+                <dl class="lp-payout__rows">
+                    <div><dt>@L["res.pay.row.1"]</dt><dd>$186.00</dd></div>
+                    <div><dt>@L["res.pay.row.2"]</dt><dd>$84.00</dd></div>
+                    <div><dt>@L["res.pay.row.3"]</dt><dd>$48.60</dd></div>
+                    <div><dt>@L["res.pay.row.4"]</dt><dd>$41.42</dd></div>
+                    <div class="lp-payout__total"><dt>@L["res.pay.row.total"]</dt><dd>$360.02</dd></div>
+                </dl>
+                <p class="lp-payout__foot">@L["res.pay.card.foot"]</p>
+            </aside>
+        </div>
+    </section>
+
+    <!-- ===================== AI CALLOUT ===================== -->
+    <section class="section section--surface fade-in">
+        <div class="container lp-split lp-split--reverse">
+            <div class="lp-split__text">
+                <span class="eyebrow">@L["res.ai.eyebrow"]</span>
+                <h2>@L["res.ai.title"]</h2>
+                <p>@L["res.ai.desc"]</p>
+                <ul class="lp-checks">
+                    <li>@L["res.ai.check.1"]</li>
+                    <li>@L["res.ai.check.2"]</li>
+                    <li>@L["res.ai.check.3"]</li>
+                    <li>@L["res.ai.check.4"]</li>
+                    <li>@L["res.ai.check.5"]</li>
+                </ul>
+                <a class="btn btn-primary" href="https://restaurants.maplekiosk.ca" target="_blank" rel="noopener">@L["res.cta.trial"]</a>
+            </div>
+            <div class="lp-split__media">
+                <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&q=80"
+                     alt="" loading="lazy" data-fallback="Restaurant service" />
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CTA ===================== -->
+    <section class="section fade-in">
+        <div class="container lp-cta">
+            <span class="eyebrow">@L["res.cta.eyebrow"]</span>
+            <h2>@L["res.cta.title"]</h2>
+            <p>@L["res.cta.desc"]</p>
+            <div class="lp-cta__actions">
+                <a class="btn btn-primary" href="https://restaurants.maplekiosk.ca" target="_blank" rel="noopener">@L["res.cta.trial"]</a>
+                <a class="btn btn-ghost" href="/#pricing">@L["res.cta.pricing"]</a>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Localized routes: /restaurants (en), /fr/restaurants, /vi/restaurants, /ru/restaurants.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

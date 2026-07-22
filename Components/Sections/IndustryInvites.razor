@@ -1,0 +1,32 @@
+@inject LocalizationService L
+
+<section class="lp-invite fade-in">
+    <div class="container">
+        @foreach (var it in _invites)
+        {
+            <a class="lp-invite__band" href="@Localized(it.Href)">
+                <span class="lp-invite__icon" aria-hidden="true">@it.Icon</span>
+                <span class="lp-invite__text">
+                    <span class="lp-invite__q">@L[it.QKey]</span>
+                    <span class="lp-invite__sub">@L[it.SubKey]</span>
+                </span>
+                <span class="btn btn-primary lp-invite__cta">@L[it.CtaKey] <span aria-hidden="true">→</span></span>
+            </a>
+        }
+    </div>
+</section>
+
+@code {
+    private record Invite(string Icon, string QKey, string SubKey, string CtaKey, string Href);
+
+    // One targeted banner per product that has a live page. Add a row as pages ship.
+    private readonly Invite[] _invites =
+    {
+        new("💅", "spa.invite.q", "spa.invite.sub", "spa.invite.cta", "/nails"),
+        new("🧋", "cof.invite.q", "cof.invite.sub", "cof.invite.cta", "/coffee"),
+        new("🍽️", "res.invite.q", "res.invite.sub", "res.invite.cta", "/restaurants"),
+    };
+
+    // Locale-aware internal link (/nails -> /fr/nails, ...).
+    private string Localized(string path) => L.Culture == "en" ? path : $"/{L.Culture}{path}";
+}

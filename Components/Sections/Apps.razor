@@ -13,16 +13,16 @@
         <div class="features__grid">
             @foreach (var app in _apps)
             {
-                <div class="feature @(app.IsFeatured ? "feature--featured" : "")">
-                    @if (app.IsFeatured)
-                    {
-                        <span class="feature__flag">@L["apps.featured"]</span>
-                    }
-                    <span class="feature__num">@app.Number</span>
-                    <div class="feature__icon">@app.Icon</div>
-                    <h3>@app.Title</h3>
-                    <p>@app.Description</p>
-                </div>
+                var href = app.PageSlug is null ? null : Localized(app.PageSlug);
+                var cls = "feature" + (app.IsFeatured ? " feature--featured" : "") + (href is not null ? " feature--link" : "");
+                @if (href is not null)
+                {
+                    <a class="@cls" href="@href">@CardBody(app)</a>
+                }
+                else
+                {
+                    <div class="@cls">@CardBody(app)</div>
+                }
             }
         </div>
     </div>
@@ -35,4 +35,29 @@
     {
         _apps = await Catalog.GetAppsAsync();
     }
+
+    // Locale-aware link to the product's page (/coffee -> /fr/coffee, ...).
+    private string Localized(string path) => L.Culture == "en" ? path : $"/{L.Culture}{path}";
+
+    private RenderFragment CardBody(FamilyApp app) => __builder =>
+    {
+        <text>
+            @if (app.IsFeatured)
+            {
+                <span class="feature__flag">@L["apps.featured"]</span>
+            }
+            <span class="feature__num">@app.Number</span>
+            <div class="feature__icon">@app.Icon</div>
+            <h3>@app.Title</h3>
+            @if (!string.IsNullOrEmpty(app.IndustryKey))
+            {
+                <span class="feature__ind">@L[app.IndustryKey]</span>
+            }
+            <p>@app.Description</p>
+            @if (app.PageSlug is not null)
+            {
+                <span class="feature__more">@L["apps.explore"] <span aria-hidden="true">→</span></span>
+            }
+        </text>
+    };
 }

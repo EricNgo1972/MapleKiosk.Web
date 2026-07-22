@@ -53,12 +53,16 @@ public sealed class FamilyAppCatalog
     // ───────────────────────────────────────────────────────────────────────
     public static IReadOnlyList<FamilyApp> DefaultApps() => new[]
     {
-        // SaaS = fixed monthly price (raised +50%); on-premise = quoted (OnPremiseUsd null ⇒ "Call").
-        new FamilyApp { SortOrder = 1, Number = "01", Icon = "🛒", Title = "Point of Sale",            Description = "Fast, flexible checkout on any device — cash, card, tap or QR — with receipts and daily totals done for you.", IsFeatured = true, SaasMonthlyUsd = 44, OnPremiseUsd = null },
-        new FamilyApp { SortOrder = 2, Number = "02", Icon = "📅", Title = "Booking & Appointments",   Description = "Online scheduling, reminders and no-show protection that keep your calendar full.", SaasMonthlyUsd = 29, OnPremiseUsd = null },
-        new FamilyApp { SortOrder = 3, Number = "03", Icon = "📦", Title = "Inventory & Stock",         Description = "Track stock, suppliers and purchase orders in real time, with low-stock alerts before you run out.", SaasMonthlyUsd = 38, OnPremiseUsd = null },
-        new FamilyApp { SortOrder = 4, Number = "04", Icon = "🧾", Title = "Accounting & Invoicing",    Description = "Invoices, expenses and reports that keep the books tidy and make tax time painless.", SaasMonthlyUsd = 44, OnPremiseUsd = null },
-        new FamilyApp { SortOrder = 5, Number = "05", Icon = "🔧", Title = "Asset Maintenance",         Description = "Schedule upkeep, log repairs and track equipment so nothing breaks down at the worst time.", SaasMonthlyUsd = 29, OnPremiseUsd = null },
+        // The MapleKiosk apps for small businesses, each built for an industry. There is
+        // no standalone "POS" app — point of sale is built into the front-of-house
+        // products (Coffee, RES, SPA). IndustryKey = translation key for the card's
+        // industry label; PageSlug = dedicated page (null ⇒ card is not a link yet).
+        // SaaS = fixed monthly price; on-premise = quoted (OnPremiseUsd null ⇒ "Call").
+        new FamilyApp { SortOrder = 1, Number = "01", Icon = "☕", Title = "MapleCoffee", IndustryKey = "apps.ind.coffee", PageSlug = "/coffee",      Description = "Café and coffee-shop POS — fast counter checkout, tabs, modifiers, order-ahead and loyalty, sized for a small crew.", SaasMonthlyUsd = 39, OnPremiseUsd = null },
+        new FamilyApp { SortOrder = 2, Number = "02", Icon = "🍽️", Title = "MapleRES",    IndustryKey = "apps.ind.res",    PageSlug = "/restaurants", Description = "Restaurant POS and management for small dining rooms and takeout — floor plan, tableside orders, kitchen tickets and reservations.", SaasMonthlyUsd = 49, OnPremiseUsd = null },
+        new FamilyApp { SortOrder = 3, Number = "03", Icon = "💅", Title = "MapleSPA",    IndustryKey = "apps.ind.spa",    PageSlug = "/nails",       Description = "Salon POS and booking for nail and beauty shops — appointments, walk-in turns, and technician commissions and tips.", IsFeatured = true, SaasMonthlyUsd = 44, OnPremiseUsd = null },
+        new FamilyApp { SortOrder = 4, Number = "04", Icon = "🛠️", Title = "MapleEAM",    IndustryKey = "apps.ind.eam",    PageSlug = null,           Description = "Maintenance and asset tracking for small shops and garages — work orders, preventive schedules, repair history and uptime.", SaasMonthlyUsd = 39, OnPremiseUsd = null },
+        new FamilyApp { SortOrder = 5, Number = "05", Icon = "📒", Title = "MapleGL",     IndustryKey = "apps.ind.gl",     PageSlug = null,           Description = "The small-business books, sorted — general ledger, invoicing, expenses and tax-ready reports in one place.", SaasMonthlyUsd = 49, OnPremiseUsd = null },
     };
 
     /// <summary>Active products, in display order — one card each.</summary>
@@ -133,6 +137,8 @@ internal sealed class FamilyAppEntity : ITableEntity
     public string Icon { get; set; } = "";
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
+    public string IndustryKey { get; set; } = "";
+    public string PageSlug { get; set; } = "";
     public bool IsFeatured { get; set; }
     public bool IsActive { get; set; } = true;
     // Money stored as double in Table Storage; <= 0 means "Custom" (no fixed price).
@@ -146,6 +152,8 @@ internal sealed class FamilyAppEntity : ITableEntity
         Icon = Icon,
         Title = Title,
         Description = Description,
+        IndustryKey = IndustryKey,
+        PageSlug = string.IsNullOrEmpty(PageSlug) ? null : PageSlug,
         IsFeatured = IsFeatured,
         SaasMonthlyUsd = SaasMonthlyUsd > 0 ? (decimal)SaasMonthlyUsd : null,
         OnPremiseUsd = OnPremiseUsd > 0 ? (decimal)OnPremiseUsd : null,
@@ -160,6 +168,8 @@ internal sealed class FamilyAppEntity : ITableEntity
         Icon = a.Icon,
         Title = a.Title,
         Description = a.Description,
+        IndustryKey = a.IndustryKey,
+        PageSlug = a.PageSlug ?? "",
         IsFeatured = a.IsFeatured,
         IsActive = true,
         SaasMonthlyUsd = a.SaasMonthlyUsd.HasValue ? (double)a.SaasMonthlyUsd.Value : 0,
