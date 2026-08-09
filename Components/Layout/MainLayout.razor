@@ -1,4 +1,5 @@
 @inherits LayoutComponentBase
+@inject NavigationManager Nav
 
 <div class="bg-fx" aria-hidden="true">
     <div class="bg-fx__blob bg-fx__blob--a"></div>
@@ -8,10 +9,30 @@
 
 @Body
 
-<ShopWidget />
+@* The shop is not linked from the marketing site yet. Gate the cart widget
+   here in the static-SSR layout (re-rendered on every navigation) so the
+   marketing pages never open its interactive circuit at all. *@
+@if (OnShopPage)
+{
+    <ShopWidget />
+}
 
 <div id="blazor-error-ui" style="display:none;">
     An unhandled error has occurred.
     <a href="" class="reload">Reload</a>
     <a class="dismiss">🗙</a>
 </div>
+
+@code {
+    private bool OnShopPage
+    {
+        get
+        {
+            var rel = Nav.ToBaseRelativePath(Nav.Uri);
+            return rel.Equals("shop", StringComparison.OrdinalIgnoreCase)
+                || rel.StartsWith("shop/", StringComparison.OrdinalIgnoreCase)
+                || rel.StartsWith("shop?", StringComparison.OrdinalIgnoreCase)
+                || rel.StartsWith("shop#", StringComparison.OrdinalIgnoreCase);
+        }
+    }
+}

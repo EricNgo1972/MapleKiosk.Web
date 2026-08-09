@@ -7,10 +7,9 @@
             <img src="MapleKiosk_rectangle.png" alt="MapleKiosk" />
         </a>
         <div class="nav__links">
-            <a href="#apps">@L["nav.apps"]</a>
-            <a href="#ai">@L["nav.ai"]</a>
-            <a href="#pricing">@L["nav.pricing"]</a>
-            <a href="/shop">Shop</a>
+            <a href="@L.Path(L.Culture)#apps">@L["nav.apps"]</a>
+            <a href="@L.Path(L.Culture)#ai">@L["nav.ai"]</a>
+            <a href="@L.Path(L.Culture)#pricing">@L["nav.pricing"]</a>
         </div>
         <div class="lang-switch">
             <a href="@LangHref("en")" class="@(L.Culture == "en" ? "active" : "")">EN</a>
@@ -64,7 +63,7 @@
     // Base paths that have localized routes (/, /fr/<path>, ...). The language
     // switch keeps you on the current page for these; anything else falls back to
     // the localized home so we never link to a non-existent localized route.
-    private static readonly HashSet<string> LocalizedPaths = new() { "", "nails", "privacy", "terms", "tos" };
+    private static readonly HashSet<string> LocalizedPaths = new() { "", "nails", "restaurants", "coffee", "privacy", "terms", "tos" };
 
     private string LangHref(string culture)
     {

@@ -10,37 +10,24 @@
             <div class="footer__col">
                 <h5>@L["foot.product"]</h5>
                 <ul>
-                    <li><a href="/#apps">@L["nav.apps"]</a></li>
-                    <li><a href="#pricing">@L["nav.pricing"]</a></li>
-                    <li><a href="#how">@L["nav.how"]</a></li>
-                    <li><a href="#">@L["foot.integ"]</a></li>
+                    <li><a href="@L.Path(L.Culture)#apps">@L["nav.apps"]</a></li>
+                    <li><a href="@L.Path(L.Culture)#pricing">@L["nav.pricing"]</a></li>
+                    <li><a href="@L.Path(L.Culture)#how">@L["nav.how"]</a></li>
                 </ul>
             </div>
             <div class="footer__col">
                 <h5>@L["foot.industries"]</h5>
                 <ul>
-                    <li><a href="/nails">@L["ind.nail"]</a></li>
-                    <li><a href="/restaurants">@L["ind.resto"]</a></li>
-                    <li><a href="/#apps">@L["ind.retail"]</a></li>
-                    <li><a href="/#apps">@L["ind.garage"]</a></li>
-                </ul>
-            </div>
-            <div class="footer__col">
-                <h5>@L["foot.company"]</h5>
-                <ul>
-                    <li><a href="#">@L["foot.about"]</a></li>
-                    <li><a href="#">@L["foot.blog"]</a></li>
-                    <li><a href="#">@L["foot.careers"]</a></li>
-                    <li><a href="#">@L["foot.contact"]</a></li>
+                    <li><a href="@CulturePath("nails")">@L["ind.nail"]</a></li>
+                    <li><a href="@CulturePath("restaurants")">@L["ind.resto"]</a></li>
+                    <li><a href="@CulturePath("coffee")">@L["ind.coffee"]</a></li>
                 </ul>
             </div>
             <div class="footer__col">
                 <h5>@L["foot.legal"]</h5>
                 <ul>
-                    <li><a href="@LegalPath("privacy")">@L["foot.privacy"]</a></li>
-                    <li><a href="@LegalPath("terms")">@L["foot.terms"]</a></li>
-                    <li><a href="#">@L["foot.security"]</a></li>
-                    <li><a href="#">@L["foot.cookies"]</a></li>
+                    <li><a href="@CulturePath("privacy")">@L["foot.privacy"]</a></li>
+                    <li><a href="@CulturePath("terms")">@L["foot.terms"]</a></li>
                 </ul>
             </div>
         </div>
@@ -52,7 +39,7 @@
 </footer>
 
 @code {
-    private string LegalPath(string page)
+    private string CulturePath(string page)
     {
         var root = L.Path(L.Culture).TrimEnd('/');
         return string.IsNullOrEmpty(root) ? $"/{page}" : $"{root}/{page}";
