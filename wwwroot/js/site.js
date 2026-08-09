@@ -1,19 +1,4 @@
 (function () {
-  // ===== Theme (light default, dark optional; persisted) =====
-  function applyTheme(t) {
-    if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-    else document.documentElement.removeAttribute('data-theme');
-  }
-  try {
-    const saved = localStorage.getItem('mk-theme');
-    if (saved) applyTheme(saved);
-  } catch (e) { /* storage unavailable */ }
-  function toggleTheme() {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-    try { localStorage.setItem('mk-theme', next); } catch (e) { /* ignore */ }
-  }
-
   function openTrialModal() {
     const m = document.getElementById('trialModal');
     if (!m) return;
@@ -40,8 +25,6 @@
   window.closeUserMenu = closeUserMenu;
 
   document.addEventListener('click', (ev) => {
-    if (ev.target.closest('[data-theme-toggle]'))  { ev.preventDefault(); ev.stopPropagation(); toggleTheme(); return; }
-
     const menuBtn = ev.target.closest('[data-user-menu]');
     if (menuBtn) {
       ev.preventDefault(); ev.stopPropagation();
