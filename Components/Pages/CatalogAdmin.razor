@@ -49,7 +49,7 @@
                 </label>
 
                 <label style="grid-column:1/-1">Features (one per line)
-                    <textarea rows="4" @bind="_featuresText" placeholder="Unlimited invoices&#10;Priority support"></textarea>
+                    <textarea rows="4" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
                 </label>
 
                 <label style="grid-column:1/-1">Image
@@ -124,6 +124,10 @@
 </section>
 
 @code {
+    // Razor escapes a literal &#10; in attribute markup, so build the two-line
+    // placeholder in C# where "\n" survives to the rendered attribute.
+    private const string FeaturesPlaceholder = "Unlimited invoices\nPriority support";
+
     private List<AppProduct> _products = new();
     private AppProduct _edit = new() { Active = true };
     private string _featuresText = "";
