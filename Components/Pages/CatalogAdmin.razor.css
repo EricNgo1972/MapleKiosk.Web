@@ -1,6 +1,6 @@
 .cat-card {
-    background: rgba(255,255,255,.03);
-    border: 1px solid #2a2a31;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, rgba(29,26,23,.12));
     border-radius: 14px;
     padding: 20px;
     margin: 20px 0;
@@ -19,7 +19,7 @@
     flex-direction: column;
     gap: 6px;
     font-size: 14px;
-    color: var(--muted, #9ca3af);
+    color: var(--muted, #6b645c);
 }
 
 .cat-grid input[type=text],
@@ -29,15 +29,24 @@
 .cat-grid textarea {
     padding: 10px 12px;
     border-radius: 8px;
-    border: 1px solid #3a3a42;
-    background: #1f1f25;
-    color: #f4f4f5;
+    border: 1px solid var(--border, rgba(29,26,23,.12));
+    background: var(--surface, #fff);
+    color: var(--text, #1d1a17);
     font: inherit;
+}
+
+.cat-grid input[type=text]:focus,
+.cat-grid input:not([type]):focus,
+.cat-grid input[type=number]:focus,
+.cat-grid select:focus,
+.cat-grid textarea:focus {
+    outline: none;
+    border-color: var(--red, #c0392b);
 }
 
 .cat-grid textarea { resize: vertical; }
 
-.cat-grid input:disabled { opacity: .6; }
+.cat-grid input:disabled { opacity: .6; background: var(--surface-2, #f3ede4); }
 
 .cat-check {
     flex-direction: row !important;
@@ -61,10 +70,10 @@
 .cat-table td {
     text-align: left;
     padding: 10px 12px;
-    border-bottom: 1px solid #2a2a31;
+    border-bottom: 1px solid var(--border, rgba(29,26,23,.12));
 }
 
-.cat-table th { color: var(--muted, #9ca3af); font-weight: 600; font-size: 13px; }
+.cat-table th { color: var(--muted, #6b645c); font-weight: 600; font-size: 13px; }
 
 .cat-row-actions { display: flex; gap: 8px; justify-content: flex-end; }
-.cat-del { color: #f87171; }
+.cat-del { color: var(--red, #c0392b); }

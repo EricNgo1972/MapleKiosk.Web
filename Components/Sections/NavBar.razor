@@ -29,10 +29,6 @@
                         <span class="user-badge__chev" aria-hidden="true">▾</span>
                     </button>
                     <div class="user-pop" data-user-pop>
-                        <button type="button" class="user-pop__item" data-theme-toggle>
-                            <span class="user-pop__icon theme-toggle__icon" aria-hidden="true"></span>
-                            <span>@L["nav.theme"]</span>
-                        </button>
                         <a class="user-pop__item" href="/shop/admin">
                             <span class="user-pop__icon" aria-hidden="true">🗂️</span>
                             <span>@L["nav.catalog"]</span>
@@ -47,9 +43,6 @@
                 </div>
             </Authorized>
             <NotAuthorized>
-                <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle light and dark theme" title="Toggle theme">
-                    <span class="theme-toggle__icon" aria-hidden="true"></span>
-                </button>
                 <a class="btn btn-ghost nav__signin" href="/login">@L["nav.signin"]</a>
             </NotAuthorized>
         </AuthorizeView>
