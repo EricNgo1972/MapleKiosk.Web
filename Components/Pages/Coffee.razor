@@ -7,10 +7,18 @@
 @inject NavigationManager Nav
 
 <PageTitle>@L["cof.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["cof.meta.desc"]" />
+    <meta property="og:title" content="@L["cof.meta.title"]" />
+    <meta property="og:description" content="@L["cof.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+</HeadContent>
 
 <NavBar ShowCta="false" />
 
 <main class="lp">
+
+    <Breadcrumbs Current="@L["ind.coffee"]" />
 
     <!-- ===================== HERO ===================== -->
     <section class="lp-hero" id="top">
@@ -27,7 +35,7 @@
             </div>
             <div class="lp-hero__media">
                 <img src="https://images.unsplash.com/photo-1558857563-b371033873b8?w=800&q=80"
-                     alt="" loading="lazy" data-fallback="Boba tea & coffee" />
+                     alt="Boba tea and coffee drinks on a café counter" loading="lazy" data-fallback="Boba tea & coffee" />
                 <div class="lp-hero__chip lp-hero__chip--a">@L["cof.hero.chip.a"]</div>
                 <div class="lp-hero__chip lp-hero__chip--b">@L["cof.hero.chip.b"]</div>
             </div>
@@ -221,7 +229,7 @@
             </div>
             <div class="lp-split__media">
                 <img src="https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=800&q=80"
-                     alt="" loading="lazy" data-fallback="Café counter" />
+                     alt="Barista serving customers at a café counter" loading="lazy" data-fallback="Café counter" />
             </div>
         </div>
     </section>
@@ -242,6 +250,7 @@
 </main>
 
 <Footer />
+<MobileCta Href="https://coffee.maplekiosk.ca" Label="@L["cof.cta.trial"]" />
 
 @code {
     protected override void OnInitialized()

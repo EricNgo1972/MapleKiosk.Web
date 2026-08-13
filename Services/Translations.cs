@@ -475,6 +475,39 @@ public static class Translations
             ["res.invite.q"]    = "Own a restaurant?",
             ["res.invite.sub"]  = "Meet MapleRES — the MapleKiosk edition built for the dining room.",
             ["res.invite.cta"]  = "Test-drive MapleRES",
+
+            // SEO / meta
+            ["home.meta.title"] = "MapleKiosk — Business apps & affordable AI for small business",
+            ["home.meta.desc"]  = "MapleKiosk gives small and medium businesses a family of apps — POS, booking, inventory, accounting and asset maintenance — plus affordable AI integration services: chatbots, automation and custom AI agents.",
+            ["spa.meta.desc"]   = "MapleSpa is salon software for nail & beauty salons: booking, payroll splits, gift cards and an AI receptionist that speaks your clients' language. 14-day free trial.",
+            ["cof.meta.desc"]   = "MapleCoffee is the point of sale for cafés, boba tea shops and fast food counters: fast checkout, inventory and AI help during the rush. 14-day free trial.",
+            ["res.meta.desc"]   = "MapleRES is the POS for full-service and quick-service restaurants: floor plans, split checks, pay at the table and an AI host. 14-day free trial.",
+            ["crumb.home"]      = "Home",
+
+            // FAQ
+            ["faq.eyebrow"] = "FAQ",
+            ["faq.title"]   = "Frequently asked questions",
+            ["faq.1.q"] = "What is MapleKiosk?",
+            ["faq.1.a"] = "MapleKiosk is a family of business apps — point of sale, booking, inventory, accounting and asset maintenance — with affordable AI services built in.",
+            ["faq.2.q"] = "Which industries does MapleKiosk serve?",
+            ["faq.2.a"] = "Nail and beauty salons, restaurants, cafés and boba shops, garages, retail stores and startups.",
+            ["faq.3.q"] = "Is there a free trial?",
+            ["faq.3.a"] = "Yes. Every plan starts with a 14-day free trial. No credit card is required.",
+            ["faq.4.q"] = "What languages does MapleKiosk support?",
+            ["faq.4.a"] = "The website and the apps are available in English, French, Vietnamese and Russian.",
+            ["faq.5.q"] = "How fast do you answer support requests?",
+            ["faq.5.a"] = "We answer every support request within one business day. Trial accounts get their login details by email within minutes.",
+
+            // 404 page
+            ["nf.title"] = "Page not found",
+            ["nf.desc"]  = "The page you are looking for does not exist or has moved.",
+            ["nf.cta"]   = "Back to the home page",
+
+            // Thank-you page
+            ["ty.title"]   = "Thank you!",
+            ["ty.body"]    = "We received your account request. Check your email in the next few minutes for your login and onboarding details.",
+            ["ty.promise"] = "Questions? Write to us — we reply within one business day.",
+            ["ty.cta"]     = "Back to the home page",
         },
 
         ["fr"] = new()
@@ -945,6 +978,39 @@ public static class Translations
             ["res.invite.q"]    = "Vous possédez un restaurant?",
             ["res.invite.sub"]  = "Découvrez MapleRES — l'édition de MapleKiosk conçue pour la salle à manger.",
             ["res.invite.cta"]  = "Essayez MapleRES",
+
+            // SEO / meta
+            ["home.meta.title"] = "MapleKiosk — Applications d'affaires et IA abordable pour PME",
+            ["home.meta.desc"]  = "MapleKiosk offre aux PME une famille d'applications — caisse, réservation, inventaire, comptabilité et entretien des équipements — plus des services d'intégration IA abordables : chatbots, automatisation et agents IA sur mesure.",
+            ["spa.meta.desc"]   = "MapleSpa est le logiciel de gestion pour salons d'ongles et d'esthétique : réservations, partage de paie, cartes-cadeaux et une réceptionniste IA qui parle la langue de vos clients. Essai gratuit de 14 jours.",
+            ["cof.meta.desc"]   = "MapleCoffee est la caisse pour cafés, salons de thé aux perles et comptoirs de restauration rapide : encaissement rapide, inventaire et IA pendant les heures de pointe. Essai gratuit de 14 jours.",
+            ["res.meta.desc"]   = "MapleRES est la caisse pour restaurants avec service complet ou rapide : plans de salle, additions séparées, paiement à la table et un hôte IA. Essai gratuit de 14 jours.",
+            ["crumb.home"]      = "Accueil",
+
+            // FAQ
+            ["faq.eyebrow"] = "FAQ",
+            ["faq.title"]   = "Questions fréquentes",
+            ["faq.1.q"] = "Qu'est-ce que MapleKiosk?",
+            ["faq.1.a"] = "MapleKiosk est une famille d'applications d'affaires — caisse, réservation, inventaire, comptabilité et entretien des équipements — avec des services IA abordables intégrés.",
+            ["faq.2.q"] = "Quels secteurs MapleKiosk sert-il?",
+            ["faq.2.a"] = "Salons d'ongles et d'esthétique, restaurants, cafés et salons de thé aux perles, garages, commerces de détail et jeunes entreprises.",
+            ["faq.3.q"] = "Y a-t-il un essai gratuit?",
+            ["faq.3.a"] = "Oui. Chaque forfait commence par un essai gratuit de 14 jours. Aucune carte de crédit n'est requise.",
+            ["faq.4.q"] = "Quelles langues MapleKiosk prend-il en charge?",
+            ["faq.4.a"] = "Le site et les applications sont offerts en anglais, en français, en vietnamien et en russe.",
+            ["faq.5.q"] = "En combien de temps répondez-vous aux demandes de soutien?",
+            ["faq.5.a"] = "Nous répondons à chaque demande de soutien en un jour ouvrable. Les comptes d'essai reçoivent leurs identifiants par courriel en quelques minutes.",
+
+            // 404 page
+            ["nf.title"] = "Page introuvable",
+            ["nf.desc"]  = "La page que vous cherchez n'existe pas ou a été déplacée.",
+            ["nf.cta"]   = "Retour à l'accueil",
+
+            // Thank-you page
+            ["ty.title"]   = "Merci!",
+            ["ty.body"]    = "Nous avons reçu votre demande de compte. Surveillez votre courriel dans les prochaines minutes pour vos identifiants et l'intégration.",
+            ["ty.promise"] = "Des questions? Écrivez-nous — nous répondons en un jour ouvrable.",
+            ["ty.cta"]     = "Retour à l'accueil",
         },
 
         ["vi"] = new()
@@ -1415,6 +1481,39 @@ public static class Translations
             ["res.invite.q"]    = "Bạn sở hữu một nhà hàng?",
             ["res.invite.sub"]  = "Gặp gỡ MapleRES — phiên bản MapleKiosk dành cho phòng ăn.",
             ["res.invite.cta"]  = "Dùng thử MapleRES",
+
+            // SEO / meta
+            ["home.meta.title"] = "MapleKiosk — Ứng dụng kinh doanh & AI giá phải chăng cho doanh nghiệp nhỏ",
+            ["home.meta.desc"]  = "MapleKiosk mang đến cho doanh nghiệp vừa và nhỏ một bộ ứng dụng — POS, đặt lịch, kho hàng, kế toán và bảo trì thiết bị — cùng dịch vụ tích hợp AI giá phải chăng: chatbot, tự động hóa và trợ lý AI tùy chỉnh.",
+            ["spa.meta.desc"]   = "MapleSpa là phần mềm quản lý tiệm nail & làm đẹp: đặt lịch, chia lương, thẻ quà tặng và lễ tân AI nói ngôn ngữ của khách. Dùng thử miễn phí 14 ngày.",
+            ["cof.meta.desc"]   = "MapleCoffee là POS cho quán cà phê, trà sữa và quầy thức ăn nhanh: thanh toán nhanh, quản lý kho và AI hỗ trợ giờ cao điểm. Dùng thử miễn phí 14 ngày.",
+            ["res.meta.desc"]   = "MapleRES là POS cho nhà hàng phục vụ tại bàn và phục vụ nhanh: sơ đồ bàn, tách hóa đơn, thanh toán tại bàn và lễ tân AI. Dùng thử miễn phí 14 ngày.",
+            ["crumb.home"]      = "Trang chủ",
+
+            // FAQ
+            ["faq.eyebrow"] = "Câu hỏi thường gặp",
+            ["faq.title"]   = "Câu hỏi thường gặp",
+            ["faq.1.q"] = "MapleKiosk là gì?",
+            ["faq.1.a"] = "MapleKiosk là một bộ ứng dụng kinh doanh — POS, đặt lịch, kho hàng, kế toán và bảo trì thiết bị — với dịch vụ AI giá phải chăng tích hợp sẵn.",
+            ["faq.2.q"] = "MapleKiosk phục vụ những ngành nào?",
+            ["faq.2.a"] = "Tiệm nail và làm đẹp, nhà hàng, quán cà phê và trà sữa, gara, cửa hàng bán lẻ và công ty khởi nghiệp.",
+            ["faq.3.q"] = "Có bản dùng thử miễn phí không?",
+            ["faq.3.a"] = "Có. Mọi gói đều bắt đầu với 14 ngày dùng thử miễn phí. Không cần thẻ tín dụng.",
+            ["faq.4.q"] = "MapleKiosk hỗ trợ những ngôn ngữ nào?",
+            ["faq.4.a"] = "Trang web và các ứng dụng có tiếng Anh, tiếng Pháp, tiếng Việt và tiếng Nga.",
+            ["faq.5.q"] = "Bạn trả lời yêu cầu hỗ trợ trong bao lâu?",
+            ["faq.5.a"] = "Chúng tôi trả lời mọi yêu cầu hỗ trợ trong một ngày làm việc. Tài khoản dùng thử nhận thông tin đăng nhập qua email trong vài phút.",
+
+            // 404 page
+            ["nf.title"] = "Không tìm thấy trang",
+            ["nf.desc"]  = "Trang bạn tìm không tồn tại hoặc đã được di chuyển.",
+            ["nf.cta"]   = "Về trang chủ",
+
+            // Thank-you page
+            ["ty.title"]   = "Cảm ơn bạn!",
+            ["ty.body"]    = "Chúng tôi đã nhận được yêu cầu của bạn. Vui lòng kiểm tra email trong vài phút tới để xem thông tin đăng nhập và hướng dẫn.",
+            ["ty.promise"] = "Có câu hỏi? Hãy viết cho chúng tôi — chúng tôi trả lời trong một ngày làm việc.",
+            ["ty.cta"]     = "Về trang chủ",
         },
 
         ["ru"] = new()
@@ -1885,6 +1984,39 @@ public static class Translations
             ["res.invite.q"]    = "У вас ресторан?",
             ["res.invite.sub"]  = "Познакомьтесь с MapleRES — редакцией MapleKiosk, созданной для зала.",
             ["res.invite.cta"]  = "Протестировать MapleRES",
+
+            // SEO / meta
+            ["home.meta.title"] = "MapleKiosk — Бизнес-приложения и доступный ИИ для малого бизнеса",
+            ["home.meta.desc"]  = "MapleKiosk даёт малому и среднему бизнесу семейство приложений — касса, запись, склад, бухгалтерия и обслуживание оборудования — плюс доступные услуги интеграции ИИ: чат-боты, автоматизация и собственные ИИ-агенты.",
+            ["spa.meta.desc"]   = "MapleSpa — программа для маникюрных и косметических салонов: запись, распределение зарплат, подарочные карты и ИИ-администратор, говорящий на языке клиентов. 14 дней бесплатно.",
+            ["cof.meta.desc"]   = "MapleCoffee — касса для кофеен, бабл-ти и фастфуда: быстрая оплата, склад и ИИ-помощь в час пик. 14 дней бесплатно.",
+            ["res.meta.desc"]   = "MapleRES — касса для ресторанов полного и быстрого обслуживания: планы зала, раздельные счета, оплата за столом и ИИ-хост. 14 дней бесплатно.",
+            ["crumb.home"]      = "Главная",
+
+            // FAQ
+            ["faq.eyebrow"] = "Вопросы и ответы",
+            ["faq.title"]   = "Частые вопросы",
+            ["faq.1.q"] = "Что такое MapleKiosk?",
+            ["faq.1.a"] = "MapleKiosk — это семейство бизнес-приложений — касса, запись, склад, бухгалтерия и обслуживание оборудования — со встроенными доступными услугами ИИ.",
+            ["faq.2.q"] = "Каким отраслям служит MapleKiosk?",
+            ["faq.2.a"] = "Маникюрные и косметические салоны, рестораны, кофейни и бабл-ти, автосервисы, розничные магазины и стартапы.",
+            ["faq.3.q"] = "Есть ли бесплатный пробный период?",
+            ["faq.3.a"] = "Да. Каждый тариф начинается с 14 дней бесплатно. Кредитная карта не нужна.",
+            ["faq.4.q"] = "Какие языки поддерживает MapleKiosk?",
+            ["faq.4.a"] = "Сайт и приложения доступны на английском, французском, вьетнамском и русском языках.",
+            ["faq.5.q"] = "Как быстро вы отвечаете на запросы в поддержку?",
+            ["faq.5.a"] = "Мы отвечаем на каждый запрос в поддержку в течение одного рабочего дня. Пробные аккаунты получают данные для входа по почте за несколько минут.",
+
+            // 404 page
+            ["nf.title"] = "Страница не найдена",
+            ["nf.desc"]  = "Страница, которую вы ищете, не существует или была перемещена.",
+            ["nf.cta"]   = "Вернуться на главную",
+
+            // Thank-you page
+            ["ty.title"]   = "Спасибо!",
+            ["ty.body"]    = "Мы получили вашу заявку. Проверьте почту в ближайшие минуты — там будут данные для входа и инструкции.",
+            ["ty.promise"] = "Есть вопросы? Напишите нам — мы отвечаем в течение одного рабочего дня.",
+            ["ty.cta"]     = "Вернуться на главную",
         },
     };
 }

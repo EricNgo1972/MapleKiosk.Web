@@ -9,9 +9,15 @@
 @inject LocalizationService L
 @inject NavigationManager Nav
 
+<PageTitle>End-User License Agreement — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="description" content="The end-user license agreement for the MapleKiosk apps and services." />
+</HeadContent>
+
 <NavBar />
 
 <main class="legal-page">
+    <Breadcrumbs Current="@L["foot.terms"]" />
     <div class="container">
         <div class="legal-page__head">
             <span class="eyebrow">@L["foot.legal"]</span>

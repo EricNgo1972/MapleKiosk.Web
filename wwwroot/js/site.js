@@ -63,9 +63,7 @@
     const cut = href.indexOf('#');
     const path = href.slice(0, cut);
     const hash = href.slice(cut);
-    // Smooth-scroll only same-page anchors ("#apps", or "/fr#apps" while on
-    // /fr). Anchors on another page fall through to Blazor navigation.
-    // Trailing slashes are ignored so "/fr#apps" matches a "/fr/" URL.
+    // Smooth-scroll only same-page anchors; others go to Blazor navigation.
     const norm = (p) => p.replace(/\/+$/, '') || '/';
     if (path && norm(path) !== norm(location.pathname)) return;
     if (!hash || hash === '#') return;
@@ -130,18 +128,10 @@
   document.addEventListener('enhancedload', wireMail);
 
   // ===== Scroll to top on page change =====
-  // The Blazor router keeps the scroll position when it navigates to another
-  // page, so /nails etc. would open mid-page. The router calls
-  // history.pushState for each internal navigation (interactive circuit and
-  // enhanced nav alike), so hook that. URLs with a #hash are excluded so
-  // anchor links still work; back/forward (popstate) keeps browser behavior.
   const origPushState = history.pushState.bind(history);
   history.pushState = function (state, title, url) {
     const from = location.pathname;
     origPushState(state, title, url);
-    // 'instant' overrides the CSS scroll-behavior:smooth — a new page must
-    // open at the top at once, not glide there. Old browsers that reject the
-    // enum value must not throw inside pushState, so fall back to plain args.
     if (location.pathname !== from && !location.hash) {
       try { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }
       catch (e) { window.scrollTo(0, 0); }

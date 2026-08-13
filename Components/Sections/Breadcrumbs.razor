@@ -1,0 +1,30 @@
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<nav class="crumbs" aria-label="Breadcrumb">
+    <div class="container">
+        <a href="@L.Path(L.Culture)">@L["crumb.home"]</a>
+        <span aria-hidden="true">›</span>
+        <span aria-current="page">@Current</span>
+    </div>
+</nav>
+<script type="application/ld+json">@((MarkupString)Json())</script>
+
+@code {
+    [Parameter] public string Current { get; set; } = "";
+
+    private string Json()
+    {
+        var home = new Uri(new Uri(Nav.BaseUri), L.Path(L.Culture)).ToString();
+        return System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["@context"] = "https://schema.org",
+            ["@type"] = "BreadcrumbList",
+            ["itemListElement"] = new object[]
+            {
+                new Dictionary<string, object> { ["@type"] = "ListItem", ["position"] = 1, ["name"] = L["crumb.home"], ["item"] = home },
+                new Dictionary<string, object> { ["@type"] = "ListItem", ["position"] = 2, ["name"] = Current, ["item"] = Nav.Uri }
+            }
+        });
+    }
+}

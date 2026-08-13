@@ -1,6 +1,7 @@
 @rendermode InteractiveServer
 @inject TrialSignupService Signups
 @inject LocalizationService L
+@inject NavigationManager Nav
 
 <div class="modal" id="trialModal" role="dialog" aria-modal="true" aria-labelledby="trial-title">
     <div class="modal__backdrop" data-close-trial></div>
@@ -13,83 +14,71 @@
         </div>
 
         <div class="trial__card">
-            @if (_submitted)
-            {
-                <div class="trial__success">
-                    <div class="trial__success-icon">✓</div>
-                    <h3>@string.Format(L["trial.success.title"], _savedCompany)</h3>
-                    <p>@((MarkupString)string.Format(L["trial.success.body"], $"<strong>{System.Net.WebUtility.HtmlEncode(_savedEmail ?? "")}</strong>"))</p>
-                    <button type="button" class="btn btn-ghost" @onclick="Reset">@L["trial.success.again"]</button>
+            <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="trial-signup">
+                <DataAnnotationsValidator />
+
+                <div class="field">
+                    <label>@L["trial.f.company"]</label>
+                    <InputText @bind-Value="_model.CompanyName" placeholder="@L["trial.f.ph.company"]" />
+                    <ValidationMessage For="() => _model.CompanyName" />
                 </div>
-            }
-            else
-            {
-                <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="trial-signup">
-                    <DataAnnotationsValidator />
 
+                <div class="field">
+                    <label>@L["trial.f.address"]</label>
+                    <InputText @bind-Value="_model.Address" placeholder="@L["trial.f.ph.address"]" />
+                    <ValidationMessage For="() => _model.Address" />
+                </div>
+
+                <div class="field-row">
                     <div class="field">
-                        <label>@L["trial.f.company"]</label>
-                        <InputText @bind-Value="_model.CompanyName" placeholder="@L["trial.f.ph.company"]" />
-                        <ValidationMessage For="() => _model.CompanyName" />
+                        <label>@L["trial.f.city"]</label>
+                        <InputText @bind-Value="_model.City" placeholder="@L["trial.f.ph.city"]" />
+                        <ValidationMessage For="() => _model.City" />
                     </div>
-
                     <div class="field">
-                        <label>@L["trial.f.address"]</label>
-                        <InputText @bind-Value="_model.Address" placeholder="@L["trial.f.ph.address"]" />
-                        <ValidationMessage For="() => _model.Address" />
+                        <label>@L["trial.f.postal"]</label>
+                        <InputText @bind-Value="_model.PostalCode" placeholder="@L["trial.f.ph.postal"]" />
+                        <ValidationMessage For="() => _model.PostalCode" />
                     </div>
+                </div>
 
-                    <div class="field-row">
-                        <div class="field">
-                            <label>@L["trial.f.city"]</label>
-                            <InputText @bind-Value="_model.City" placeholder="@L["trial.f.ph.city"]" />
-                            <ValidationMessage For="() => _model.City" />
-                        </div>
-                        <div class="field">
-                            <label>@L["trial.f.postal"]</label>
-                            <InputText @bind-Value="_model.PostalCode" placeholder="@L["trial.f.ph.postal"]" />
-                            <ValidationMessage For="() => _model.PostalCode" />
-                        </div>
-                    </div>
+                <div class="field">
+                    <label>@L["trial.f.biztype"]</label>
+                    <InputSelect @bind-Value="_model.BusinessType">
+                        <option value="">@L["trial.f.biztype.select"]</option>
+                        <option value="Nail Salon">@L["trial.f.biztype.nail"]</option>
+                        <option value="Restaurant">@L["trial.f.biztype.resto"]</option>
+                        <option value="Retail">@L["trial.f.biztype.retail"]</option>
+                        <option value="Garage">@L["trial.f.biztype.garage"]</option>
+                        <option value="Startup">@L["trial.f.biztype.startup"]</option>
+                        <option value="Other">@L["trial.f.biztype.other"]</option>
+                    </InputSelect>
+                    <ValidationMessage For="() => _model.BusinessType" />
+                </div>
 
+                <div class="field-row field-row--3">
                     <div class="field">
-                        <label>@L["trial.f.biztype"]</label>
-                        <InputSelect @bind-Value="_model.BusinessType">
-                            <option value="">@L["trial.f.biztype.select"]</option>
-                            <option value="Nail Salon">@L["trial.f.biztype.nail"]</option>
-                            <option value="Restaurant">@L["trial.f.biztype.resto"]</option>
-                            <option value="Retail">@L["trial.f.biztype.retail"]</option>
-                            <option value="Garage">@L["trial.f.biztype.garage"]</option>
-                            <option value="Startup">@L["trial.f.biztype.startup"]</option>
-                            <option value="Other">@L["trial.f.biztype.other"]</option>
-                        </InputSelect>
-                        <ValidationMessage For="() => _model.BusinessType" />
+                        <label>@L["trial.f.contact"]</label>
+                        <InputText @bind-Value="_model.ContactName" placeholder="@L["trial.f.ph.contact"]" />
+                        <ValidationMessage For="() => _model.ContactName" />
                     </div>
-
-                    <div class="field-row field-row--3">
-                        <div class="field">
-                            <label>@L["trial.f.contact"]</label>
-                            <InputText @bind-Value="_model.ContactName" placeholder="@L["trial.f.ph.contact"]" />
-                            <ValidationMessage For="() => _model.ContactName" />
-                        </div>
-                        <div class="field">
-                            <label>@L["trial.f.email"]</label>
-                            <InputText type="email" @bind-Value="_model.Email" placeholder="@L["trial.f.ph.email"]" />
-                            <ValidationMessage For="() => _model.Email" />
-                        </div>
-                        <div class="field">
-                            <label>@L["trial.f.phone"]</label>
-                            <InputText type="tel" @bind-Value="_model.Phone" placeholder="@L["trial.f.ph.phone"]" />
-                            <ValidationMessage For="() => _model.Phone" />
-                        </div>
+                    <div class="field">
+                        <label>@L["trial.f.email"]</label>
+                        <InputText type="email" @bind-Value="_model.Email" placeholder="@L["trial.f.ph.email"]" />
+                        <ValidationMessage For="() => _model.Email" />
                     </div>
+                    <div class="field">
+                        <label>@L["trial.f.phone"]</label>
+                        <InputText type="tel" @bind-Value="_model.Phone" placeholder="@L["trial.f.ph.phone"]" />
+                        <ValidationMessage For="() => _model.Phone" />
+                    </div>
+                </div>
 
-                    <button type="submit" class="btn btn-primary trial__submit" disabled="@_submitting">
-                        @(_submitting ? L["trial.submitting"] : L["trial.submit"])
-                    </button>
-                    <p class="trial__fine">@L["trial.fine"]</p>
-                </EditForm>
-            }
+                <button type="submit" class="btn btn-primary trial__submit" disabled="@_submitting">
+                    @(_submitting ? L["trial.submitting"] : L["trial.submit"])
+                </button>
+                <p class="trial__fine">@L["trial.fine"]</p>
+            </EditForm>
         </div>
     </div>
 </div>
@@ -105,9 +94,6 @@
 
     private TrialSignup _model = new();
     private bool _submitting;
-    private bool _submitted;
-    private string? _savedCompany;
-    private string? _savedEmail;
 
     private async Task HandleSubmit()
     {
@@ -116,21 +102,12 @@
         {
             _model.Culture = L.Culture;
             await Signups.CreateAsync(_model);
-            _savedCompany = _model.CompanyName;
-            _savedEmail = _model.Email;
-            _submitted = true;
-            _model = new();
+            var root = L.Path(L.Culture).TrimEnd('/');
+            Nav.NavigateTo(string.IsNullOrEmpty(root) ? "/thank-you" : $"{root}/thank-you");
         }
         finally
         {
             _submitting = false;
         }
-    }
-
-    private void Reset()
-    {
-        _submitted = false;
-        _savedCompany = null;
-        _savedEmail = null;
     }
 }

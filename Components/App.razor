@@ -5,20 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <script>(function(){try{if(localStorage.getItem('mk-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
-    <title>MapleKiosk — Business apps & affordable AI for small business</title>
-    <meta name="description" content="MapleKiosk gives small and medium businesses a family of apps — POS, booking, inventory, accounting and asset maintenance — plus affordable AI integration services: chatbots, automation and custom AI agents." />
+    <meta property="og:site_name" content="MapleKiosk" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="@(Nav.BaseUri)og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/x-icon" href="favicon.ico?v=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="css/site.css?v=18" />
+    <link rel="stylesheet" href="css/site.css?v=20" />
     <link rel="stylesheet" href="_content/MapleShop.UI/css/mapleshop.css" />
     <link rel="stylesheet" href="MapleKiosk.Web.styles.css" />
     <HeadOutlet />
+    @if (!string.IsNullOrEmpty(_gaId))
+    {
+        <script async src="https://www.googletagmanager.com/gtag/js?id=@_gaId"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '@_gaId');
+        </script>
+    }
 </head>
 <body>
     <Routes />
+    <script type="application/ld+json">@((MarkupString)OrgJson())</script>
     <script src="_framework/blazor.web.js"></script>
     <script src="js/site.js?v=16"></script>
 </body>
 </html>
+
+@code {
+    [Inject] private IConfiguration Config { get; set; } = default!;
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+
+    private string? _gaId;
+
+    protected override void OnInitialized() => _gaId = Config["Analytics:GaMeasurementId"];
+
+    private string OrgJson() => System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "Organization",
+        ["name"] = "MapleKiosk",
+        ["url"] = Nav.BaseUri,
+        ["logo"] = $"{Nav.BaseUri}MapleKiosk_rectangle.png"
+    });
+}

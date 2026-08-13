@@ -9,9 +9,7 @@
 
 @Body
 
-@* The shop is not linked from the marketing site yet. Gate the cart widget
-   here in the static-SSR layout (re-rendered on every navigation) so the
-   marketing pages never open its interactive circuit at all. *@
+@* Gated in the static-SSR layout so marketing pages never open the widget's circuit. *@
 @if (OnShopPage)
 {
     <ShopWidget />

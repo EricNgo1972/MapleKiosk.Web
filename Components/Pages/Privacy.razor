@@ -5,9 +5,15 @@
 @inject LocalizationService L
 @inject NavigationManager Nav
 
+<PageTitle>Privacy Policy — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="description" content="How MapleKiosk collects, uses and protects your data. We do not share your data with third parties." />
+</HeadContent>
+
 <NavBar />
 
 <main class="legal-page">
+    <Breadcrumbs Current="@L["foot.privacy"]" />
     <div class="container">
         <div class="legal-page__head">
             <span class="eyebrow">@L["foot.legal"]</span>

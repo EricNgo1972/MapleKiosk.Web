@@ -1,0 +1,19 @@
+@inject LocalizationService L
+
+<div class="mobile-cta">
+    @if (string.IsNullOrEmpty(Href))
+    {
+        <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+    }
+    else
+    {
+        <a class="btn btn-primary" href="@Href" target="@(External ? "_blank" : null)" rel="@(External ? "noopener" : null)">@Label</a>
+    }
+</div>
+
+@code {
+    [Parameter] public string? Href { get; set; }
+    [Parameter] public string? Label { get; set; }
+
+    private bool External => Href?.StartsWith("http") == true;
+}

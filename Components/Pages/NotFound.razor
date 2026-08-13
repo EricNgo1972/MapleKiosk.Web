@@ -1,0 +1,24 @@
+@page "/not-found"
+@inject LocalizationService L
+
+<PageTitle>@L["nf.title"] — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<NavBar ShowCta="false" />
+
+<main class="lp">
+    <section class="section">
+        <div class="container page-msg">
+            <span class="eyebrow">404</span>
+            <h1>@L["nf.title"]</h1>
+            <p>@L["nf.desc"]</p>
+            <div class="lp-cta__actions">
+                <a class="btn btn-primary" href="/">@L["nf.cta"]</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<Footer />
