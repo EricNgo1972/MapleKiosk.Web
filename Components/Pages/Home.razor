@@ -6,6 +6,14 @@
 @inject NavigationManager Nav
 @inject CartService Cart
 
+<PageTitle>@L["home.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["home.meta.desc"]" />
+    <meta property="og:title" content="@L["home.meta.title"]" />
+    <meta property="og:description" content="@L["home.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+</HeadContent>
+
 <NavBar />
 <Hero />
 <LogoStrip />
@@ -15,9 +23,11 @@
 <HowItWorks />
 <DashboardPreview />
 <Pricing />
+@* <Faq /> — re-enable when there are real FAQ entries to show *@
 <CtaBanner />
 <TrialForm Culture="@L.Culture" />
 <Footer />
+<MobileCta />
 
 @code {
     protected override void OnInitialized()

@@ -7,10 +7,18 @@
 @inject NavigationManager Nav
 
 <PageTitle>@L["res.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["res.meta.desc"]" />
+    <meta property="og:title" content="@L["res.meta.title"]" />
+    <meta property="og:description" content="@L["res.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+</HeadContent>
 
 <NavBar ShowCta="false" />
 
 <main class="lp">
+
+    <Breadcrumbs Current="@L["ind.resto"]" />
 
     <!-- ===================== HERO ===================== -->
     <section class="lp-hero" id="top">
@@ -26,7 +34,7 @@
             </div>
             <div class="lp-hero__media">
                 <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80"
-                     alt="" loading="lazy" data-fallback="Restaurant dining room" />
+                     alt="Restaurant dining room set for service" loading="lazy" data-fallback="Restaurant dining room" />
                 <div class="lp-hero__chip lp-hero__chip--a">@L["res.hero.chip.a"]</div>
                 <div class="lp-hero__chip lp-hero__chip--b">@L["res.hero.chip.b"]</div>
             </div>
@@ -218,7 +226,7 @@
             </div>
             <div class="lp-split__media">
                 <img src="https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800&q=80"
-                     alt="" loading="lazy" data-fallback="Restaurant service" />
+                     alt="Server taking an order in a busy restaurant" loading="lazy" data-fallback="Restaurant service" />
             </div>
         </div>
     </section>
@@ -238,6 +246,7 @@
 </main>
 
 <Footer />
+<MobileCta Href="@($"{L.Path(L.Culture)}#pricing")" Label="@L["res.cta.pricing"]" />
 
 @code {
     protected override void OnInitialized()

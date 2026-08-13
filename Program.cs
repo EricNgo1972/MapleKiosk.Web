@@ -70,6 +70,8 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
+app.UseStatusCodePagesWithReExecute("/not-found");
+
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();

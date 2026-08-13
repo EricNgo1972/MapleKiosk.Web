@@ -7,10 +7,18 @@
 @inject NavigationManager Nav
 
 <PageTitle>@L["spa.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["spa.meta.desc"]" />
+    <meta property="og:title" content="@L["spa.meta.title"]" />
+    <meta property="og:description" content="@L["spa.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+</HeadContent>
 
 <NavBar ShowCta="false" />
 
 <main class="lp">
+
+    <Breadcrumbs Current="@L["ind.nail"]" />
 
     <!-- ===================== HERO ===================== -->
     <section class="lp-hero" id="top">
@@ -27,7 +35,7 @@
             </div>
             <div class="lp-hero__media">
                 <img src="https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&q=80"
-                     alt="" loading="lazy" data-fallback="Nail salon" />
+                     alt="Nail technician working on a client's manicure" loading="lazy" data-fallback="Nail salon" />
                 <div class="lp-hero__chip lp-hero__chip--a">@L["spa.hero.chip.a"]</div>
                 <div class="lp-hero__chip lp-hero__chip--b">@L["spa.hero.chip.b"]</div>
             </div>
@@ -221,7 +229,7 @@
             </div>
             <div class="lp-split__media">
                 <img src="https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=800&q=80"
-                     alt="" loading="lazy" data-fallback="Salon front desk" />
+                     alt="Salon front desk with a receptionist greeting a client" loading="lazy" data-fallback="Salon front desk" />
             </div>
         </div>
     </section>
@@ -242,6 +250,7 @@
 </main>
 
 <Footer />
+<MobileCta Href="https://nails.maplekiosk.ca" Label="@L["spa.cta.trial"]" />
 
 @code {
     protected override void OnInitialized()

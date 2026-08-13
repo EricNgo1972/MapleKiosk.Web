@@ -1,0 +1,37 @@
+@page "/thank-you"
+@page "/fr/thank-you"
+@page "/vi/thank-you"
+@page "/ru/thank-you"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["ty.title"] — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<NavBar ShowCta="false" />
+
+<main class="lp">
+    <section class="section">
+        <div class="container page-msg">
+            <div class="trial__success-icon">✓</div>
+            <h1>@L["ty.title"]</h1>
+            <p>@L["ty.body"]</p>
+            <p>@L["ty.promise"]</p>
+            <div class="lp-cta__actions">
+                <a class="btn btn-primary" href="@L.Path(L.Culture)">@L["ty.cta"]</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /signin
+Disallow: /shop/admin
+Disallow: /thank-you
+Disallow: /not-found
+Disallow: /Error
+
+Sitemap: https://web.maplekiosk.ca/sitemap.xml
