@@ -1,0 +1,97 @@
+@page "/sms-terms"
+@page "/fr/sms-terms"
+@page "/vi/sms-terms"
+@page "/ru/sms-terms"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>SMS Terms — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="description" content="Terms for text messages sent through MapleKiosk: what you receive, how often, cost, and how to opt out by replying STOP." />
+</HeadContent>
+
+<NavBar />
+
+<main class="legal-page">
+    <Breadcrumbs Current="@L["foot.sms"]" />
+    <div class="container">
+        <div class="legal-page__head">
+            <span class="eyebrow">@L["foot.legal"]</span>
+            <h1>SMS Terms</h1>
+            <p>Last updated: September 14, 2026</p>
+        </div>
+
+        <div class="legal-page__body">
+            <section>
+                <p>These SMS Terms apply to text messages sent through MapleKiosk apps by Kiosque &Eacute;rable Inc., operating as MapleKiosk ("<strong>MapleKiosk</strong>" or "<strong>we</strong>"). Messages are about a booking or visit you made with a business that uses MapleKiosk &mdash; for example, a nail salon (the "<strong>Business</strong>") &mdash; and every message starts with that Business's name.</p>
+            </section>
+
+            <section>
+                <h2>1. What you will receive</h2>
+                <p>Transactional messages about your booking:</p>
+                <ul>
+                    <li>appointment confirmations,</li>
+                    <li>reminders before your appointment,</li>
+                    <li>notices if your appointment is changed or cancelled.</li>
+                </ul>
+                <p>No marketing or promotional messages are sent under this program.</p>
+            </section>
+
+            <section>
+                <h2>2. How you sign up</h2>
+                <p>You choose to receive these messages by entering your mobile number and ticking the unchecked consent box on the Business's check-in screen or booking form. Consent is not a condition of any purchase or booking &mdash; you can book without it. See <a href="/sms-opt-in">how opt-in works</a>.</p>
+            </section>
+
+            <section>
+                <h2>3. Message frequency</h2>
+                <p>Message frequency varies with your bookings.</p>
+            </section>
+
+            <section>
+                <h2>4. Cost</h2>
+                <p>Message and data rates may apply. Neither MapleKiosk nor the Business charges you for these messages.</p>
+            </section>
+
+            <section>
+                <h2>5. How to stop</h2>
+                <p>Reply <strong>STOP</strong> to any message to unsubscribe (CANCEL, END, QUIT and UNSUBSCRIBE also work). You will receive one final message confirming that you are unsubscribed, and no further messages after that. To subscribe again, reply <strong>START</strong>.</p>
+            </section>
+
+            <section>
+                <h2>6. Help</h2>
+                <p>Reply <strong>HELP</strong> to any message for help, or email us at <a data-user="dev" data-domain="maplekiosk.ca">dev [at] maplekiosk.ca</a>.</p>
+            </section>
+
+            <section>
+                <h2>7. Carriers</h2>
+                <p>Available to customers of major carriers in the United States and Canada. Carriers are not liable for delayed or undelivered messages.</p>
+            </section>
+
+            <section>
+                <h2>8. Privacy</h2>
+                <p>Your mobile number and consent are used only to send the messages described above. No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Text messaging originator opt-in data and consent will not be shared with any third parties. See our <a href="/privacy">Privacy Policy</a>.</p>
+            </section>
+
+            <section>
+                <h2>9. Changes</h2>
+                <p>We may update these SMS Terms. The date at the top of this page shows the current version.</p>
+            </section>
+
+            <section>
+                <h2>10. Contact</h2>
+                <p>Kiosque &Eacute;rable Inc. (MapleKiosk), <a data-user="dev" data-domain="maplekiosk.ca">dev [at] maplekiosk.ca</a>, 507 Rue Montcalm, Longueuil, Quebec J4J 2L3, Canada.</p>
+            </section>
+        </div>
+    </div>
+</main>
+
+<Footer />
+
+@code {
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}
