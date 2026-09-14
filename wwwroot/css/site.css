@@ -301,6 +301,11 @@ html.fade-ready .fade-in.visible{opacity:1;transform:none}
 .legal-table th{text-align:left;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--border)}
 .legal-table td{padding:11px 12px;border-bottom:1px solid var(--border);color:var(--muted);vertical-align:top}
 .legal-table tbody tr:hover{background:var(--surface-glass)}
+.sms-consent{display:flex;gap:12px;align-items:flex-start;margin-top:14px;padding:16px 18px;border:1px solid var(--border);border-radius:10px;background:var(--surface-glass);color:var(--text);font-size:15px;line-height:1.55}
+.sms-consent__box{flex:0 0 18px;width:18px;height:18px;margin-top:3px;border:2px solid var(--muted);border-radius:4px}
+.sms-sample{margin-top:10px;max-width:520px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-glass);color:var(--text);font-size:14px;line-height:1.5}
+.sms-shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:14px}
+.sms-shots img{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:10px}
 
 /* ============ TRIAL MODAL ============ */
 .modal{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;padding:24px}
