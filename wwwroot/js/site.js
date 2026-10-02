@@ -30,7 +30,9 @@
   }
   window.closeUserMenu = closeUserMenu;
 
-  // ===== Video lightbox: any [data-video="<YouTube id>"] opens it =====
+  // ===== Video lightbox: any [data-video] opens it — a YouTube id, or a site-served
+  // file path ("/media/....mp4") played in a native <video> =====
+  function isFile(id) { return /^\/|^https?:|\.mp4$/i.test(id); }
   let lastFocus = null;
   function openVideo(id, start) {
     closeVideo();
@@ -42,10 +44,13 @@
     box.setAttribute('aria-modal', 'true');
     box.innerHTML =
       '<button type="button" class="vbox__close" aria-label="Close" data-close-video>&times;</button>' +
-      '<div class="vbox__frame"><iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
-      '?autoplay=1&rel=0&modestbranding=1&hl=' + lang +
-      (start ? '&start=' + (parseInt(start, 10) || 0) : '') + '" title="MapleKiosk video"' +
-      ' allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>';
+      '<div class="vbox__frame">' + (isFile(id)
+        ? '<video src="' + encodeURI(id) + (start ? '#t=' + (parseInt(start, 10) || 0) : '') +
+          '" controls autoplay playsinline preload="auto" title="MapleKiosk video"></video>'
+        : '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
+          '?autoplay=1&rel=0&modestbranding=1&hl=' + lang +
+          (start ? '&start=' + (parseInt(start, 10) || 0) : '') + '" title="MapleKiosk video"' +
+          ' allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>') + '</div>';
     box.addEventListener('click', (e) => { if (e.target === box) closeVideo(); });
     document.body.appendChild(box);
     document.body.classList.add('modal-open');

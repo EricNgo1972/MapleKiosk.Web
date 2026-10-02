@@ -10,8 +10,7 @@
             <a href="@CulturePath("coffee")" class="@Active("coffee")" aria-current="@Current("coffee")">@L["nav.coffee"]</a>
             <a href="@CulturePath("nails")" class="@Active("nails")" aria-current="@Current("nails")">@L["nav.nails"]</a>
             <a href="@CulturePath("garage")" class="@Active("garage")" aria-current="@Current("garage")">@L["nav.garage"]</a>
-            @* No page yet — lands on the trade's door on the homepage. *@
-            <a href="@L.Path(L.Culture)#resto" class="@Active("restaurants")" aria-current="@Current("restaurants")">@L["nav.resto"] <span class="nav__soon">@L["nav.soon"]</span></a>
+            <a href="@CulturePath("restaurants")" class="@Active("restaurants")" aria-current="@Current("restaurants")">@L["nav.resto"]</a>
         </div>
         <div class="lang-switch">
             <a href="@LangHref("en")" class="@(L.Culture == "en" ? "active" : "")">EN</a>
