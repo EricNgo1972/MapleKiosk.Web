@@ -1,0 +1,62 @@
+name: Release Container
+
+# Manual-only. Builds a container image of the MapleKiosk.Web site and pushes it to GHCR, for
+# mk-provisioning to `docker pull` + `docker run` (same shape as MapleCoffee's release_container.yml).
+# Runtime config is NOT baked in: the provisioner injects env vars such as STORAGE_CONNECTION_STRING
+# (and optionally SENDGRID_API_KEY) from the product's env-variable catalog.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version / image tag (e.g. 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/ericngo1972/maplekiosk-web   # GHCR image names must be lowercase
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # Framework-dependent publish (no -r/--self-contained): the runtime ships in the aspnet base image,
+      # so the layer stays small and starts with `dotnet MapleKiosk.Web.dll`.
+      - name: Publish
+        run: |
+          dotnet publish MapleKiosk.Web.csproj \
+            -c Release \
+            -p:Version=${{ inputs.version }} \
+            -o ./publish
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Context is the published output; the Dockerfile at the repo root is passed via -f.
+      - name: Build and push
+        run: |
+          docker build -f Dockerfile -t "$IMAGE:${{ inputs.version }}" -t "$IMAGE:latest" ./publish
+          docker push "$IMAGE:${{ inputs.version }}"
+          docker push "$IMAGE:latest"
+
+      - name: Summary
+        run: |
+          echo "Pushed $IMAGE:${{ inputs.version }} and $IMAGE:latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "Catalog row -> ImageRepository=$IMAGE, ImageTag=${{ inputs.version }}, InternalPort=8080, HealthPath=/health, DataMountPath=/data" >> "$GITHUB_STEP_SUMMARY"
+          echo "Product env -> STORAGE_CONNECTION_STRING (secret, required), SENDGRID_API_KEY (secret, optional)" >> "$GITHUB_STEP_SUMMARY"
