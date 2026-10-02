@@ -6,161 +6,182 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<PageTitle>Customer onboarding — MapleKiosk</PageTitle>
+<PageTitle>Customers — MapleKiosk</PageTitle>
 
-<section class="section">
-    <div class="container" style="max-width:1100px">
-        <h1 style="font-size:clamp(26px,3vw,40px)">Customer onboarding</h1>
-        <p style="color:var(--muted)">After a deposit, add the customer's email here. They sign in at <code>/onboarding</code> with Google or Microsoft using that email, fill in business details, hours and access, and upload the filled template. You get an email when they submit.</p>
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title">Customers</span>
+    </div>
+</header>
 
+<main class="adm">
+    <div class="container adm__wrap">
         @if (!Store.IsConfigured)
         {
-            <p class="onb-error">Onboarding storage is not configured (STORAGE_CONNECTION_STRING).</p>
+            <p class="onb-error">Storage is not configured (STORAGE_CONNECTION_STRING).</p>
         }
 
-        <div class="onb-card">
-            <h2 style="font-size:18px;margin:0 0 14px">Add customer</h2>
-            <div class="onb-grid">
-                <label><span>Business name <em>*</em></span>
-                    <input @bind="_name" placeholder="Lily Nails & Spa" />
-                </label>
-                <label><span>Customer login email <em>*</em></span>
-                    <input type="email" @bind="_email" placeholder="owner@gmail.com" />
-                    <small>The Google or Microsoft account they will sign in with.</small>
-                </label>
-                <label>Industry
-                    <select @bind="_industry">
-                        @foreach (var (id, label) in OnboardingIndustries.All)
-                        {
-                            <option value="@id">@label</option>
-                        }
-                    </select>
-                </label>
-                <label>Customer language
-                    <select @bind="_language">
-                        <option value="en">English</option>
-                        <option value="fr">Français</option>
-                        <option value="vi">Tiếng Việt</option>
-                    </select>
-                </label>
-                <label>Deposit / order ref (optional)
-                    <input @bind="_orderRef" placeholder="MK2610021530A1B2" />
-                </label>
-                <label class="onb-check" style="align-self:end">
-                    <input type="checkbox" @bind="_includesWebsite" /> Scope includes a website (adds the website brief)
-                </label>
-                <label class="onb-check" style="align-self:end">
-                    <input type="checkbox" @bind="_sendEmail" /> Email the customer an invitation
-                </label>
-            </div>
-            @if (_error is not null) { <p class="onb-error">@_error</p> }
-            <div style="margin-top:16px">
-                <button class="btn btn-primary" disabled="@_busy" @onclick="Create">@(_busy ? "Adding…" : "Add customer")</button>
-            </div>
-        </div>
+        @if (_records.Count > 0)
+        {
+            <input class="adm-search" type="search" placeholder="Search customers" @bind="_query" @bind:event="oninput" />
+        }
 
         @if (_loading)
         {
-            <p style="color:var(--muted)">Loading…</p>
+            <p class="onb__muted">Loading…</p>
         }
         else if (_records.Count == 0)
         {
-            <p style="color:var(--muted)">No onboarding links yet.</p>
+            <div class="adm-empty">
+                <p><strong>No customers yet</strong></p>
+                <p class="onb__muted">Tap <b>+</b> to add one after their deposit.</p>
+            </div>
         }
         else
         {
-            <div class="onb-filter">
-                @foreach (var s in new[] { "All", "Sent", "InProgress", "Submitted" })
+            <ul class="adm-list">
+                @foreach (var r in Filtered)
                 {
-                    <button class="onb-pill @(_filter == s ? "is-on" : "")" @onclick="() => _filter = s">
-                        @StatusLabel(s) <span>@Count(s)</span>
-                    </button>
+                    <li>
+                        <button type="button" class="adm-row" @onclick="() => Open(r)">
+                            <span class="adm-avatar">@Initial(r)</span>
+                            <span class="adm-row__main">
+                                <strong>@r.Form.BusinessName</strong>
+                                <small>@r.ContactEmail · @OnboardingIndustries.Label(r.Industry)@(r.IncludesWebsite ? " · Website" : "")</small>
+                            </span>
+                            <span class="adm-row__side">
+                                <span class="onb-status onb-status--@r.Status.ToString().ToLowerInvariant()">@StatusLabel(r.Status)</span>
+                                <small>@Ago(r.SubmittedAt ?? r.UpdatedAt ?? r.CreatedAt)</small>
+                            </span>
+                        </button>
+                    </li>
                 }
-            </div>
-            <table class="onb-table">
-                <thead>
-                    <tr><th>Business</th><th>Industry</th><th>Status</th><th>Created</th><th>Submitted</th><th>Files</th><th>Website</th><th></th></tr>
-                </thead>
-                <tbody>
-                    @foreach (var r in Filtered)
-                    {
-                        <tr class="@(_open == r.Token ? "is-open" : "")">
-                            <td><strong>@r.Form.BusinessName</strong><br /><small style="color:var(--muted)">@r.ContactEmail</small></td>
-                            <td>@OnboardingIndustries.Label(r.Industry) · @r.Language.ToUpperInvariant()</td>
-                            <td><span class="onb-status onb-status--@r.Status.ToString().ToLowerInvariant()">@StatusLabel(r.Status.ToString())</span></td>
-                            <td>@r.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd")</td>
-                            <td>@(r.SubmittedAt?.ToLocalTime().ToString("yyyy-MM-dd") ?? "—")</td>
-                            <td>@r.Files.Count</td>
-                            <td>@(r.IncludesWebsite ? "Yes" : "—")</td>
-                            <td class="onb-actions">
-                                <button class="btn btn-ghost onb-small" @onclick="() => Toggle(r)">@(_open == r.Token ? "Close" : "View")</button>
-                                <button class="btn btn-ghost onb-small" @onclick="() => CopyLink(r)">@(_copied == r.Token ? "Copied ✓" : "Copy link")</button>
-                            </td>
-                        </tr>
-                        @if (_open == r.Token)
-                        {
-                            <tr class="onb-detail">
-                                <td colspan="8">
-                                    <div class="onb-detail__body">
-                                        @((MarkupString)OnboardingService.SummaryHtml(r, f => $"/onboarding/files/{r.Token}/{f.Id}"))
-                                    </div>
-                                    <label class="onb-check" style="margin-top:12px">
-                                        <input type="checkbox" checked="@r.IncludesWebsite" @onchange="e => SetIncludesWebsite(r, e)" /> Scope includes a website
-                                    </label>
-                                    @if (r.IncludesWebsite && _openBrief is not null)
-                                    {
-                                        <div class="onb-detail__body" style="margin-top:12px">
-                                            <h2 style="margin:0 0 4px">Website brief</h2>
-                                            @((MarkupString)OnboardingService.BriefHtml(r, _openBrief, f => $"/onboarding/files/{r.Token}/{f.Id}"))
-                                        </div>
-                                    }
-                                    <div class="onb-grid" style="max-width:520px">
-                                        <label>Login email
-                                            <span style="display:flex;gap:8px">
-                                                <input type="email" @bind="_editEmail" />
-                                                <button class="btn btn-ghost onb-small" @onclick="() => SaveEmail(r)">Save</button>
-                                            </span>
-                                        </label>
-                                    </div>
-                                    <div class="onb-actions" style="margin-top:12px">
-                                        <a class="btn btn-ghost onb-small" href="@OnboardingService.CustomerUrl(Nav.BaseUri, r)" target="_blank">Open customer page</a>
-                                        @if (!string.IsNullOrWhiteSpace(r.ContactEmail) && r.Status != OnboardingStatus.Submitted)
-                                        {
-                                            <button class="btn btn-ghost onb-small" @onclick="() => Resend(r)">@(_resent == r.Token ? "Sent ✓" : "Resend email")</button>
-                                        }
-                                        @if (r.Status == OnboardingStatus.Submitted)
-                                        {
-                                            <button class="btn btn-ghost onb-small" @onclick="() => Reopen(r)">Reopen for edits</button>
-                                        }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
+            </ul>
         }
     </div>
-</section>
+</main>
+
+<button type="button" class="adm-fab" aria-label="Add customer" @onclick="OpenAdd">+</button>
+
+@* ---- Add customer ---- *@
+@if (_adding)
+{
+    <div class="adm-scrim" @onclick="() => _adding = false"></div>
+    <div class="adm-sheet" role="dialog" aria-label="Add customer">
+        <h2>Add customer</h2>
+        <div class="adm-form">
+            <label>Business name
+                <input @bind="_name" placeholder="Lily Nails & Spa" />
+            </label>
+            <label>Login email
+                <input type="email" @bind="_email" placeholder="owner@gmail.com" />
+                <small>The Google or Microsoft account they'll sign in with.</small>
+            </label>
+            <div class="adm-field">
+                <span>Industry</span>
+                <div class="wb-chips">
+                    @foreach (var (id, label) in OnboardingIndustries.All)
+                    {
+                        <button type="button" class="wb-chip @(_industry == id ? "is-on" : "")" @onclick="() => _industry = id">@label</button>
+                    }
+                </div>
+            </div>
+            <div class="adm-field">
+                <span>Language</span>
+                <div class="wb-chips">
+                    @foreach (var (code, label) in Languages)
+                    {
+                        <button type="button" class="wb-chip @(_language == code ? "is-on" : "")" @onclick="() => _language = code">@label</button>
+                    }
+                </div>
+            </div>
+            <label class="adm-switch"><input type="checkbox" @bind="_includesWebsite" /> Includes a website</label>
+            <label class="adm-switch"><input type="checkbox" @bind="_sendEmail" /> Email them an invitation</label>
+        </div>
+        @if (_error is not null) { <p class="onb-error">@_error</p> }
+        <div class="adm-sheet__actions">
+            <button type="button" class="btn btn-ghost" @onclick="() => _adding = false">Cancel</button>
+            <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="Create">@(_busy ? "Adding…" : "Add")</button>
+        </div>
+    </div>
+}
+
+@* ---- Customer details ---- *@
+@if (_current is { } c)
+{
+    <div class="adm-scrim" @onclick="Close"></div>
+    <aside class="adm-drawer" role="dialog" aria-label="@c.Form.BusinessName">
+        <div class="adm-drawer__head">
+            <div>
+                <h2>@c.Form.BusinessName</h2>
+                <span class="onb-status onb-status--@c.Status.ToString().ToLowerInvariant()">@StatusLabel(c.Status)</span>
+            </div>
+            <button type="button" class="adm-close" aria-label="Close" @onclick="Close">✕</button>
+        </div>
+
+        <div class="adm-actions">
+            <button type="button" class="btn btn-ghost onb-small" @onclick="() => CopyLink(c)">@(_note == "copied" ? "Copied ✓" : "Copy link")</button>
+            @if (c.Status != OnboardingStatus.Submitted)
+            {
+                <button type="button" class="btn btn-ghost onb-small" @onclick="() => Resend(c)">@(_note == "resent" ? "Sent ✓" : "Resend invite")</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-ghost onb-small" @onclick="() => Reopen(c)">Reopen for edits</button>
+            }
+            <a class="btn btn-ghost onb-small" href="/onboarding/@c.Token" target="_blank">View as customer ↗</a>
+        </div>
+
+        <div class="adm-form">
+            <label>Login email
+                <span class="adm-inline">
+                    <input type="email" @bind="_editEmail" />
+                    @if (_editEmail != c.ContactEmail)
+                    {
+                        <button type="button" class="btn btn-primary onb-small" @onclick="() => SaveEmail(c)">Save</button>
+                    }
+                </span>
+            </label>
+            <label class="adm-switch"><input type="checkbox" checked="@c.IncludesWebsite" @onchange="e => SetIncludesWebsite(c, e)" /> Includes a website</label>
+        </div>
+
+        <div class="adm-summary">
+            @((MarkupString)OnboardingService.SummaryHtml(c, f => $"/onboarding/files/{c.Token}/{f.Id}"))
+        </div>
+        @if (c.IncludesWebsite && _brief is not null)
+        {
+            <div class="adm-summary">
+                <h2 style="margin:0 0 4px">Website brief</h2>
+                @((MarkupString)OnboardingService.BriefHtml(c, _brief, f => $"/onboarding/files/{c.Token}/{f.Id}"))
+            </div>
+        }
+    </aside>
+}
 
 @code {
+    private static readonly (string Code, string Label)[] Languages = [("en", "English"), ("fr", "Français"), ("vi", "Tiếng Việt")];
+
     private List<OnboardingRecord> _records = new();
     private bool _loading = true;
     private bool _busy;
-    private string? _error;
-    private string _filter = "All";
-    private string? _open;
-    private string? _copied;
-    private string? _resent;
+    private string _query = "";
 
+    // Add sheet
+    private bool _adding;
+    private string? _error;
     private string _name = "";
     private string _email = "";
     private string _industry = OnboardingIndustries.Nails;
     private string _language = "en";
-    private string _orderRef = "";
     private bool _sendEmail = true;
     private bool _includesWebsite;
-    private WebsiteBrief? _openBrief;
+
+    // Details drawer
+    private OnboardingRecord? _current;
+    private WebsiteBrief? _brief;
+    private string _editEmail = "";
+    private string? _note;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
@@ -172,51 +193,72 @@
     }
 
     private IEnumerable<OnboardingRecord> Filtered =>
-        _filter == "All" ? _records : _records.Where(r => r.Status.ToString() == _filter);
+        string.IsNullOrWhiteSpace(_query)
+            ? _records
+            : _records.Where(r => r.Form.BusinessName.Contains(_query, StringComparison.OrdinalIgnoreCase)
+                               || r.ContactEmail.Contains(_query, StringComparison.OrdinalIgnoreCase));
 
-    private int Count(string s) => s == "All" ? _records.Count : _records.Count(r => r.Status.ToString() == s);
+    private static string Initial(OnboardingRecord r) =>
+        string.IsNullOrWhiteSpace(r.Form.BusinessName) ? "?" : r.Form.BusinessName.Trim()[..1].ToUpperInvariant();
 
-    private static string StatusLabel(string s) => s switch
+    private static string StatusLabel(OnboardingStatus s) => s switch
     {
-        "Sent" => "Not started",
-        "InProgress" => "In progress",
-        _ => s
+        OnboardingStatus.Sent => "Not started",
+        OnboardingStatus.InProgress => "In progress",
+        _ => "Submitted"
     };
+
+    private static string Ago(DateTimeOffset at)
+    {
+        var d = DateTimeOffset.UtcNow - at;
+        return d.TotalMinutes < 1 ? "just now"
+            : d.TotalHours < 1 ? $"{(int)d.TotalMinutes} min ago"
+            : d.TotalDays < 1 ? $"{(int)d.TotalHours} h ago"
+            : d.TotalDays < 30 ? $"{(int)d.TotalDays} d ago"
+            : at.ToLocalTime().ToString("yyyy-MM-dd");
+    }
+
+    private void OpenAdd()
+    {
+        _error = null;
+        _adding = true;
+    }
 
     private async Task Create()
     {
         _error = null;
-        if (string.IsNullOrWhiteSpace(_name)) { _error = "Business name is required."; return; }
-        if (!_email.Contains('@')) { _error = "Enter the email the customer will sign in with."; return; }
+        if (string.IsNullOrWhiteSpace(_name)) { _error = "Enter the business name."; return; }
+        if (!_email.Contains('@')) { _error = "Enter the email they'll sign in with."; return; }
 
         _busy = true;
         try
         {
-            var r = await Service.CreateAsync(_name, _email, _industry, _language, _orderRef, _includesWebsite, _sendEmail, Nav.BaseUri);
-            _name = _email = _orderRef = "";
+            var r = await Service.CreateAsync(_name, _email, _industry, _language, null, _includesWebsite, _sendEmail, Nav.BaseUri);
+            _name = _email = "";
+            _includesWebsite = false;
+            _adding = false;
             await ReloadAsync();
-            _open = r.Token;
-            _editEmail = r.ContactEmail;
-            _openBrief = r.IncludesWebsite ? new WebsiteBrief() : null;
+            await Open(_records.FirstOrDefault(x => x.Token == r.Token) ?? r);
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
     }
 
-    private string _editEmail = "";
-
-    private async Task Toggle(OnboardingRecord r)
+    private async Task Open(OnboardingRecord r)
     {
-        _open = _open == r.Token ? null : r.Token;
+        _current = r;
         _editEmail = r.ContactEmail;
-        _openBrief = _open is not null && r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
+        _note = null;
+        _brief = r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
     }
+
+    private void Close() => _current = null;
 
     private async Task SetIncludesWebsite(OnboardingRecord r, ChangeEventArgs e)
     {
         r.IncludesWebsite = e.Value is true;
         await Store.SaveAsync(r);
-        _openBrief = r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
+        _brief = r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
     }
 
     // The login email is the customer's access — changing it moves access to the new account.
@@ -224,19 +266,20 @@
     {
         if (!_editEmail.Contains('@')) return;
         r.ContactEmail = OnboardingRecord.CanonicalEmail(_editEmail);
+        _editEmail = r.ContactEmail;
         await Store.SaveAsync(r);
     }
 
     private async Task CopyLink(OnboardingRecord r)
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", OnboardingService.CustomerUrl(Nav.BaseUri, r));
-        _copied = r.Token;
+        _note = "copied";
     }
 
     private async Task Resend(OnboardingRecord r)
     {
         await Service.SendInviteAsync(r, Nav.BaseUri);
-        _resent = r.Token;
+        _note = "resent";
     }
 
     private async Task Reopen(OnboardingRecord r)
