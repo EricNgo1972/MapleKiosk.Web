@@ -24,6 +24,9 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
     o.KnownProxies.Clear();
 });
 
+// /health: the readiness probe mk-provisioning polls when it runs this site as a container.
+builder.Services.AddHealthChecks();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -86,6 +89,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapAppStoreEndpoints();
 app.MapOnboardingEndpoints();
 app.MapSPCAuthEndpoints();
