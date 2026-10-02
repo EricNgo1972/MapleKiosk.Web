@@ -7,9 +7,11 @@
             <img src="MapleKiosk_rectangle.png" alt="MapleKiosk" />
         </a>
         <div class="nav__links">
-            <a href="@L.Path(L.Culture)#apps">@L["nav.apps"]</a>
-            <a href="@L.Path(L.Culture)#ai">@L["nav.ai"]</a>
-            <a href="@L.Path(L.Culture)#pricing">@L["nav.pricing"]</a>
+            <a href="@CulturePath("coffee")" class="@Active("coffee")" aria-current="@Current("coffee")">@L["nav.coffee"]</a>
+            <a href="@CulturePath("nails")" class="@Active("nails")" aria-current="@Current("nails")">@L["nav.nails"]</a>
+            <a href="@CulturePath("garage")" class="@Active("garage")" aria-current="@Current("garage")">@L["nav.garage"]</a>
+            @* No page yet — lands on the trade's door on the homepage. *@
+            <a href="@L.Path(L.Culture)#resto" class="@Active("restaurants")" aria-current="@Current("restaurants")">@L["nav.resto"] <span class="nav__soon">@L["nav.soon"]</span></a>
         </div>
         <div class="lang-switch">
             <a href="@LangHref("en")" class="@(L.Culture == "en" ? "active" : "")">EN</a>
@@ -29,10 +31,24 @@
                         <span class="user-badge__chev" aria-hidden="true">▾</span>
                     </button>
                     <div class="user-pop" data-user-pop>
-                        <a class="user-pop__item" href="/shop/admin">
-                            <span class="user-pop__icon" aria-hidden="true">🗂️</span>
-                            <span>@L["nav.catalog"]</span>
-                        </a>
+                        @if (context.User.IsInRole(AppAuthValidator.AdminRole))
+                        {
+                            <a class="user-pop__item" href="/shop/admin">
+                                <span class="user-pop__icon" aria-hidden="true">🗂️</span>
+                                <span>@L["nav.catalog"]</span>
+                            </a>
+                            <a class="user-pop__item" href="/onboarding/admin">
+                                <span class="user-pop__icon" aria-hidden="true">📋</span>
+                                <span>Onboarding</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <a class="user-pop__item" href="/onboarding">
+                                <span class="user-pop__icon" aria-hidden="true">📋</span>
+                                <span>@L["onb.title"]</span>
+                            </a>
+                        }
                         <form method="post" action="/logout" class="user-pop__form">
                             <button type="submit" class="user-pop__item">
                                 <span class="user-pop__icon" aria-hidden="true">↩︎</span>
@@ -42,9 +58,6 @@
                     </div>
                 </div>
             </Authorized>
-            <NotAuthorized>
-                <a class="btn btn-ghost nav__signin" href="/login">@L["nav.signin"]</a>
-            </NotAuthorized>
         </AuthorizeView>
     </div>
 </nav>
@@ -56,7 +69,28 @@
     // Base paths that have localized routes (/, /fr/<path>, ...). The language
     // switch keeps you on the current page for these; anything else falls back to
     // the localized home so we never link to a non-existent localized route.
-    private static readonly HashSet<string> LocalizedPaths = new() { "", "nails", "restaurants", "coffee", "privacy", "terms", "tos" };
+    private static readonly HashSet<string> LocalizedPaths = new() { "", "nails", "restaurants", "coffee", "garage", "privacy", "terms", "tos" };
+
+    // The page you're on, without its culture prefix: "/fr/coffee" -> "coffee".
+    private string CurrentPage
+    {
+        get
+        {
+            var segs = Nav.ToBaseRelativePath(Nav.Uri).Split('?')[0].Split('#')[0]
+                .Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (segs.Count > 0 && segs[0] is "fr" or "vi" or "ru") segs.RemoveAt(0);
+            return segs.FirstOrDefault() ?? "";
+        }
+    }
+
+    private string? Active(string page) => CurrentPage == page ? "active" : null;
+    private string? Current(string page) => CurrentPage == page ? "page" : null;
+
+    private string CulturePath(string page)
+    {
+        var root = L.Path(L.Culture).TrimEnd('/');
+        return string.IsNullOrEmpty(root) ? $"/{page}" : $"{root}/{page}";
+    }
 
     private string LangHref(string culture)
     {

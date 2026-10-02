@@ -1,5 +1,3 @@
-using Azure.Data.Tables;
-
 namespace MapleKiosk.Web.Services;
 
 /// <summary>
@@ -27,32 +25,6 @@ public static class AuthConfig
         return map;
     }
 
-    private static async Task<string> ResolveAsync(string envVar, string rowKey)
-    {
-        var env = Environment.GetEnvironmentVariable(envVar);
-        if (!string.IsNullOrWhiteSpace(env)) return env.Trim();
-
-        var connection = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connection)) return "";
-
-        try
-        {
-            var tableName = string.Equals(
-                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                "Production", StringComparison.OrdinalIgnoreCase)
-                ? "keyvalueProduction" : "keyvalue";
-
-            var table = new TableClient(connection, tableName);
-            var resp = await table.GetEntityIfExistsAsync<TableEntity>("Authentication", rowKey);
-            if (resp.HasValue && resp.Value!.TryGetValue("Value", out var v))
-                return v?.ToString()?.Trim() ?? "";
-        }
-        catch
-        {
-            // Degrade — AuthHostUrl default still applies; signing key falls back
-            // to the embedded vault inside SPC.Infrastructure.Auth.
-        }
-
-        return "";
-    }
+    private static Task<string> ResolveAsync(string envVar, string rowKey) =>
+        KeyValueTable.ResolveAsync(envVar, "Authentication", rowKey);
 }

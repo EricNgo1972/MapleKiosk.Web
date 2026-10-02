@@ -1,4 +1,5 @@
 using Azure.Data.Tables;
+using MapleKiosk.Web.Services;
 
 namespace MapleKiosk.Web.Shop.Config;
 
@@ -79,13 +80,7 @@ public sealed class AppStoreConfig
             return null;
         }
 
-        var tableName = string.Equals(
-            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-            "Production", StringComparison.OrdinalIgnoreCase)
-            ? "keyvalueProduction"
-            : "keyvalue";
-
-        _table = new TableClient(conn, tableName);
+        _table = new TableClient(conn, KeyValueTable.Name);
         return _table;
     }
 }

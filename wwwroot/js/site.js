@@ -1,7 +1,13 @@
 (function () {
   function openTrialModal() {
     const m = document.getElementById('trialModal');
-    if (!m) return;
+    if (!m) {
+      // Pages without the form (legal pages, ...) send you to the homepage's.
+      const seg = location.pathname.split('/')[1];
+      const root = ['fr', 'vi', 'ru'].includes(seg) ? '/' + seg : '/';
+      location.href = root + '#demo';
+      return;
+    }
     m.classList.add('open');
     document.body.classList.add('modal-open');
     const first = m.querySelector('input, select, textarea');
@@ -24,7 +30,40 @@
   }
   window.closeUserMenu = closeUserMenu;
 
+  // ===== Video lightbox: any [data-video="<YouTube id>"] opens it =====
+  let lastFocus = null;
+  function openVideo(id, start) {
+    closeVideo();
+    lastFocus = document.activeElement;
+    const lang = document.documentElement.lang || 'en';
+    const box = document.createElement('div');
+    box.className = 'vbox';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.innerHTML =
+      '<button type="button" class="vbox__close" aria-label="Close" data-close-video>&times;</button>' +
+      '<div class="vbox__frame"><iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
+      '?autoplay=1&rel=0&modestbranding=1&hl=' + lang +
+      (start ? '&start=' + (parseInt(start, 10) || 0) : '') + '" title="MapleKiosk video"' +
+      ' allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>';
+    box.addEventListener('click', (e) => { if (e.target === box) closeVideo(); });
+    document.body.appendChild(box);
+    document.body.classList.add('modal-open');
+    box.querySelector('.vbox__close').focus();
+  }
+  function closeVideo() {
+    const box = document.querySelector('.vbox');
+    if (!box) return;
+    box.remove();
+    document.body.classList.remove('modal-open');
+    if (lastFocus) { lastFocus.focus(); lastFocus = null; }
+  }
+
   document.addEventListener('click', (ev) => {
+    const vid = ev.target.closest('[data-video]');
+    if (vid) { ev.preventDefault(); ev.stopPropagation(); openVideo(vid.getAttribute('data-video'), vid.getAttribute('data-start')); return; }
+    if (ev.target.closest('[data-close-video]')) { ev.preventDefault(); closeVideo(); return; }
+
     const menuBtn = ev.target.closest('[data-user-menu]');
     if (menuBtn) {
       ev.preventDefault(); ev.stopPropagation();
@@ -58,8 +97,14 @@
   }, true);
 
   document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape') { closeTrialModal(); closeUserMenu(); }
+    if (ev.key === 'Escape') { closeVideo(); closeTrialModal(); closeUserMenu(); }
   });
+
+  // Arriving from another page's "Book a demo" (see openTrialModal).
+  if (location.hash === '#demo') {
+    history.replaceState(null, '', location.pathname + location.search);
+    setTimeout(openTrialModal, 300);
+  }
 
   const nav = document.querySelector('.nav');
   let lastY = 0;

@@ -78,4 +78,16 @@
   <url>
     <loc>https://web.maplekiosk.ca/sms-opt-in</loc>
   </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/garage</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/fr/garage</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/vi/garage</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ru/garage</loc>
+  </url>
 </urlset>

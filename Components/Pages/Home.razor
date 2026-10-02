@@ -4,7 +4,6 @@
 @page "/ru"
 @inject LocalizationService L
 @inject NavigationManager Nav
-@inject CartService Cart
 
 <PageTitle>@L["home.meta.title"]</PageTitle>
 <HeadContent>
@@ -15,25 +14,152 @@
 </HeadContent>
 
 <NavBar />
-<Hero />
-<LogoStrip />
-<IndustryInvites />
-<Apps />
-<AIServices />
-<HowItWorks />
-<DashboardPreview />
-<Pricing />
-@* <Faq /> — re-enable when there are real FAQ entries to show *@
-<CtaBanner />
+
+<main class="hp">
+
+    <!-- ===================== FOUR DOORS ===================== -->
+    <section class="hp-doors" id="top">
+        <div class="container">
+            <h1 class="hp-doors__title">@L["hp.h1"]</h1>
+            <p class="hp-doors__sub">@L["hp.sub"]</p>
+
+            <div class="hp-doors__grid" id="trades">
+                @foreach (var d in _doors)
+                {
+                    <article class="hp-door hp-door--@d.Key" id="@d.Key">
+                        @if (d.VideoId is not null)
+                        {
+                            <button type="button" class="hp-door__media" data-video="@d.VideoId"
+                                    aria-label="@($"{L["hp.watch"]}: {d.Product} ({d.Length})")">
+                                <img src="img/home/@d.Image" alt="" loading="@(d.Key == "coffee" ? "eager" : "lazy")" width="1280" height="720" />
+                                <span class="hp-play" aria-hidden="true"></span>
+                                <span class="hp-len">@d.Length</span>
+                                @if (d.Vietnamese)
+                                {
+                                    <span class="hp-tag">@L["hp.narrated.vi"]</span>
+                                }
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="hp-door__media hp-door__media--soon" aria-hidden="true">
+                                <span>@L["hp.soon"]</span>
+                            </div>
+                        }
+                        <div class="hp-door__body">
+                            <p class="hp-door__trade">@L[$"hp.{d.Key}.trade"] <span>· @d.Product</span></p>
+                            <p class="hp-door__line">@L[$"hp.{d.Key}.line"]</p>
+                            <div class="hp-door__actions">
+                                @if (d.VideoId is not null)
+                                {
+                                    <button type="button" class="hp-link" data-video="@d.VideoId">@L["hp.watch"] <span>@d.Length</span></button>
+                                }
+                                @if (d.Page is not null)
+                                {
+                                    <a class="hp-link hp-link--strong" href="@Localized(d.Page)">@L[$"hp.{d.Key}.more"] <span aria-hidden="true">→</span></a>
+                                }
+                                else if (d.VideoId is not null)
+                                {
+                                    <span class="hp-door__note">@L[$"hp.{d.Key}.page"]</span>
+                                }
+                                else
+                                {
+                                    <a class="hp-link hp-link--strong" href="javascript:void(0)" data-open-trial>@L[$"hp.{d.Key}.cta"]</a>
+                                }
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== AI, AS A JOB ===================== -->
+    <section class="hp-ai">
+        <div class="container">
+            <h2 class="hp-h2">@L["hp.ai.title"]</h2>
+            <p class="hp-lead">@L["hp.ai.sub"]</p>
+            <div class="hp-ai__grid">
+                <figure class="hp-ai__item">
+                    <button type="button" class="hp-door__media" data-video="G5uLNWY26ds" aria-label="@($"{L["hp.watch"]}: MapleCoffee (1:15)")">
+                        <img src="img/home/coffee-voice-kiosk.jpg" alt="" loading="lazy" width="1280" height="720" />
+                        <span class="hp-play" aria-hidden="true"></span>
+                        <span class="hp-len">1:15</span>
+                    </button>
+                    <figcaption>
+                        <blockquote>@L["hp.ai.coffee.quote"]</blockquote>
+                        <p>@L["hp.ai.coffee.text"]</p>
+                    </figcaption>
+                </figure>
+                <figure class="hp-ai__item">
+                    <button type="button" class="hp-door__media" data-video="n1Src-4w5MY" aria-label="@($"{L["hp.watch"]}: MapleSPA (1:21)")">
+                        <img src="img/home/nails-ai-receptionist.jpg" alt="" loading="lazy" width="1280" height="720" />
+                        <span class="hp-play" aria-hidden="true"></span>
+                        <span class="hp-len">1:21</span>
+                        <span class="hp-tag">@L["hp.narrated.vi"]</span>
+                    </button>
+                    <figcaption>
+                        <blockquote>@L["hp.ai.nails.quote"]</blockquote>
+                        <p>@L["hp.ai.nails.text"]</p>
+                    </figcaption>
+                </figure>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== WHO WE ARE ===================== -->
+    <section class="hp-co">
+        <div class="container hp-co__grid">
+            <div>
+                <h2 class="hp-h2">@L["hp.co.title"]</h2>
+                <p class="hp-lead">@L["hp.co.text"]</p>
+            </div>
+            <ul class="hp-co__facts">
+                <li>@L["hp.co.place"]</li>
+                <li>@L["hp.co.langs"]</li>
+                <li>@L["hp.co.email"]: <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></li>
+                <li><a href="https://www.youtube.com/@@ericngo2228" target="_blank" rel="noopener">@L["hp.co.videos"] →</a></li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ===================== CLOSE ===================== -->
+    <section class="hp-end">
+        <div class="container">
+            <h2 class="hp-h2">@L["hp.end.title"]</h2>
+            <div class="hp-end__actions">
+                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
+            </div>
+        </div>
+    </section>
+
+</main>
+
 <TrialForm Culture="@L.Culture" />
 <Footer />
 <MobileCta />
 
 @code {
+    // One door per trade. VideoId = YouTube video on the Maple Kiosk channel;
+    // Page = the trade's own page (null until it ships).
+    private record Door(string Key, string Product, string? VideoId, string? Image, string? Length, string? Page, bool Vietnamese = false);
+
+    private readonly Door[] _doors =
+    {
+        new("coffee", "MapleCoffee", "DOrVkwVhBVQ", "coffee-morning-rush.jpg", "1:08", "/coffee"),
+        new("nails",  "MapleSPA",    "pO7CuFU-pm8", "nails-turn-board.jpg",    "1:02", "/nails", Vietnamese: true),
+        new("garage", "MapleGarage", "t1_a_Nac8wA", "garage-my-jobs.jpg",      "1:28", "/garage"),
+        new("resto",  "MapleRES",    null,          null,                      null,   null),
+    };
+
     protected override void OnInitialized()
     {
         var uri = new Uri(Nav.Uri);
         var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
         L.SetCulture(seg);
     }
+
+    // Locale-aware internal link (/nails -> /fr/nails, ...).
+    private string Localized(string path) => L.Culture == "en" ? path : $"/{L.Culture}{path}";
 }

@@ -1,0 +1,26 @@
+@page "/access-denied"
+@attribute [AllowAnonymous]
+@inject LocalizationService L
+
+<PageTitle>@L["denied.title"] — MapleKiosk</PageTitle>
+<HeadContent><meta name="robots" content="noindex" /></HeadContent>
+
+<section class="mshop-result">
+    <div class="mshop-result__card">
+        <h1>@L["denied.title"]</h1>
+        @if (!string.IsNullOrWhiteSpace(Email))
+        {
+            <p>@string.Format(L["denied.body"], Email)</p>
+        }
+        <p style="color:var(--muted)">@L["denied.hint"]</p>
+        <a class="mshop-btn mshop-btn--primary" href="/signin?returnUrl=%2Fonboarding">@L["denied.retry"]</a>
+        <p style="color:var(--muted);font-size:13px;margin-top:16px">support@maplekiosk.ca</p>
+    </div>
+</section>
+
+@code {
+    // The auth callback passes the rejected account so the user can see which
+    // email they actually signed in with.
+    [Parameter, SupplyParameterFromQuery(Name = "email")]
+    public string? Email { get; set; }
+}

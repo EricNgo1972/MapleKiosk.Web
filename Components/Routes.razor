@@ -3,7 +3,15 @@
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
-                <RedirectToSignin />
+                @* Signed in but lacking the role (e.g. a customer opening a staff page): don't bounce back to sign-in. *@
+                @if (context.User.Identity?.IsAuthenticated == true)
+                {
+                    <RedirectToAccessDenied />
+                }
+                else
+                {
+                    <RedirectToSignin />
+                }
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />

@@ -1,0 +1,836 @@
+@page "/onboarding"
+@page "/onboarding/{Token}"
+@page "/onboarding/{Token}/{Step}"
+@page "/onboarding/{Token}/{Step}/{Sub:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using O = MapleKiosk.Web.Onboarding.WebsiteBriefOptions
+@inject OnboardingStore Store
+@inject OnboardingService Service
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@implements IDisposable
+
+<PageTitle>@L["onb.title"] — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex, nofollow" />
+    @if (_step == "website")
+    {
+        @* Fonts for the style-card previews in the website brief. *@
+        <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Cormorant+Garamond:wght@600&family=Fraunces:wght@600&family=Libre+Baskerville:wght@700&family=Lora:wght@600&family=Quicksand:wght@600&family=Space+Grotesk:wght@600&display=swap" rel="stylesheet" />
+    }
+</HeadContent>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="@Href(null)" class="onb-top__logo" @onclick="() => GoTo(null)" @onclick:preventDefault><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <div class="lang-switch">
+            @foreach (var lang in Languages)
+            {
+                <a href="javascript:void(0)" class="@(L.Culture == lang ? "active" : "")" @onclick="() => SetLanguage(lang)">@lang.ToUpperInvariant()</a>
+            }
+        </div>
+        <div class="onb-top__user">
+            <span class="onb__muted">@_email</span>
+            <form method="post" action="/logout" data-enhance="false">
+                <button type="submit" class="btn btn-ghost onb-small">@L["nav.signout"]</button>
+            </form>
+        </div>
+    </div>
+</header>
+
+<main class="onb">
+    @if (_loading)
+    {
+        <div class="container onb__wrap"><p class="onb__muted">@L["onb.loading"]</p></div>
+    }
+    else if (_record is null && _choices.Count > 1)
+    {
+        <div class="container onb__wrap">
+            <div class="onb-head">
+                <span class="eyebrow">@L["onb.eyebrow"]</span>
+                <h1 class="onb__h1">@L["onb.pick.title"]</h1>
+            </div>
+            @foreach (var r in _choices)
+            {
+                <a class="onb-card onb-pick" href="/onboarding/@r.Token">
+                    <strong>@r.Form.BusinessName</strong>
+                    <span class="onb__muted">@(r.Status == OnboardingStatus.Submitted ? L["onb.pick.submitted"] : L["onb.pick.open"]) →</span>
+                </a>
+            }
+        </div>
+    }
+    else if (_record is null)
+    {
+        <div class="container onb__wrap">
+            <div class="onb-card">
+                <h1 class="onb__h1">@L["onb.invalid.title"]</h1>
+                <p class="onb__muted">@string.Format(L["onb.invalid.body"], _email)</p>
+                @if (_isAdmin)
+                {
+                    <p><a class="btn btn-ghost onb-small" href="/onboarding/admin">Onboarding admin →</a></p>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        var f = _record.Form;
+        var steps = Steps();
+        var current = steps.FirstOrDefault(s => s.Id == _step);
+        <div class="container onb-layout">
+            <!-- Sidebar: overview, every task with its status, review -->
+            <nav class="onb-side" aria-label="@L["onb.title"]">
+                <a href="@Href(null)" class="onb-side__item @(current is null ? "is-on" : "")" @onclick="() => GoTo(null)" @onclick:preventDefault>
+                    <span class="onb-side__icon">☰</span>@L["onb.nav.overview"]
+                </a>
+                @foreach (var s in steps)
+                {
+                    var st = Status(s.Id);
+                    <a href="@Href(s.Id)" class="onb-side__item @(current?.Id == s.Id ? "is-on" : "") is-@st" @onclick="() => GoTo(s.Id)" @onclick:preventDefault>
+                        <span class="onb-side__icon">@(s.Id == "review" ? "➤" : st == "done" ? "✓" : (steps.IndexOf(s) + 1).ToString())</span>@s.Title
+                    </a>
+                    @if (s.Id == "website" && current?.Id == "website")
+                    {
+                        <div class="onb-side__sub">
+                            @for (var i = 1; i <= 8; i++)
+                            {
+                                var n = i;
+                                <a href="@Href("website", n)" class="@(SubSection == n ? "is-on" : "")" @onclick="() => GoTo(StepWebsite, n)" @onclick:preventDefault>@BT($"s{n}")</a>
+                            }
+                        </div>
+                    }
+                }
+                <div class="onb-side__progress">
+                    <div class="onb-bar-track"><span style="width:@(ProgressPct(steps))%"></span></div>
+                    <small>@string.Format(L["onb.progress"], DoneCount(steps), TaskCount(steps))</small>
+                </div>
+            </nav>
+
+            <div class="onb-main">
+                @if (_record.Status == OnboardingStatus.Submitted)
+                {
+                    <div class="onb-banner onb-banner--ok">✓ @string.Format(L["onb.submitted.banner"], _record.SubmittedAt?.ToLocalTime().ToString("yyyy-MM-dd"))</div>
+                }
+
+                @if (current is null)
+                {
+                    <!-- ===== Overview ===== -->
+                    <div class="onb-head">
+                        <span class="eyebrow">@L["onb.eyebrow"]</span>
+                        <h1 class="onb__h1">@string.Format(L["onb.welcome"], _record.BusinessName)</h1>
+                        <p class="onb__muted">@L["onb.intro"]</p>
+                        <div class="onb-progress">
+                            <div class="onb-bar-track onb-bar-track--lg"><span style="width:@(ProgressPct(steps))%"></span></div>
+                            <strong>@string.Format(L["onb.progress"], DoneCount(steps), TaskCount(steps))</strong>
+                        </div>
+                    </div>
+
+                    <section class="onb-card">
+                        <h2>@L["onb.need.title"]</h2>
+                        <ol class="onb-tasks">
+                            @foreach (var s in steps.Where(s => s.Id != "review"))
+                            {
+                                var st = Status(s.Id);
+                                <li class="onb-task is-@st">
+                                    <span class="onb-task__icon">@(st == "done" ? "✓" : (steps.IndexOf(s) + 1).ToString())</span>
+                                    <div class="onb-task__body">
+                                        <div class="onb-task__top">
+                                            <strong>@s.Title</strong>
+                                            <span class="onb-tag @(s.Required ? "onb-tag--req" : "")">@(s.Required ? L["onb.required"] : L["onb.optional"])</span>
+                                            <span class="onb-tag">@string.Format(L["onb.min"], s.Minutes)</span>
+                                        </div>
+                                        <p>@s.Need</p>
+                                    </div>
+                                    <div class="onb-task__act">
+                                        <span class="onb-status onb-status--@st">@L[$"onb.st.{st}"]</span>
+                                        <a class="btn @(st == "done" ? "btn-ghost" : "btn-primary") onb-small" href="@Href(s.Id)" @onclick="() => GoTo(s.Id)" @onclick:preventDefault>
+                                            @L[st == "done" ? "onb.btn.edit" : st == "started" ? "onb.btn.continue" : "onb.btn.start"]
+                                        </a>
+                                    </div>
+                                </li>
+                            }
+                        </ol>
+                        @if (_record.Status != OnboardingStatus.Submitted)
+                        {
+                            <div class="onb-tasks__foot">
+                                <a class="btn btn-primary" href="@Href("review")" @onclick="() => GoTo(StepReview)" @onclick:preventDefault>@L["onb.nav.review"] →</a>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="onb-card">
+                        <h2>@L["onb.next.title"]</h2>
+                        <ol class="onb-timeline">
+                            @for (var i = 1; i <= 4; i++)
+                            {
+                                <li><span>@i</span><p>@L[$"onb.next.{i}"]</p></li>
+                            }
+                        </ol>
+                        <p class="onb-help">💬 @L["onb.help"]</p>
+                    </section>
+                }
+                else
+                {
+                    <!-- ===== One task ===== -->
+                    <section class="onb-card">
+                        <div class="onb-step-head">
+                            <span class="onb-num">@(current.Id == "review" ? "➤" : (steps.IndexOf(current) + 1).ToString())</span>
+                            <div>
+                                <h1 class="onb-step-title">@(current.Id == "website" ? $"{current.Title} · {BT($"s{SubSection}")}" : current.Title)</h1>
+                                @if (current.Id != "review")
+                                {
+                                    <p class="onb__muted">@current.Need</p>
+                                }
+                            </div>
+                        </div>
+
+                        @if (Locked(current.Id))
+                        {
+                            <div class="onb-banner">@string.Format(L["onb.locked"], _record.SubmittedAt?.ToLocalTime().ToString("yyyy-MM-dd"))</div>
+                        }
+
+                        <fieldset class="onb-fieldset" disabled="@Locked(current.Id)">
+                        @switch (current.Id)
+                        {
+                            case "business":
+                                <div class="onb-grid">
+                                    <label><span>@L["onb.f.businessName"] <em>*</em></span>
+                                        <input @bind="f.BusinessName" @bind:after="Changed" autocomplete="organization" />
+                                    </label>
+                                    <label>@L["onb.f.legalName"]
+                                        <input @bind="f.LegalName" @bind:after="Changed" placeholder="@L["onb.f.legalName.ph"]" />
+                                    </label>
+                                    <label class="onb-span">@L["onb.f.address"]
+                                        <input @bind="f.Address" @bind:after="Changed" autocomplete="street-address" />
+                                    </label>
+                                    <label>@L["onb.f.city"]
+                                        <input @bind="f.City" @bind:after="Changed" autocomplete="address-level2" />
+                                    </label>
+                                    <label>@L["onb.f.postal"]
+                                        <input @bind="f.PostalCode" @bind:after="Changed" autocomplete="postal-code" />
+                                    </label>
+                                    <label><span>@L["onb.f.phone"] <em>*</em></span>
+                                        <input type="tel" @bind="f.Phone" @bind:after="Changed" />
+                                        <small>@L["onb.f.phone.hint"]</small>
+                                    </label>
+                                    <label><span>@L["onb.f.notifyEmail"] <em>*</em></span>
+                                        <input type="email" @bind="f.NotifyEmail" @bind:after="Changed" />
+                                        <small>@L["onb.f.notifyEmail.hint"]</small>
+                                    </label>
+                                    <label>@L["onb.f.contactName"]
+                                        <input @bind="f.ContactName" @bind:after="Changed" autocomplete="name" />
+                                    </label>
+                                    <label>@L["onb.f.contactMobile"]
+                                        <input type="tel" @bind="f.ContactMobile" @bind:after="Changed" />
+                                    </label>
+                                </div>
+                                break;
+
+                            case "hours":
+                                <div class="onb-hours">
+                                    @foreach (var h in f.Hours)
+                                    {
+                                        <div class="onb-hours__row @(h.Closed ? "is-closed" : "")">
+                                            <span class="onb-hours__day">@L[$"onb.day.{h.Day}"]</span>
+                                            <label class="onb-check">
+                                                <input type="checkbox" @bind="h.Closed" @bind:after="HoursChanged" /> @L["onb.closed"]
+                                            </label>
+                                            @if (!h.Closed)
+                                            {
+                                                <input type="time" value="@h.Open" @onchange="e => SetTime(h, true, e)" aria-label="@L["onb.opens"]" />
+                                                <span class="onb__muted">–</span>
+                                                <input type="time" value="@h.Close" @onchange="e => SetTime(h, false, e)" aria-label="@L["onb.closes"]" />
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <button type="button" class="btn btn-ghost onb-small" @onclick="CopyMondayToAll">@L["onb.copyMon"]</button>
+                                <label class="onb-block">@L["onb.f.hoursNotes"]
+                                    <input @bind="f.HoursNotes" @bind:after="Changed" placeholder="@L["onb.f.hoursNotes.ph"]" />
+                                </label>
+                                <label class="onb-check onb-confirm">
+                                    <input type="checkbox" @bind="f.HoursConfirmed" @bind:after="Changed" /> @L["onb.hours.confirm"]
+                                </label>
+                                break;
+
+                            case "online":
+                                <div class="onb-grid">
+                                    <label>@L["onb.f.website"]
+                                        <input type="url" @bind="f.Website" @bind:after="Changed" placeholder="https://" />
+                                    </label>
+                                    <label>@L["onb.f.google"]
+                                        <input type="url" @bind="f.GoogleProfile" @bind:after="Changed" placeholder="https://g.page/…" />
+                                    </label>
+                                    <label>Facebook
+                                        <input type="url" @bind="f.Facebook" @bind:after="Changed" placeholder="https://facebook.com/…" />
+                                    </label>
+                                    <label>Instagram
+                                        <input @bind="f.Instagram" @bind:after="Changed" placeholder="@@yoursalon" />
+                                    </label>
+                                    <label>@L["onb.f.sms"]
+                                        <input type="tel" @bind="f.SmsNumber" @bind:after="Changed" />
+                                        <small>@L["onb.f.sms.hint"]</small>
+                                    </label>
+                                </div>
+                                <label class="onb-check onb-confirm">
+                                    <input type="checkbox" @bind="f.NoOnline" @bind:after="Changed" /> @L["onb.online.none"]
+                                </label>
+                                break;
+
+                            case "access":
+                                <p class="onb-safe">🔒 @L["onb.s4.nopass"]</p>
+                                <div class="onb-access">
+                                    <h3>Google Business Profile</h3>
+                                    <ol>
+                                        <li>@L["onb.g.1"]</li>
+                                        <li>@L["onb.g.2"]</li>
+                                        <li>@((MarkupString)string.Format(L["onb.g.3"], $"<strong>{System.Net.WebUtility.HtmlEncode(_accessEmail)}</strong>"))</li>
+                                    </ol>
+                                    <AccessChoice Value="@f.GoogleAccess" ValueChanged="v => { f.GoogleAccess = v; Changed(); }" Name="google" NaLabel="@L["onb.acc.naGoogle"]" />
+                                </div>
+                                <div class="onb-access">
+                                    <h3>Facebook + Instagram (Meta Business)</h3>
+                                    <ol>
+                                        <li>@L["onb.m.1"]</li>
+                                        <li>@L["onb.m.2"]</li>
+                                        <li>
+                                            @if (string.IsNullOrWhiteSpace(_metaBusinessId))
+                                            {
+                                                @L["onb.m.3.noid"]
+                                            }
+                                            else
+                                            {
+                                                @((MarkupString)string.Format(L["onb.m.3"], $"<strong>{System.Net.WebUtility.HtmlEncode(_metaBusinessId)}</strong>"))
+                                            }
+                                        </li>
+                                        <li>@L["onb.m.4"]</li>
+                                    </ol>
+                                    <AccessChoice Value="@f.MetaAccess" ValueChanged="v => { f.MetaAccess = v; Changed(); }" Name="meta" NaLabel="@L["onb.acc.naMeta"]" />
+                                </div>
+                                break;
+
+                            case "files":
+                                @if (_templateUrl is not null)
+                                {
+                                    <a class="onb-download" href="@_templateUrl" download>
+                                        <span class="onb-download__icon">XLSX</span>
+                                        <span><strong>@L["onb.s5.download"]</strong><br /><small>@L["onb.s5.download.hint"]</small></span>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <p class="onb__muted">@L["onb.s5.notemplate"]</p>
+                                }
+                                <label class="onb-drop @(_uploading ? "is-busy" : "")">
+                                    <InputFile OnChange="OnFilesSelected" multiple accept=".xlsx,.xls,.csv,.pdf,.doc,.docx,image/*" />
+                                    <strong>@(_uploading ? L["onb.s5.uploading"] : L["onb.s5.upload"])</strong>
+                                    <small>@L["onb.s5.upload.hint"]</small>
+                                </label>
+                                @if (_record.Files.Count > 0)
+                                {
+                                    <ul class="onb-files">
+                                        @foreach (var file in _record.Files)
+                                        {
+                                            <li>
+                                                <span>📎 @file.FileName <small class="onb__muted">(@(file.Size / 1024) KB)</small></span>
+                                                <button type="button" class="onb-files__rm" @onclick="() => RemoveFile(file)" aria-label="@L["onb.remove"]">✕</button>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                @if (_fileError is not null) { <p class="onb-error">@_fileError</p> }
+                                <label class="onb-block">@L["onb.f.notes"]
+                                    <textarea rows="4" @bind="f.Notes" @bind:after="Changed" placeholder="@L["onb.f.notes.ph"]"></textarea>
+                                </label>
+                                break;
+
+                            case "website":
+                                @if (_brief is not null)
+                                {
+                                    @if (SubSection == 1)
+                                    {
+                                        <p class="onb__muted wb-intro">@BT("intro")</p>
+                                    }
+                                    <WebsiteBriefEditor B="_brief" Token="@_record.Token" Section="SubSection" Industry="@_record.Industry" Culture="@L.Culture" OnChanged="BriefChanged" />
+                                    @if (_brief.CompletedAt is { } sentAt)
+                                    {
+                                        <div class="onb-banner onb-banner--ok">@string.Format(BT("sent"), sentAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))</div>
+                                    }
+                                }
+                                break;
+
+                            case "review":
+                                <p class="onb__muted">@L["onb.review.sub"]</p>
+                                <ul class="onb-review">
+                                    @foreach (var s in steps.Where(s => s.Id != "review"))
+                                    {
+                                        var st = Status(s.Id);
+                                        var missing = Missing(s.Id);
+                                        <li class="is-@st">
+                                            <span class="onb-review__icon">@(st == "done" ? "✓" : s.Required ? "!" : "–")</span>
+                                            <div>
+                                                <a href="@Href(s.Id)" @onclick="() => GoTo(s.Id)" @onclick:preventDefault><strong>@s.Title</strong></a>
+                                                @if (s.Id == "website")
+                                                {
+                                                    <small>@L["onb.review.websiteNote"]</small>
+                                                }
+                                                else if (missing.Count > 0)
+                                                {
+                                                    <small>@L["onb.review.missing"] @string.Join(", ", missing)</small>
+                                                }
+                                            </div>
+                                            <span class="onb-status onb-status--@st">@L[$"onb.st.{st}"]</span>
+                                        </li>
+                                    }
+                                </ul>
+                                @if (_record.Status != OnboardingStatus.Submitted)
+                                {
+                                    @if (RequiredDone(steps))
+                                    {
+                                        <p class="onb-banner onb-banner--ok">@L["onb.review.ready"]</p>
+                                    }
+                                    @if (_errors.Count > 0)
+                                    {
+                                        <p class="onb-error">@string.Join(" · ", _errors)</p>
+                                    }
+                                    <button type="button" class="btn btn-primary onb-submit" disabled="@(_busy || !RequiredDone(steps))" @onclick="Submit">
+                                        @(_busy ? L["onb.submitting"] : L["onb.submit"])
+                                    </button>
+                                }
+                                break;
+                        }
+                        </fieldset>
+
+                        <!-- Back / save status / next -->
+                        <div class="onb-pager">
+                            @{ var prev = Prev(steps, current); var next = Next(steps, current); }
+                            <a class="btn btn-ghost onb-small" href="@Href(prev.Step, prev.Sub)" @onclick="() => GoTo(prev.Step, prev.Sub)" @onclick:preventDefault>← @L["onb.back"]</a>
+                            <span class="onb__muted onb-pager__status">@SaveStatus</span>
+                            @if (current.Id == "website" && SubSection == 8)
+                            {
+                                <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="SendBrief">
+                                    @(_busy ? BT("sending") : _brief?.CompletedAt is null ? BT("send") : BT("resend"))
+                                </button>
+                            }
+                            else if (current.Id != "review")
+                            {
+                                <a class="btn btn-primary onb-small" href="@Href(next.Step, next.Sub)" @onclick="() => GoNext(current.Id, next)" @onclick:preventDefault>@L["onb.nextBtn"] →</a>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+        </div>
+    }
+</main>
+
+@code {
+    [Parameter] public string? Token { get; set; }
+    [Parameter] public string? Step { get; set; }
+    [Parameter] public int? Sub { get; set; }
+    [Parameter, SupplyParameterFromQuery(Name = "lang")] public string? Lang { get; set; }
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private sealed record StepInfo(string Id, string Title, string Need, int Minutes, bool Required);
+
+    private const string StepWebsite = "website", StepReview = "review";
+    private static readonly string[] Languages = ["en", "fr", "vi"];
+    private const long MaxFileBytes = 25 * 1024 * 1024;
+
+    private OnboardingRecord? _record;
+    private WebsiteBrief? _brief;
+    private List<OnboardingRecord> _choices = new();
+    private string _email = "";
+    private bool _isAdmin;
+    private bool _loading = true;
+    private bool _busy;
+    private bool _uploading;
+    private string? _fileError;
+    private List<string> _errors = new();
+    private string _accessEmail = "";
+    private string _metaBusinessId = "";
+    private string? _templateUrl;
+
+    // Autosave: every change bumps a version; a debounced save writes the latest.
+    // The setup form and the website brief are separate rows, saved separately.
+    private int _version, _savedVersion, _briefVersion, _briefSavedVersion;
+    private DateTimeOffset? _savedAt;
+    private bool _saveFailed;
+    private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
+
+    // Current step lives in the component, seeded from the URL. Moving between
+    // steps stays in this circuit (a link would reload the page and drop any
+    // edit still waiting for autosave); the URL is kept in sync for refreshes.
+    private string? _step;
+    private int? _sub;
+    private int SubSection => Math.Clamp(_sub ?? 1, 1, 8);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _step = Step;
+        _sub = Sub;
+        var user = (await AuthState).User;
+        _email = OnboardingRecord.CanonicalEmail(user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value);
+        _isAdmin = user.IsInRole(AppAuthValidator.AdminRole);
+        if (!string.IsNullOrWhiteSpace(Lang)) L.SetCulture(Lang);
+
+        // Signed-in email is the access: a customer only ever sees records on
+        // their email; staff (Admin) can open any record by id to preview it.
+        if (!string.IsNullOrWhiteSpace(Token))
+        {
+            var r = await Store.FindAsync(Token);
+            if (r is not null && (_isAdmin || OnboardingRecord.CanonicalEmail(r.ContactEmail) == _email)) _record = r;
+        }
+        else
+        {
+            _choices = (await Store.FindByEmailAsync(_email)).ToList();
+            if (_choices.Count == 1)
+            {
+                // One business: give the overview its canonical URL (/onboarding/{token}).
+                Nav.NavigateTo($"/onboarding/{_choices[0].Token}{(string.IsNullOrWhiteSpace(Lang) ? "" : $"?lang={Lang}")}", replace: true);
+                return;
+            }
+        }
+
+        if (_record is not null)
+        {
+            L.SetCulture(string.IsNullOrWhiteSpace(Lang) ? _record.Language : Lang);
+            _record.Language = L.Culture;
+            if (_record.IncludesWebsite) _brief = await Store.GetBriefAsync(_record.Token);
+            _accessEmail = await Service.GetAccessEmailAsync();
+            if (string.IsNullOrWhiteSpace(_accessEmail)) _accessEmail = "support@maplekiosk.ca";
+            _metaBusinessId = await Service.GetMetaBusinessIdAsync();
+            ResolveTemplate();
+        }
+        _loading = false;
+    }
+
+    // ---- Steps & navigation -------------------------------------------------
+
+    private List<StepInfo> Steps()
+    {
+        var list = new List<StepInfo>
+        {
+            new("business", L["onb.s1.title"], L["onb.need.business"], 3, true),
+            new("hours", L["onb.s2.title"], L["onb.need.hours"], 2, true),
+            new("online", L["onb.s3.title"], L["onb.need.online"], 2, false),
+            new("access", L["onb.s4.title"], L["onb.need.access"], 5, false),
+            new("files", L["onb.s5.title"], L["onb.need.files"], 20, true),
+        };
+        if (_record!.IncludesWebsite)
+            list.Add(new("website", BT("card.title"), BT("card.body"), 15, false));
+        list.Add(new("review", L["onb.nav.review"], "", 1, false));
+        return list;
+    }
+
+    private string Href(string? step, int? sub = null) =>
+        step is null ? $"/onboarding/{_record?.Token}" : sub is null ? $"/onboarding/{_record?.Token}/{step}" : $"/onboarding/{_record?.Token}/{step}/{sub}";
+
+    private (string? Step, int? Sub) Next(List<StepInfo> steps, StepInfo current)
+    {
+        if (current.Id == "website" && SubSection < 8) return ("website", SubSection + 1);
+        var i = steps.IndexOf(current);
+        return i + 1 < steps.Count ? (steps[i + 1].Id, null) : (null, null);
+    }
+
+    private (string? Step, int? Sub) Prev(List<StepInfo> steps, StepInfo current)
+    {
+        if (current.Id == "website" && SubSection > 1) return ("website", SubSection - 1);
+        var i = steps.IndexOf(current);
+        if (i <= 0) return (null, null);
+        var prev = steps[i - 1];
+        return prev.Id == "website" ? ("website", 8) : (prev.Id, null);
+    }
+
+    private async Task GoTo(string? step, int? sub = null)
+    {
+        await FlushAsync();
+        _step = step;
+        _sub = sub;
+        try
+        {
+            await JS.InvokeVoidAsync("history.replaceState", null, "", Href(step, sub));
+            await JS.InvokeVoidAsync("window.scrollTo", 0, 0);
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    // Leaving the hours page with Next counts as "these hours are right".
+    private Task GoNext(string from, (string? Step, int? Sub) next)
+    {
+        if (from == "hours" && !_record!.Form.HoursConfirmed && !Locked("hours"))
+        {
+            _record.Form.HoursConfirmed = true;
+            _version++;
+        }
+        return GoTo(next.Step, next.Sub);
+    }
+
+    private string BT(string key) => O.T(key, L.Culture);
+
+    // The setup form is frozen once submitted; the website brief stays editable.
+    private bool Locked(string step) => _record!.Status == OnboardingStatus.Submitted && step != "website";
+
+    /// <summary>"todo" / "started" / "done" for the checklist and sidebar.</summary>
+    private string Status(string step)
+    {
+        var f = _record!.Form;
+        bool Any(params string[] v) => v.Any(s => !string.IsNullOrWhiteSpace(s));
+        return step switch
+        {
+            "business" => Missing("business").Count == 0 ? "done" : Any(f.LegalName, f.Address, f.City, f.Phone, f.ContactName) ? "started" : "todo",
+            "hours" => f.HoursConfirmed ? "done" : "todo",
+            "online" => f.NoOnline || Any(f.Website, f.Facebook, f.Instagram, f.GoogleProfile) ? "done" : Any(f.SmsNumber) ? "started" : "todo",
+            "access" => Any(f.GoogleAccess) && Any(f.MetaAccess) ? "done" : Any(f.GoogleAccess, f.MetaAccess) ? "started" : "todo",
+            "files" => _record.Files.Count > 0 ? "done" : Any(f.Notes) ? "started" : "todo",
+            "website" => _brief?.CompletedAt is not null ? "done" : _brief?.UpdatedAt is not null ? "started" : "todo",
+            _ => "todo"
+        };
+    }
+
+    private List<string> Missing(string step)
+    {
+        var f = _record!.Form;
+        var m = new List<string>();
+        switch (step)
+        {
+            case "business":
+                if (string.IsNullOrWhiteSpace(f.BusinessName)) m.Add(L["onb.f.businessName"]);
+                if (string.IsNullOrWhiteSpace(f.Phone)) m.Add(L["onb.f.phone"]);
+                if (string.IsNullOrWhiteSpace(f.NotifyEmail) || !f.NotifyEmail.Contains('@')) m.Add(L["onb.f.notifyEmail"]);
+                break;
+            case "hours":
+                if (!f.HoursConfirmed) m.Add(L["onb.hours.confirm"]);
+                break;
+            case "files":
+                if (_record.Files.Count == 0 && string.IsNullOrWhiteSpace(f.Notes)) m.Add(L["onb.s5.upload"]);
+                break;
+            case "access":
+                if (string.IsNullOrWhiteSpace(f.GoogleAccess)) m.Add("Google");
+                if (string.IsNullOrWhiteSpace(f.MetaAccess)) m.Add("Facebook / Instagram");
+                break;
+            case "online":
+                if (Status("online") != "done") m.Add(L["onb.s3.title"]);
+                break;
+        }
+        return m;
+    }
+
+    private bool RequiredDone(List<StepInfo> steps) => steps.Where(s => s.Required).All(s => Missing(s.Id).Count == 0);
+    private int TaskCount(List<StepInfo> steps) => steps.Count(s => s.Id != "review");
+    private int DoneCount(List<StepInfo> steps) => steps.Count(s => s.Id != "review" && Status(s.Id) == "done");
+    private int ProgressPct(List<StepInfo> steps) => TaskCount(steps) == 0 ? 0 : DoneCount(steps) * 100 / TaskCount(steps);
+
+    // ---- Language & template ------------------------------------------------
+
+    private void SetLanguage(string lang)
+    {
+        L.SetCulture(lang);
+        if (_record is null) return;
+        _record.Language = lang;
+        ResolveTemplate();
+        if (!Locked("business")) Changed();
+    }
+
+    // wwwroot/templates/onboarding/{industry}-{lang}.xlsx, falling back to English.
+    private void ResolveTemplate()
+    {
+        _templateUrl = null;
+        foreach (var lang in new[] { _record!.Language, "en" })
+        {
+            var rel = $"templates/onboarding/{_record.Industry}-{lang}.xlsx";
+            if (File.Exists(Path.Combine(Env.WebRootPath, rel))) { _templateUrl = "/" + rel; return; }
+        }
+    }
+
+    // ---- Autosave -----------------------------------------------------------
+
+    private void Changed()
+    {
+        _version++;
+        _ = SaveSoonAsync();
+    }
+
+    private Task BriefChanged()
+    {
+        _briefVersion++;
+        _ = SaveSoonAsync();
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveSoonAsync()
+    {
+        var (v, bv) = (_version, _briefVersion);
+        try { await Task.Delay(1200, _cts.Token); }
+        catch (TaskCanceledException) { return; }
+        if (v != _version || bv != _briefVersion || _busy) return; // a newer change (or submit) will save
+        await SaveAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_record is null) return;
+        await _saveLock.WaitAsync();
+        var (version, briefVersion) = (_version, _briefVersion);
+        try
+        {
+            if (version != _savedVersion && _record.Status != OnboardingStatus.Submitted)
+            {
+                if (_record.Status == OnboardingStatus.Sent) _record.Status = OnboardingStatus.InProgress;
+                _record.UpdatedAt = DateTimeOffset.UtcNow;
+                await Store.SaveAsync(_record);
+                _savedAt = _record.UpdatedAt;
+            }
+            _savedVersion = version;
+
+            if (_brief is not null && briefVersion != _briefSavedVersion)
+            {
+                _brief.UpdatedAt = DateTimeOffset.UtcNow;
+                await Store.SaveBriefAsync(_record.Token, _brief);
+                _savedAt = _brief.UpdatedAt;
+            }
+            _briefSavedVersion = briefVersion;
+            _saveFailed = false;
+        }
+        catch { _saveFailed = true; }
+        finally { _saveLock.Release(); }
+    }
+
+    /// <summary>Write any pending change now instead of waiting for the debounce.</summary>
+    private async Task FlushAsync()
+    {
+        if (_savedVersion != _version || _briefSavedVersion != _briefVersion) await SaveAsync();
+    }
+
+    private string SaveStatus =>
+        _saveFailed ? L["onb.save.failed"]
+        : _savedVersion < _version || _briefSavedVersion < _briefVersion ? L["onb.save.saving"]
+        : _savedAt is null ? L["onb.save.auto"]
+        : string.Format(L["onb.save.saved"], _savedAt.Value.ToLocalTime().ToString("HH:mm"));
+
+    // ---- Field helpers ------------------------------------------------------
+
+    private void HoursChanged()
+    {
+        _record!.Form.HoursConfirmed = true;
+        Changed();
+    }
+
+    // <input type=time> binds to DateTime in Blazor; we keep "HH:mm" strings.
+    private void SetTime(DayHours h, bool open, ChangeEventArgs e)
+    {
+        var v = e.Value?.ToString() ?? "";
+        if (TimeOnly.TryParse(v, out var t)) v = t.ToString("HH:mm");
+        if (open) h.Open = v; else h.Close = v;
+        HoursChanged();
+    }
+
+    private void CopyMondayToAll()
+    {
+        var mon = _record!.Form.Hours[0];
+        foreach (var h in _record.Form.Hours.Skip(1).Where(h => !h.Closed))
+        {
+            h.Open = mon.Open;
+            h.Close = mon.Close;
+        }
+        HoursChanged();
+    }
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _fileError = null;
+        _uploading = true;
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(10))
+            {
+                if (file.Size > MaxFileBytes)
+                {
+                    _fileError = string.Format(L["onb.s5.toobig"], file.Name);
+                    continue;
+                }
+                using var ms = new MemoryStream();
+                await file.OpenReadStream(MaxFileBytes).CopyToAsync(ms);
+                ms.Position = 0;
+                _record!.Files.Add(await Store.UploadFileAsync(_record.Token, ms, file.Name, file.ContentType));
+            }
+            _version++;
+            await SaveAsync();
+        }
+        catch (Exception)
+        {
+            _fileError = L["onb.s5.failed"];
+        }
+        finally { _uploading = false; }
+    }
+
+    private async Task RemoveFile(OnboardingFile file)
+    {
+        _record!.Files.Remove(file);
+        _version++;
+        await SaveAsync();
+        try { await Store.DeleteFileAsync(_record.Token, file.Id); } catch { /* orphan blob is harmless */ }
+    }
+
+    // ---- Submit -------------------------------------------------------------
+
+    private async Task Submit()
+    {
+        _errors = new();
+        foreach (var s in Steps().Where(s => s.Required))
+            _errors.AddRange(Missing(s.Id));
+        if (_errors.Count > 0) return;
+
+        _busy = true;
+        await _saveLock.WaitAsync(); // let an in-flight autosave finish first
+        try
+        {
+            await Service.SubmitAsync(_record!, Nav.BaseUri);
+            _step = null;
+            try { await JS.InvokeVoidAsync("history.replaceState", null, "", Href(null)); } catch (JSDisconnectedException) { }
+        }
+        catch
+        {
+            _record!.Status = OnboardingStatus.InProgress;
+            _record.SubmittedAt = null;
+            _errors.Add(L["onb.save.failed"]);
+        }
+        finally
+        {
+            _saveLock.Release();
+            _busy = false;
+        }
+    }
+
+    private async Task SendBrief()
+    {
+        if (_brief is null) return;
+        _busy = true;
+        await _saveLock.WaitAsync();
+        try
+        {
+            await Service.SendBriefAsync(_record!, _brief, Nav.BaseUri);
+            _briefSavedVersion = _briefVersion;
+            _savedAt = _brief.UpdatedAt;
+        }
+        catch { _saveFailed = true; }
+        finally
+        {
+            _saveLock.Release();
+            _busy = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        // Leaving the page (sign out, closing the tab): don't drop a pending edit.
+        if (_record is not null && (_savedVersion != _version || _briefSavedVersion != _briefVersion)) _ = SaveAsync();
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

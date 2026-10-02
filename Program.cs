@@ -1,4 +1,5 @@
 using MapleKiosk.Web.Components;
+using MapleKiosk.Web.Onboarding;
 using MapleKiosk.Web.Services;
 using MapleKiosk.Web.Shop;
 using MapleShop.UI;
@@ -40,8 +41,13 @@ builder.Services.AddSingleton<FamilyAppCatalog>();
 // injected into IConfiguration so AddSPCAuth binds them.
 builder.Configuration.AddInMemoryCollection(await AuthConfig.ResolveAsync());
 builder.Services.AddSPCAuth(builder.Configuration);
-// Access allowlist: only @spc-technology.com + the owner account.
-builder.Services.AddScoped<AuthEmailValidator>(_ => AppAuthValidator.ValidateAsync);
+// Access allowlist: team (@spc-technology.com + owner) as Admin, plus customer
+// emails on the onboarding list as Customer (their setup page only).
+builder.Services.AddScoped<AuthEmailValidator>(sp =>
+{
+    var onboarding = sp.GetRequiredService<OnboardingStore>();
+    return email => AppAuthValidator.ValidateAsync(email, onboarding);
+});
 // OAuth-only — no-op password validator so /signin/password can't throw.
 builder.Services.AddScoped<AuthPasswordValidator>(_ => (_, _) => Task.FromResult<AuthPasswordResult?>(null));
 
@@ -49,6 +55,9 @@ builder.Services.AddScoped<AuthPasswordValidator>(_ => (_, _) => Task.FromResult
 // service later). Config-free via AppStore/* in the keyvalue table / env vars.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddAppStore();
+
+// Post-deposit setup intake: /onboarding/{token} (customer) + /onboarding/admin.
+builder.Services.AddOnboarding();
 
 // Store UI (cart + checkout widget). It calls /api/checkout — same origin by
 // default, so BackendBaseUrl is left empty; the API key (if configured) is still
@@ -78,6 +87,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapAppStoreEndpoints();
+app.MapOnboardingEndpoints();
 app.MapSPCAuthEndpoints();
 
 app.MapRazorComponents<App>()

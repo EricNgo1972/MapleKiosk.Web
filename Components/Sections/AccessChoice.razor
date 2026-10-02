@@ -1,0 +1,26 @@
+@inject LocalizationService L
+
+@* Three-way answer for an onboarding access step: done / don't have one / need help. *@
+<div class="onb-choice" role="radiogroup">
+    @foreach (var (value, label) in Options)
+    {
+        <label class="onb-choice__opt @(Value == value ? "is-on" : "") onb-choice__opt--@value">
+            <input type="radio" name="@Name" checked="@(Value == value)" @onchange="() => ValueChanged.InvokeAsync(value)" />
+            @label
+        </label>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public string NaLabel { get; set; } = "";
+
+    private IEnumerable<(string, string)> Options =>
+    [
+        (AccessAnswers.Done, L["onb.acc.done"]),
+        (AccessAnswers.NotApplicable, NaLabel),
+        (AccessAnswers.NeedHelp, L["onb.acc.help"]),
+    ];
+}

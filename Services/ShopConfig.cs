@@ -1,5 +1,3 @@
-using Azure.Data.Tables;
-
 namespace MapleKiosk.Web.Services;
 
 /// <summary>
@@ -22,32 +20,6 @@ public static class ShopConfig
         return (backendUrl, apiKey);
     }
 
-    private static async Task<string> ResolveAsync(string envVar, string rowKey)
-    {
-        var env = Environment.GetEnvironmentVariable(envVar);
-        if (!string.IsNullOrWhiteSpace(env)) return env.Trim();
-
-        var connection = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connection)) return "";
-
-        try
-        {
-            var tableName = string.Equals(
-                Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
-                "Production", StringComparison.OrdinalIgnoreCase)
-                ? "keyvalueProduction"
-                : "keyvalue";
-
-            var table = new TableClient(connection, tableName);
-            var response = await table.GetEntityIfExistsAsync<TableEntity>("AppStore", rowKey);
-            if (response.HasValue && response.Value!.TryGetValue("Value", out var value))
-                return value?.ToString()?.Trim() ?? "";
-        }
-        catch
-        {
-            // Degrade silently — the store UI just won't have a backend configured.
-        }
-
-        return "";
-    }
+    private static Task<string> ResolveAsync(string envVar, string rowKey) =>
+        KeyValueTable.ResolveAsync(envVar, "AppStore", rowKey);
 }

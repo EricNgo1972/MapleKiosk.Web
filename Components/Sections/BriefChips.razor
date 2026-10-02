@@ -1,0 +1,38 @@
+@* Tap-to-select chips for a website-brief question. Multi-select edits Values in
+   place (capped at Max); single-select (Values == null) uses Value/ValueChanged. *@
+<div class="wb-chips @(Values is null ? "wb-chips--single" : "")">
+    @foreach (var o in Options)
+    {
+        var on = IsOn(o.Id);
+        <button type="button" class="wb-chip @(on ? "is-on" : "")" aria-pressed="@(on ? "true" : "false")" @onclick="() => Toggle(o.Id)">
+            @if (on) { <span class="wb-chip__tick" aria-hidden="true">✓</span> }
+            @o.Label(Culture)
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<BriefOption> Options { get; set; } = [];
+    [Parameter] public string Culture { get; set; } = "en";
+    [Parameter] public List<string>? Values { get; set; }
+    [Parameter] public int Max { get; set; } = int.MaxValue;
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private bool IsOn(string id) => Values?.Contains(id) ?? Value == id;
+
+    private async Task Toggle(string id)
+    {
+        if (Values is null)
+        {
+            await ValueChanged.InvokeAsync(Value == id ? "" : id);
+        }
+        else if (!Values.Remove(id))
+        {
+            if (Values.Count >= Max) Values.RemoveAt(0); // keep the newest picks
+            Values.Add(id);
+        }
+        await OnChanged.InvokeAsync();
+    }
+}

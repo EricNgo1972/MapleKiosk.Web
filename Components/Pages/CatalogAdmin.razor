@@ -1,5 +1,5 @@
 @page "/shop/admin"
-@attribute [Authorize]
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
 @rendermode InteractiveServer
 @using MapleKiosk.Web.Shop.Catalog
 @inject CatalogStore Store
