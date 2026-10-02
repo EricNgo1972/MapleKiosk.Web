@@ -158,7 +158,59 @@
   }
   wireMail();
   // Re-run after Blazor enhanced navigation swaps the DOM.
-  document.addEventListener('enhancedload', wireMail);
+  onEnhancedLoad(wireMail);
+
+  // Blazor raises 'enhancedload' through Blazor.addEventListener (not as a DOM event).
+  function onEnhancedLoad(fn) {
+    if (window.Blazor && typeof window.Blazor.addEventListener === 'function') window.Blazor.addEventListener('enhancedload', fn);
+    else document.addEventListener('enhancedload', fn);
+  }
+
+  // ===== Page changes feel instant =====
+  // Every page is a round trip to the origin (Cloudflare doesn't cache HTML), and enhanced navigation
+  // keeps the old page on screen until the new one arrives — so a click looked ignored. Show a
+  // loading bar the moment a link is clicked, and prefetch pages on hover/touch so the click is
+  // usually served from the browser cache (the server lets signed-out visitors cache pages briefly).
+  function sameSitePage(a) {
+    if (!a || a.target || a.hasAttribute('download') || a.hasAttribute('data-video')) return null;
+    const href = a.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:')) return null;
+    const url = new URL(a.href, location.href);
+    if (url.origin !== location.origin || /^\/(api|media|login|logout|auth|signin|onboarding)\b/.test(url.pathname)) return null;
+    if (url.pathname === location.pathname && url.search === location.search) return null;
+    return url;
+  }
+
+  const prefetched = new Set();
+  function prefetch(ev) {
+    const url = sameSitePage(ev.target.closest && ev.target.closest('a[href]'));
+    if (!url || prefetched.has(url.href)) return;
+    prefetched.add(url.href);
+    fetch(url.href, { credentials: 'same-origin', headers: { 'Accept': 'text/html' } }).catch(() => prefetched.delete(url.href));
+  }
+  document.addEventListener('pointerover', prefetch, { passive: true });
+  document.addEventListener('touchstart', prefetch, { passive: true });
+  document.addEventListener('focusin', prefetch);
+
+  let busyTimer = null;
+  function navDone() {
+    document.documentElement.classList.remove('nav-busy');
+    clearTimeout(busyTimer);
+  }
+  document.addEventListener('click', (ev) => {
+    // (Not checking defaultPrevented: Blazor's enhanced navigation prevents the default first.)
+    if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    const a = ev.target.closest && ev.target.closest('a[href]');
+    if (!sameSitePage(a)) return;
+    // Language pills: light up the chosen one right away.
+    const sw = a.closest('.lang-switch');
+    if (sw) sw.querySelectorAll('a').forEach(x => x.classList.toggle('active', x === a));
+    document.documentElement.classList.add('nav-busy');
+    clearTimeout(busyTimer);
+    busyTimer = setTimeout(navDone, 15000); // never leave the bar stuck
+  }, true); // capture: Blazor's enhanced-navigation handler stops the click before the bubble phase
+  onEnhancedLoad(navDone);
+  window.addEventListener('pageshow', navDone);
 
   // ===== Scroll to top on page change =====
   const origPushState = history.pushState.bind(history);

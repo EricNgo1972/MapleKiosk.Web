@@ -962,3 +962,7 @@ body.modal-open{overflow:hidden}
 .onb-logo__btn.is-busy{opacity:.6;pointer-events:none}
 .onb-grid label.onb-logo__btn{display:inline-flex;flex-direction:row;width:auto;font-size:13px}
 .gp-shot--film .hp-play{opacity:1}
+/* page-change feedback (site.js adds .nav-busy on link click until the new page is in) */
+html.nav-busy::before{content:"";position:fixed;top:0;left:0;z-index:1000;height:3px;width:100%;background:linear-gradient(90deg,transparent,var(--red),var(--accent),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:nav-busy 0.9s linear infinite}
+html.nav-busy body{cursor:progress}
+@keyframes nav-busy{from{background-position:-50% 0}to{background-position:150% 0}}
