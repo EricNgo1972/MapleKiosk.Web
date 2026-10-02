@@ -90,6 +90,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health").AllowAnonymous();
+app.MapSiteMedia();
 app.MapAppStoreEndpoints();
 app.MapOnboardingEndpoints();
 app.MapSPCAuthEndpoints();
