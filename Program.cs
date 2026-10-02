@@ -87,6 +87,33 @@ app.UseStatusCodePagesWithReExecute("/not-found");
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Marketing pages: let a signed-out visitor's browser keep them for 2 minutes, so site.js's
+// hover prefetch makes the next click (language switch, nav) instant. Private (never shared
+// caches) and Vary: Cookie (signing in bypasses it); app pages are never cached.
+string[] uncachedPrefixes = ["/onboarding", "/shop", "/signin", "/access-denied", "/api", "/auth", "/login", "/logout", "/media", "/health", "/_blazor", "/_framework"];
+app.Use(async (ctx, next) =>
+{
+    if (HttpMethods.IsGet(ctx.Request.Method)
+        && ctx.User.Identity?.IsAuthenticated != true
+        && !uncachedPrefixes.Any(p => ctx.Request.Path.StartsWithSegments(p, StringComparison.OrdinalIgnoreCase)))
+    {
+        ctx.Response.OnStarting(() =>
+        {
+            var r = ctx.Response;
+            // Overrides antiforgery's no-store (the demo form on every page): the cached page goes
+            // back to the same browser, whose antiforgery cookie its token was issued for.
+            if (r.StatusCode == 200 && r.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                r.Headers.Pragma = default;
+                r.Headers.CacheControl = "private, max-age=120";
+                r.Headers.Vary = "Cookie";
+            }
+            return Task.CompletedTask;
+        });
+    }
+    await next();
+});
 app.UseAntiforgery();
 
 app.MapHealthChecks("/health").AllowAnonymous();
