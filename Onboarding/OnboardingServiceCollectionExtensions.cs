@@ -14,21 +14,27 @@ public static class OnboardingServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>GET /onboarding/files/{token}/{fileId} — staff-only (Admin role) download of a
-    /// customer's uploaded file (setup form or website brief). The id must belong to that token.</summary>
+    /// <summary>GET /onboarding/files/{token}/{fileId} — download of an uploaded file
+    /// (setup form, logo or website brief). Staff can open any; a customer only
+    /// their own record's files. The id must belong to that token.</summary>
     public static IEndpointRouteBuilder MapOnboardingEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/onboarding/files/{token}/{fileId}", async (string token, string fileId, OnboardingStore store, CancellationToken ct) =>
+        app.MapGet("/onboarding/files/{token}/{fileId}", async (string token, string fileId, HttpContext http, OnboardingStore store, CancellationToken ct) =>
         {
             var record = await store.FindAsync(token, ct);
             if (record is null) return Results.NotFound();
+            var user = http.User;
+            var email = OnboardingRecord.CanonicalEmail(user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value);
+            if (!user.IsInRole(AppAuthValidator.AdminRole) && email != OnboardingRecord.CanonicalEmail(record.ContactEmail))
+                return Results.NotFound();
             var file = record.Files.FirstOrDefault(f => f.Id == fileId)
+                       ?? (record.Form.Logo?.Id == fileId ? record.Form.Logo : null)
                        ?? (await store.GetBriefAsync(token, ct)).Files.FirstOrDefault(f => f.Id == fileId);
             if (file is null) return Results.NotFound();
 
             var stream = await store.OpenFileAsync(token, fileId, ct);
             return stream is null ? Results.NotFound() : Results.File(stream, file.ContentType, file.FileName);
-        }).RequireAuthorization(p => p.RequireRole(AppAuthValidator.AdminRole));
+        }).RequireAuthorization();
 
         return app;
     }

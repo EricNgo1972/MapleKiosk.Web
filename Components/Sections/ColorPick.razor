@@ -1,0 +1,32 @@
+@using O = MapleKiosk.Web.Onboarding.WebsiteBriefOptions
+@* Colour choice for the website brief: preset swatches, a custom colour picker,
+   or "no preference" (""). Value is a lowercase hex like "#faf7f2". *@
+<div class="wb-swatches" role="radiogroup">
+    @foreach (var c in Presets)
+    {
+        var on = string.Equals(Value, c.Hex, StringComparison.OrdinalIgnoreCase);
+        <button type="button" class="wb-swatch @(on ? "is-on" : "")" role="radio" aria-checked="@(on ? "true" : "false")"
+                title="@c.Label(Culture)" @onclick="() => ValueChanged.InvokeAsync(c.Hex)">
+            <i style="background:@c.Hex"></i>
+            <span>@c.Label(Culture)</span>
+        </button>
+    }
+    <label class="wb-swatch wb-swatch--custom @(IsCustom ? "is-on" : "")" title="@O.T("custom", Culture)">
+        <i style="background:@(IsCustom ? Value : "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)")"></i>
+        <span>@(IsCustom ? Value : O.T("custom", Culture))</span>
+        <input type="color" value="@(IsCustom ? Value : "#888888")" @onchange="e => ValueChanged.InvokeAsync(e.Value?.ToString()?.ToLowerInvariant() ?? string.Empty)" />
+    </label>
+    <button type="button" class="wb-swatch wb-swatch--none @(string.IsNullOrEmpty(Value) ? "is-on" : "")" @onclick="() => ValueChanged.InvokeAsync(string.Empty)">
+        <i></i>
+        <span>@O.T("noPref", Culture)</span>
+    </button>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<BriefColor> Presets { get; set; } = [];
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Culture { get; set; } = "en";
+
+    private bool IsCustom => !string.IsNullOrEmpty(Value) && !Presets.Any(p => string.Equals(p.Hex, Value, StringComparison.OrdinalIgnoreCase));
+}

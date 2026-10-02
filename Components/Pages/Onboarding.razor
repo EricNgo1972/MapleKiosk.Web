@@ -95,10 +95,10 @@
                     @if (s.Id == "website" && current?.Id == "website")
                     {
                         <div class="onb-side__sub">
-                            @for (var i = 1; i <= 8; i++)
+                            @for (var i = 1; i <= O.Sections.Length; i++)
                             {
                                 var n = i;
-                                <a href="@Href("website", n)" class="@(SubSection == n ? "is-on" : "")" @onclick="() => GoTo(StepWebsite, n)" @onclick:preventDefault>@BT($"s{n}")</a>
+                                <a href="@Href("website", n)" class="@(SubSection == n ? "is-on" : "")" @onclick="() => GoTo(StepWebsite, n)" @onclick:preventDefault>@O.SectionTitle(n, L.Culture)</a>
                             }
                         </div>
                     }
@@ -121,6 +121,7 @@
                     <div class="onb-head">
                         <span class="eyebrow">@L["onb.eyebrow"]</span>
                         <h1 class="onb__h1">@string.Format(L["onb.welcome"], _record.BusinessName)</h1>
+                        <p class="onb-lead">@L["onb.thanks"]</p>
                         <p class="onb__muted">@L["onb.intro"]</p>
                         <div class="onb-progress">
                             <div class="onb-bar-track onb-bar-track--lg"><span style="width:@(ProgressPct(steps))%"></span></div>
@@ -179,7 +180,7 @@
                         <div class="onb-step-head">
                             <span class="onb-num">@(current.Id == "review" ? "➤" : (steps.IndexOf(current) + 1).ToString())</span>
                             <div>
-                                <h1 class="onb-step-title">@(current.Id == "website" ? $"{current.Title} · {BT($"s{SubSection}")}" : current.Title)</h1>
+                                <h1 class="onb-step-title">@(current.Id == "website" ? $"{current.Title} · {O.SectionTitle(SubSection, L.Culture)}" : current.Title)</h1>
                                 @if (current.Id != "review")
                                 {
                                     <p class="onb__muted">@current.Need</p>
@@ -203,6 +204,32 @@
                                     <label>@L["onb.f.legalName"]
                                         <input @bind="f.LegalName" @bind:after="Changed" placeholder="@L["onb.f.legalName.ph"]" />
                                     </label>
+                                    <label class="onb-span">@L["onb.f.motto"]
+                                        <input @bind="f.Motto" @bind:after="Changed" placeholder="@L["onb.f.motto.ph"]" />
+                                    </label>
+                                    <div class="onb-span onb-logo">
+                                        <span class="onb-logo__label">@L["onb.f.logo"]</span>
+                                        <div class="onb-logo__row">
+                                            <div class="onb-logo__box">
+                                                @if (f.Logo is { } logo)
+                                                {
+                                                    <img src="/onboarding/files/@_record.Token/@logo.Id" alt="Logo" />
+                                                }
+                                                else
+                                                {
+                                                    <span>@L["onb.f.logo.none"]</span>
+                                                }
+                                            </div>
+                                            <div>
+                                                <label class="btn btn-ghost onb-small onb-logo__btn @(_logoUploading ? "is-busy" : "")">
+                                                    <InputFile OnChange="OnLogoSelected" accept="image/*,.svg,.pdf,.ai,.eps" />
+                                                    @(_logoUploading ? L["onb.s5.uploading"] : f.Logo is null ? L["onb.f.logo.upload"] : L["onb.f.logo.replace"])
+                                                </label>
+                                                <small>@L["onb.f.logo.hint"]</small>
+                                                @if (_logoError is not null) { <p class="onb-error">@_logoError</p> }
+                                            </div>
+                                        </div>
+                                    </div>
                                     <label class="onb-span">@L["onb.f.address"]
                                         <input @bind="f.Address" @bind:after="Changed" autocomplete="street-address" />
                                     </label>
@@ -347,6 +374,49 @@
                                 </label>
                                 break;
 
+                            case "hardware":
+                                <p class="onb-help">💡 @HT("tip")</p>
+                                @for (var i = 0; i < f.Hardware.Count; i++)
+                                {
+                                    var h = f.Hardware[i];
+                                    var ht = HardwareOptions.Find(h.Type);
+                                    <div class="hw-row">
+                                        <label class="hw-type">@HT("type")
+                                            <select @bind="h.Type" @bind:after="Changed">
+                                                <option value="">@HT("pick")</option>
+                                                @foreach (var t in HardwareOptions.Types.Where(t => t.Option.AppliesTo(_record.Industry) || t.Option.Id == h.Type))
+                                                {
+                                                    <option value="@t.Option.Id">@t.Option.Label(L.Culture)</option>
+                                                }
+                                            </select>
+                                        </label>
+                                        <label>@HT("brand")
+                                            <input list="hw-brands-@i" @bind="h.Brand" @bind:after="Changed" />
+                                            <datalist id="hw-brands-@i">
+                                                @foreach (var brand in ht?.Brands ?? [])
+                                                {
+                                                    <option value="@brand"></option>
+                                                }
+                                            </datalist>
+                                        </label>
+                                        <label>@HT("model")
+                                            <input @bind="h.Model" @bind:after="Changed" placeholder="@(string.IsNullOrEmpty(ht?.ModelExample) ? "" : string.Format(HT("eg"), ht!.ModelExample))" />
+                                        </label>
+                                        <label class="hw-qty">@HT("qty")
+                                            <input type="number" min="1" max="99" @bind="h.Quantity" @bind:after="Changed" />
+                                        </label>
+                                        <button type="button" class="onb-files__rm hw-rm" aria-label="@HT("remove")" @onclick="() => RemoveHardware(h)">✕</button>
+                                        <label class="hw-notes">@HT("notes")
+                                            <input @bind="h.Notes" @bind:after="Changed" />
+                                        </label>
+                                    </div>
+                                }
+                                <button type="button" class="btn btn-ghost onb-small hw-add" @onclick="AddHardware">@HT("add")</button>
+                                <label class="onb-check onb-confirm">
+                                    <input type="checkbox" @bind="f.NoHardware" @bind:after="Changed" /> @HT("none")
+                                </label>
+                                break;
+
                             case "website":
                                 @if (_brief is not null)
                                 {
@@ -354,7 +424,7 @@
                                     {
                                         <p class="onb__muted wb-intro">@BT("intro")</p>
                                     }
-                                    <WebsiteBriefEditor B="_brief" Token="@_record.Token" Section="SubSection" Industry="@_record.Industry" Culture="@L.Culture" OnChanged="BriefChanged" />
+                                    <WebsiteBriefEditor B="_brief" Token="@_record.Token" Section="SubSection" Industry="@_record.Industry" Culture="@L.Culture" BusinessName="@f.BusinessName" OnChanged="BriefChanged" />
                                     @if (_brief.CompletedAt is { } sentAt)
                                     {
                                         <div class="onb-banner onb-banner--ok">@string.Format(BT("sent"), sentAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))</div>
@@ -409,7 +479,7 @@
                             @{ var prev = Prev(steps, current); var next = Next(steps, current); }
                             <a class="btn btn-ghost onb-small" href="@Href(prev.Step, prev.Sub)" @onclick="() => GoTo(prev.Step, prev.Sub)" @onclick:preventDefault>← @L["onb.back"]</a>
                             <span class="onb__muted onb-pager__status">@SaveStatus</span>
-                            @if (current.Id == "website" && SubSection == 8)
+                            @if (current.Id == "website" && SubSection == O.Sections.Length)
                             {
                                 <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="SendBrief">
                                     @(_busy ? BT("sending") : _brief?.CompletedAt is null ? BT("send") : BT("resend"))
@@ -467,7 +537,7 @@
     // edit still waiting for autosave); the URL is kept in sync for refreshes.
     private string? _step;
     private int? _sub;
-    private int SubSection => Math.Clamp(_sub ?? 1, 1, 8);
+    private int SubSection => Math.Clamp(_sub ?? 1, 1, O.Sections.Length);
 
     protected override async Task OnInitializedAsync()
     {
@@ -520,6 +590,7 @@
             new("online", L["onb.s3.title"], L["onb.need.online"], 2, false),
             new("access", L["onb.s4.title"], L["onb.need.access"], 5, false),
             new("files", L["onb.s5.title"], L["onb.need.files"], 20, true),
+            new("hardware", HT("title"), HT("need"), 5, false),
         };
         if (_record!.IncludesWebsite)
             list.Add(new("website", BT("card.title"), BT("card.body"), 15, false));
@@ -532,7 +603,7 @@
 
     private (string? Step, int? Sub) Next(List<StepInfo> steps, StepInfo current)
     {
-        if (current.Id == "website" && SubSection < 8) return ("website", SubSection + 1);
+        if (current.Id == "website" && SubSection < O.Sections.Length) return ("website", SubSection + 1);
         var i = steps.IndexOf(current);
         return i + 1 < steps.Count ? (steps[i + 1].Id, null) : (null, null);
     }
@@ -543,7 +614,7 @@
         var i = steps.IndexOf(current);
         if (i <= 0) return (null, null);
         var prev = steps[i - 1];
-        return prev.Id == "website" ? ("website", 8) : (prev.Id, null);
+        return prev.Id == "website" ? ("website", O.Sections.Length) : (prev.Id, null);
     }
 
     private async Task GoTo(string? step, int? sub = null)
@@ -571,6 +642,43 @@
     }
 
     private string BT(string key) => O.T(key, L.Culture);
+    private string HT(string key) => HardwareOptions.T(key, L.Culture);
+
+    private bool _logoUploading;
+    private string? _logoError;
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        _logoError = null;
+        _logoUploading = true;
+        try
+        {
+            if (e.File.Size > MaxFileBytes) { _logoError = string.Format(L["onb.s5.toobig"], e.File.Name); return; }
+            using var ms = new MemoryStream();
+            await e.File.OpenReadStream(MaxFileBytes).CopyToAsync(ms);
+            ms.Position = 0;
+            var old = _record!.Form.Logo;
+            _record.Form.Logo = await Store.UploadFileAsync(_record.Token, ms, e.File.Name, e.File.ContentType);
+            _version++;
+            await SaveAsync();
+            if (old is not null) try { await Store.DeleteFileAsync(_record.Token, old.Id); } catch { /* orphan blob is harmless */ }
+        }
+        catch { _logoError = L["onb.s5.failed"]; }
+        finally { _logoUploading = false; }
+    }
+
+    private void AddHardware()
+    {
+        _record!.Form.Hardware.Add(new HardwareItem());
+        _record.Form.NoHardware = false;
+        Changed();
+    }
+
+    private void RemoveHardware(HardwareItem h)
+    {
+        _record!.Form.Hardware.Remove(h);
+        Changed();
+    }
 
     // The setup form is frozen once submitted; the website brief stays editable.
     private bool Locked(string step) => _record!.Status == OnboardingStatus.Submitted && step != "website";
@@ -587,6 +695,7 @@
             "online" => f.NoOnline || Any(f.Website, f.Facebook, f.Instagram, f.GoogleProfile) ? "done" : Any(f.SmsNumber) ? "started" : "todo",
             "access" => Any(f.GoogleAccess) && Any(f.MetaAccess) ? "done" : Any(f.GoogleAccess, f.MetaAccess) ? "started" : "todo",
             "files" => _record.Files.Count > 0 ? "done" : Any(f.Notes) ? "started" : "todo",
+            "hardware" => f.NoHardware || f.Hardware.Any(h => Any(h.Type) && Any(h.Brand)) ? "done" : f.Hardware.Count > 0 ? "started" : "todo",
             "website" => _brief?.CompletedAt is not null ? "done" : _brief?.UpdatedAt is not null ? "started" : "todo",
             _ => "todo"
         };
@@ -615,6 +724,9 @@
                 break;
             case "online":
                 if (Status("online") != "done") m.Add(L["onb.s3.title"]);
+                break;
+            case "hardware":
+                if (Status("hardware") != "done") m.Add(HT("title"));
                 break;
         }
         return m;

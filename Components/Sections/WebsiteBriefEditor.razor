@@ -1,12 +1,13 @@
 @using O = MapleKiosk.Web.Onboarding.WebsiteBriefOptions
 @inject OnboardingStore Store
 
-@* One section (1–8) of the website design interview. The page owns saving;
-   every edit here just raises OnChanged. *@
+@* One section of the website design interview (Section = 1-based index into
+   WebsiteBriefOptions.Sections). The page owns saving; every edit here just
+   raises OnChanged. *@
 
-@switch (Section)
+@switch (SectionId)
 {
-    case 1:
+    case "start":
         <div class="onb-q">
             <h3>@T("s1.site")</h3>
             <BriefChips Options="O.CurrentSite" Culture="@Culture" @bind-Value="B.CurrentSite" OnChanged="Changed" />
@@ -46,7 +47,7 @@
         </div>
         break;
 
-    case 2:
+    case "goals":
         <div class="onb-q">
             <h3>@T("s2.goals") <small>@T("pickMany")</small></h3>
             <BriefChips Options="O.For(O.Goals, Industry)" Culture="@Culture" Values="B.Goals" OnChanged="Changed" />
@@ -75,7 +76,7 @@
         </div>
         break;
 
-    case 3:
+    case "pages":
         <div class="onb-q">
             <h3>@T("s3.pages") <small>@T("pickMany")</small></h3>
             <BriefChips Options="O.For(O.Pages, Industry)" Culture="@Culture" Values="B.Pages" OnChanged="Changed" />
@@ -93,7 +94,7 @@
         </label>
         break;
 
-    case 4:
+    case "style":
         <div class="onb-q">
             <h3>@T("s4.styles") <small>@T("pickTwo")</small></h3>
             <div class="wb-styles">
@@ -117,6 +118,20 @@
             </div>
         </div>
         <div class="onb-q">
+            <h3>@T("mode")</h3>
+            <p class="onb__muted wb-hint">@T("mode.hint")</p>
+            <div class="wb-modes">
+                @foreach (var m in O.Modes)
+                {
+                    var on = B.Mode == m.Id;
+                    <button type="button" class="wb-mode @(on ? "is-on" : "")" aria-pressed="@(on ? "true" : "false")" @onclick="() => SetMode(m.Id)">
+                        <span class="wb-mode__art wb-mode__art--@m.Id"><i></i><i></i><b></b></span>
+                        <span>@if (on) { <span class="wb-chip__tick">✓</span> }@m.Label(Culture)</span>
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="onb-q">
             <h3>@T("s4.sliders")</h3>
             <div class="wb-sliders">
                 @foreach (var sl in O.Sliders)
@@ -131,25 +146,45 @@
             </div>
         </div>
         <div class="onb-q">
-            <h3>@T("s4.palette") <small>@T("pickOne")</small></h3>
-            <div class="wb-palettes">
-                @foreach (var p in O.Palettes)
-                {
-                    var on = B.Palette == p.Id;
-                    <button type="button" class="wb-palette @(on ? "is-on" : "")" aria-pressed="@(on ? "true" : "false")" @onclick="() => SetPalette(p.Id)">
-                        <span class="wb-palette__sw">
-                            @if (p.Colors.Length == 0)
-                            {
-                                <span class="wb-palette__brand">?</span>
-                            }
-                            @foreach (var c in p.Colors)
-                            {
-                                <i style="background:@c"></i>
-                            }
-                        </span>
-                        <span>@if (on) { <span class="wb-chip__tick">✓</span> }@p.Label(Culture)</span>
-                    </button>
-                }
+            <h3>@T("s4.fonts")</h3>
+            <BriefChips Options="O.Fonts" Culture="@Culture" @bind-Value="B.Fonts" OnChanged="Changed" />
+        </div>
+        break;
+
+    case "colours":
+        <div class="wb-colours">
+            <div>
+                <div class="onb-q">
+                    <h3>@T("bg")</h3>
+                    <p class="onb__muted wb-hint">@T("bg.hint")</p>
+                    <ColorPick Value="@B.Background" Presets="O.Backgrounds" Culture="@Culture" ValueChanged="v => SetColor(true, v)" />
+                </div>
+                <div class="onb-q">
+                    <h3>@T("accent")</h3>
+                    <p class="onb__muted wb-hint">@T("accent.hint")</p>
+                    <ColorPick Value="@B.Accent" Presets="O.Accents" Culture="@Culture" ValueChanged="v => SetColor(false, v)" />
+                </div>
+            </div>
+            <div class="wb-preview-col">
+                <h3 class="wb-preview-title">@T("preview")</h3>
+                <div class="wb-preview" style="background:@PreviewBg;color:@PreviewFg;font-family:@PreviewFont">
+                    <div class="wb-preview__nav">
+                        <strong>@BusinessName</strong>
+                        <span><i style="background:@PreviewFg"></i><i style="background:@PreviewFg"></i><i style="background:@PreviewFg"></i></span>
+                    </div>
+                    <div class="wb-preview__hero">
+                        <div class="wb-preview__h">@BusinessName</div>
+                        <p>@T("preview.tag")</p>
+                        <span class="wb-preview__btn" style="background:@PreviewAccent;color:@OnColor(PreviewAccent)">@T("preview.cta")</span>
+                    </div>
+                    <div class="wb-preview__cards">
+                        @for (var i = 0; i < 3; i++)
+                        {
+                            <span style="border-color:@PreviewAccent"><i style="background:@PreviewAccent"></i><b style="background:@PreviewFg"></b><b style="background:@PreviewFg"></b></span>
+                        }
+                    </div>
+                </div>
+                <p class="onb__muted wb-hint">@T("preview.hint")</p>
             </div>
         </div>
         <div class="onb-grid">
@@ -160,13 +195,54 @@
                 <input @bind="B.AvoidColors" @bind:after="Changed" />
             </label>
         </div>
-        <div class="onb-q">
-            <h3>@T("s4.fonts")</h3>
-            <BriefChips Options="O.Fonts" Culture="@Culture" @bind-Value="B.Fonts" OnChanged="Changed" />
+        break;
+
+    case "examples":
+        <p class="onb__muted wb-hint">@T("examples.intro")</p>
+        @for (var i = 0; i < B.References.Count; i++)
+        {
+            var r = B.References[i];
+            <div class="wb-ref">
+                <span class="wb-ref__n">@(i + 1)</span>
+                <div>
+                    <label class="onb-block wb-ref__url">@T("s7.url")
+                        <span class="wb-inline">
+                            <input type="url" @bind="r.Url" @bind:after="Changed" placeholder="https://" />
+                            @if (Uri.TryCreate(r.Url, UriKind.Absolute, out var u) && u.Scheme is "http" or "https")
+                            {
+                                <a class="btn btn-ghost onb-small" href="@u" target="_blank" rel="noopener">@T("examples.open")</a>
+                            }
+                        </span>
+                    </label>
+                    <div class="onb-q">
+                        <h3>@T("examples.copy") <small>@T("pickMany")</small></h3>
+                        <BriefChips Options="O.CopyAspects" Culture="@Culture" Values="r.Copy" OnChanged="Changed" />
+                    </div>
+                    <div class="onb-grid">
+                        <label>@T("s7.likes")
+                            <textarea rows="2" @bind="r.Likes" @bind:after="Changed"></textarea>
+                        </label>
+                        <label>@T("s7.dislikes")
+                            <textarea rows="2" @bind="r.Dislikes" @bind:after="Changed"></textarea>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        }
+        <div class="onb-grid">
+            <label class="onb-span">@T("s7.competitors")
+                <input @bind="B.Competitors" @bind:after="Changed" />
+            </label>
+            <label>@T("s7.must")
+                <textarea rows="3" @bind="B.MustHave" @bind:after="Changed"></textarea>
+            </label>
+            <label>@T("s7.avoid")
+                <textarea rows="3" @bind="B.Avoid" @bind:after="Changed"></textarea>
+            </label>
         </div>
         break;
 
-    case 5:
+    case "logo":
         <div class="onb-q">
             <h3>@T("s5.logo")</h3>
             <BriefChips Options="O.Logo" Culture="@Culture" @bind-Value="B.Logo" OnChanged="Changed" />
@@ -179,8 +255,21 @@
             <h3>@T("s5.mood") <small>@T("pickMany")</small></h3>
             <BriefChips Options="O.ImageryMood" Culture="@Culture" Values="B.ImageryMood" OnChanged="Changed" />
         </div>
-        <label class="onb-drop @(_uploading ? "is-busy" : "")">
-            <InputFile OnChange="OnFilesSelected" multiple accept="image/*,.pdf,.ai,.eps,.svg,.zip" />
+        <div class="onb-q">
+            <h3>@T("assets") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.AssetTypes" Culture="@Culture" Values="B.Assets" OnChanged="Changed" />
+        </div>
+        <div class="onb-grid">
+            <label>@T("assets.fonts")
+                <input @bind="B.FontNames" @bind:after="Changed" placeholder="Playfair Display, Montserrat" />
+            </label>
+            <label>@T("assets.link")
+                <input type="url" @bind="B.AssetsLink" @bind:after="Changed" placeholder="https://drive.google.com/…" />
+                <small>@T("assets.linkHint")</small>
+            </label>
+        </div>
+        <label class="onb-drop @(_uploading ? "is-busy" : "")" style="margin-top:16px">
+            <InputFile OnChange="OnFilesSelected" multiple accept="image/*,video/*,.pdf,.ai,.eps,.svg,.psd,.zip,.ttf,.otf,.woff,.woff2" />
             <strong>@T("s5.upload")</strong>
             <small>@T("s5.uploadHint")</small>
         </label>
@@ -199,7 +288,7 @@
         @if (_fileError is not null) { <p class="onb-error">@_fileError</p> }
         break;
 
-    case 6:
+    case "voice":
         <div class="onb-q">
             <h3>@T("s6.tone") <small>@T("pickMany")</small></h3>
             <BriefChips Options="O.Tone" Culture="@Culture" Values="B.Tone" OnChanged="Changed" />
@@ -213,43 +302,7 @@
         </label>
         break;
 
-    case 7:
-        <div class="onb-q">
-            <h3>@T("s7.refs")</h3>
-            <p class="onb__muted">@T("s7.refsHint")</p>
-            @for (var i = 0; i < B.References.Count; i++)
-            {
-                var r = B.References[i];
-                <div class="wb-ref">
-                    <span class="wb-ref__n">@(i + 1)</span>
-                    <div class="onb-grid">
-                        <label class="onb-span">@T("s7.url")
-                            <input type="url" @bind="r.Url" @bind:after="Changed" placeholder="https://" />
-                        </label>
-                        <label>@T("s7.likes")
-                            <textarea rows="2" @bind="r.Likes" @bind:after="Changed"></textarea>
-                        </label>
-                        <label>@T("s7.dislikes")
-                            <textarea rows="2" @bind="r.Dislikes" @bind:after="Changed"></textarea>
-                        </label>
-                    </div>
-                </div>
-            }
-        </div>
-        <div class="onb-grid">
-            <label class="onb-span">@T("s7.competitors")
-                <input @bind="B.Competitors" @bind:after="Changed" />
-            </label>
-            <label>@T("s7.must")
-                <textarea rows="3" @bind="B.MustHave" @bind:after="Changed"></textarea>
-            </label>
-            <label>@T("s7.avoid")
-                <textarea rows="3" @bind="B.Avoid" @bind:after="Changed"></textarea>
-            </label>
-        </div>
-        break;
-
-    case 8:
+    case "timeline":
         <div class="onb-grid">
             <label>@T("s8.date")
                 <input type="date" value="@B.LaunchDate" @onchange="SetDate" />
@@ -276,15 +329,35 @@
     [Parameter] public int Section { get; set; } = 1;
     [Parameter] public string Industry { get; set; } = OnboardingIndustries.Nails;
     [Parameter] public string Culture { get; set; } = "en";
+    [Parameter] public string BusinessName { get; set; } = "";
     [Parameter] public EventCallback OnChanged { get; set; }
 
     private const long MaxFileBytes = 25 * 1024 * 1024;
     private bool _uploading;
     private string? _fileError;
 
+    private string SectionId => O.Sections[Math.Clamp(Section, 1, O.Sections.Length) - 1];
+
     private string T(string key) => O.T(key, Culture);
 
     private Task Changed() => OnChanged.InvokeAsync();
+
+    // ---- Live preview: the customer's colours, falling back to their mode and first style ----
+
+    private BriefStyle? FirstStyle => O.Styles.FirstOrDefault(s => B.Styles.Contains(s.Id));
+    private string PreviewBg => !string.IsNullOrEmpty(B.Background) ? B.Background : B.Mode == "dark" ? "#14110f" : FirstStyle?.Bg ?? "#ffffff";
+    private string PreviewFg => OnColor(PreviewBg);
+    private string PreviewAccent => !string.IsNullOrEmpty(B.Accent) ? B.Accent : FirstStyle?.Accent ?? "#c0392b";
+    private string PreviewFont => FirstStyle?.Font ?? "'DM Sans', sans-serif";
+
+    /// <summary>Readable text colour on top of <paramref name="hex"/>.</summary>
+    private static string OnColor(string hex)
+    {
+        if (hex.Length != 7 || hex[0] != '#') return "#111111";
+        double C(int i) { var v = Convert.ToInt32(hex.Substring(i, 2), 16) / 255.0; return v <= 0.03928 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4); }
+        var lum = 0.2126 * C(1) + 0.7152 * C(3) + 0.0722 * C(5);
+        return lum > 0.4 ? "#1d1a17" : "#ffffff";
+    }
 
     private Task ToggleStyle(string id)
     {
@@ -296,9 +369,15 @@
         return Changed();
     }
 
-    private Task SetPalette(string id)
+    private Task SetMode(string id)
     {
-        B.Palette = B.Palette == id ? "" : id;
+        B.Mode = B.Mode == id ? "" : id;
+        return Changed();
+    }
+
+    private Task SetColor(bool background, string hex)
+    {
+        if (background) B.Background = hex; else B.Accent = hex;
         return Changed();
     }
 
