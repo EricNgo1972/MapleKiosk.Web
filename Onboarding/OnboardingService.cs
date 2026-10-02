@@ -160,35 +160,50 @@ public sealed class OnboardingService
             ("Pages", Ls(WebsiteBriefOptions.Pages, b.Pages)), ("Features", Ls(WebsiteBriefOptions.Features, b.Features)),
             ("Languages", Ls(WebsiteBriefOptions.Languages, b.Languages)), ("Notes", b.PagesNotes)]);
 
-        Section(sb, "Look & feel",
+        Section(sb, "Style",
             new (string, string)[]
             {
                 ("Styles", string.Join(", ", b.Styles.Select(id => WebsiteBriefOptions.Styles.FirstOrDefault(x => x.Id == id)?.En ?? id))),
-                ("Palette", WebsiteBriefOptions.Palettes.FirstOrDefault(p => p.Id == b.Palette)?.En ?? ""),
-                ("Brand colours", b.BrandColors), ("Avoid colours", b.AvoidColors),
+                ("Light / dark", L(WebsiteBriefOptions.Modes, b.Mode)),
                 ("Lettering", L(WebsiteBriefOptions.Fonts, b.Fonts)),
             }.Concat(WebsiteBriefOptions.Sliders.Select(sl =>
                 ($"{sl.Left.En} ↔ {sl.Right.En}", $"{new string('●', b.Slider(sl.Id))}{new string('○', 5 - b.Slider(sl.Id))} ({b.Slider(sl.Id)}/5)"))).ToArray());
 
-        Section(sb, "Logo & photos", [
+        sb.Append(Heading("Colours")).Append("<table style='border-collapse:collapse;margin-bottom:8px'>");
+        foreach (var (label, hex) in new[] { ("Background", b.Background), ("Accent", b.Accent) })
+            sb.Append($"<tr><td style='padding:3px 16px 3px 0;color:#666'>{label}</td><td style='padding:3px 0;font-weight:600'>" +
+                      (string.IsNullOrWhiteSpace(hex) ? "<span style='color:#aaa;font-weight:400'>Designer's choice</span>"
+                          : $"<span style='display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid #ccc;vertical-align:-2px;background:{Enc(hex)}'></span> {Enc(WebsiteBriefOptions.ColorLabel(hex, en))} <span style='color:#666;font-weight:400'>{Enc(hex)}</span>") +
+                      "</td></tr>");
+        sb.Append("</table>");
+        Section(sb, "", [
+            ("Palette (older brief)", WebsiteBriefOptions.Palettes.FirstOrDefault(p => p.Id == b.Palette)?.En ?? ""),
+            ("Brand colours", b.BrandColors), ("Avoid colours", b.AvoidColors)]);
+
+        Section(sb, "Websites to copy",
+            b.References.Where(x => !string.IsNullOrWhiteSpace(x.Url))
+                .Select((x, i) => ($"Site {i + 1}",
+                    x.Url + (x.Copy.Count > 0 ? $" — copy: {Ls(WebsiteBriefOptions.CopyAspects, x.Copy)}" : "")
+                          + (string.IsNullOrWhiteSpace(x.Likes) ? "" : $" — likes: {x.Likes}")
+                          + (string.IsNullOrWhiteSpace(x.Dislikes) ? "" : $" — dislikes: {x.Dislikes}")))
+                .Append(("Competitors", b.Competitors)).Append(("Must-haves", b.MustHave)).Append(("Avoid", b.Avoid)).ToArray());
+
+        Section(sb, "Logo, photos & assets", [
             ("Logo", L(WebsiteBriefOptions.Logo, b.Logo)), ("Photos", L(WebsiteBriefOptions.Photos, b.Photos)),
-            ("Picture mood", Ls(WebsiteBriefOptions.ImageryMood, b.ImageryMood))]);
+            ("Picture mood", Ls(WebsiteBriefOptions.ImageryMood, b.ImageryMood)),
+            ("Assets they can share", Ls(WebsiteBriefOptions.AssetTypes, b.Assets)),
+            ("Font names", b.FontNames), ("Shared folder", b.AssetsLink)]);
 
         Section(sb, "Voice & words", [
             ("Tone", Ls(WebsiteBriefOptions.Tone, b.Tone)), ("Who writes", L(WebsiteBriefOptions.Copy, b.Copy)),
             ("Key messages", b.KeyMessages)]);
-
-        Section(sb, "Inspiration",
-            b.References.Where(x => !string.IsNullOrWhiteSpace(x.Url))
-                .Select((x, i) => ($"Reference {i + 1}", $"{x.Url} — likes: {x.Likes}" + (string.IsNullOrWhiteSpace(x.Dislikes) ? "" : $" — dislikes: {x.Dislikes}")))
-                .Append(("Competitors", b.Competitors)).Append(("Must-haves", b.MustHave)).Append(("Avoid", b.Avoid)).ToArray());
 
         Section(sb, "Timeline & approval", [
             ("Launch date", b.LaunchDate), ("Why that date", b.LaunchReason),
             ("Approver", string.Join(" · ", new[] { b.Approver, b.ApproverContact }.Where(v => !string.IsNullOrWhiteSpace(v)))),
             ("Notes", b.Notes)]);
 
-        sb.Append(Heading("Brand files"));
+        sb.Append(Heading("Uploaded brand files & assets"));
         if (b.Files.Count == 0) sb.Append("<p style='color:#666'>None uploaded.</p>");
         else
         {
@@ -212,7 +227,7 @@ public sealed class OnboardingService
                   (r.SubmittedAt is { } at ? $" · submitted {at.UtcDateTime:yyyy-MM-dd HH:mm} UTC" : "") + "</p>");
 
         Section(sb, "Business", [
-            ("Name shown to clients", f.BusinessName), ("Legal name", f.LegalName),
+            ("Name shown to clients", f.BusinessName), ("Legal name", f.LegalName), ("Motto / slogan", f.Motto),
             ("Address", string.Join(", ", new[] { f.Address, f.City, f.PostalCode }.Where(s => !string.IsNullOrWhiteSpace(s)))),
             ("Business phone", f.Phone), ("Notifications / invoices email", f.NotifyEmail),
             ("Contact person", f.ContactName), ("Contact mobile", f.ContactMobile)]);
@@ -224,6 +239,22 @@ public sealed class OnboardingService
         Section(sb, "Online", [
             ("Website", f.Website), ("Facebook", f.Facebook), ("Instagram", f.Instagram),
             ("Google Business Profile", f.GoogleProfile), ("SMS / WhatsApp number", f.SmsNumber)]);
+
+        if (f.Logo is { } logo)
+            sb.Append($"<p><img src='{Enc(fileUrl(logo))}' alt='Logo' style='max-height:72px;max-width:220px;display:block;margin:6px 0'>" +
+                      $"<a href='{Enc(fileUrl(logo))}'>Logo: {Enc(logo.FileName)}</a></p>");
+
+        sb.Append(Heading("Existing hardware"));
+        if (f.NoHardware && f.Hardware.Count == 0) sb.Append("<p>None to reuse.</p>");
+        else if (f.Hardware.Count == 0) sb.Append("<p style='color:#aaa'>—</p>");
+        else
+        {
+            sb.Append("<table style='border-collapse:collapse;margin-bottom:8px'>");
+            foreach (var h in f.Hardware)
+                sb.Append($"<tr><td style='padding:3px 16px 3px 0;color:#666;vertical-align:top'>{Enc(HardwareOptions.Label(h.Type, "en"))}{(h.Quantity > 1 ? $" ×{h.Quantity}" : "")}</td>" +
+                          $"<td style='padding:3px 0'><strong>{Enc($"{h.Brand} {h.Model}".Trim())}</strong>{(string.IsNullOrWhiteSpace(h.Notes) ? "" : $" <span style='color:#666'>— {Enc(h.Notes)}</span>")}</td></tr>");
+            sb.Append("</table>");
+        }
 
         Section(sb, "Access", [("Google Business Profile manager", AccessLabel(f.GoogleAccess)),
                                ("Meta (Facebook + Instagram) partner", AccessLabel(f.MetaAccess))]);
@@ -245,7 +276,8 @@ public sealed class OnboardingService
 
     private static void Section(StringBuilder sb, string title, (string Label, string Value)[] rows)
     {
-        sb.Append(Heading(title)).Append("<table style='border-collapse:collapse;margin-bottom:8px'>");
+        if (!string.IsNullOrEmpty(title)) sb.Append(Heading(title));
+        sb.Append("<table style='border-collapse:collapse;margin-bottom:8px'>");
         foreach (var (label, value) in rows)
             sb.Append($"<tr><td style='padding:3px 16px 3px 0;color:#666;vertical-align:top'>{Enc(label)}</td>" +
                       $"<td style='padding:3px 0;font-weight:600'>{(string.IsNullOrWhiteSpace(value) ? "<span style='color:#aaa;font-weight:400'>—</span>" : Enc(value))}</td></tr>");

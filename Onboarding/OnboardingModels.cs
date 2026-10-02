@@ -48,6 +48,9 @@ public sealed class OnboardingForm
     // Business
     public string BusinessName { get; set; } = "";
     public string LegalName { get; set; } = "";
+    public string Motto { get; set; } = "";
+    /// <summary>The business logo, used on booking pages, receipts and the website.</summary>
+    public OnboardingFile? Logo { get; set; }
     public string Address { get; set; } = "";
     public string City { get; set; } = "";
     public string PostalCode { get; set; } = "";
@@ -71,6 +74,10 @@ public sealed class OnboardingForm
     public string SmsNumber { get; set; } = "";
     public bool NoOnline { get; set; }
 
+    // Existing hardware the tenant wants to keep using
+    public List<HardwareItem> Hardware { get; set; } = new();
+    public bool NoHardware { get; set; }
+
     // Access (no passwords)
     public string GoogleAccess { get; set; } = "";
     public string MetaAccess { get; set; } = "";
@@ -81,6 +88,17 @@ public sealed class OnboardingForm
 
     public static List<DayHours> DefaultHours() =>
         Days.Select(d => new DayHours { Day = d, Closed = d == "Sun" }).ToList();
+}
+
+/// <summary>A device the tenant already owns and wants to reuse. <see cref="Type"/>
+/// is an id from <see cref="HardwareOptions.Types"/>.</summary>
+public sealed class HardwareItem
+{
+    public string Type { get; set; } = "";
+    public string Brand { get; set; } = "";
+    public string Model { get; set; } = "";
+    public int Quantity { get; set; } = 1;
+    public string Notes { get; set; } = "";
 }
 
 public sealed class OnboardingFile

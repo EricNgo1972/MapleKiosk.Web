@@ -18,6 +18,12 @@ public sealed record BriefStyle(string Id, string En, string Fr, string Vi, stri
     public string Desc(string c) => c switch { "fr" => DescFr, "vi" => DescVi, _ => DescEn };
 }
 
+/// <summary>A preset colour swatch (background or accent).</summary>
+public sealed record BriefColor(string Hex, string En, string Fr, string Vi)
+{
+    public string Label(string c) => c switch { "fr" => Fr, "vi" => Vi, _ => En };
+}
+
 public sealed record BriefPalette(string Id, string En, string Fr, string Vi, string[] Colors)
 {
     public string Label(string c) => c switch { "fr" => Fr, "vi" => Vi, _ => En };
@@ -34,6 +40,12 @@ public sealed record BriefSlider(string Id, BriefOption Left, BriefOption Right)
 /// </summary>
 public static class WebsiteBriefOptions
 {
+    /// <summary>The brief's sections, in order; the page shows one at a time
+    /// (/onboarding/{token}/website/{n}, n = 1-based index).</summary>
+    public static readonly string[] Sections = ["start", "goals", "pages", "style", "colours", "examples", "logo", "voice", "timeline"];
+
+    public static string SectionTitle(int n, string culture) => T($"sec.{Sections[Math.Clamp(n, 1, Sections.Length) - 1]}", culture);
+
     private const string Nails = OnboardingIndustries.Nails, Coffee = OnboardingIndustries.Coffee,
         Resto = OnboardingIndustries.Restaurant, Garage = OnboardingIndustries.Garage;
 
@@ -165,9 +177,60 @@ public static class WebsiteBriefOptions
         new("calm_energetic", new("", "Calm", "Calme", "Nhẹ nhàng"), new("", "Energetic", "Énergique", "Sôi động")),
         new("serious_playful", new("", "Serious", "Sérieux", "Nghiêm túc"), new("", "Playful", "Ludique", "Vui nhộn")),
         new("everyday_premium", new("", "Everyday, affordable", "Accessible", "Bình dân"), new("", "Premium, exclusive", "Haut de gamme", "Cao cấp")),
-        new("light_dark", new("", "Light", "Clair", "Sáng"), new("", "Dark", "Sombre", "Tối")),
     ];
 
+    public static readonly BriefOption[] Modes =
+    [
+        new("light", "Light", "Clair", "Sáng"),
+        new("dark", "Dark", "Sombre", "Tối"),
+        new("both", "Both — visitors can switch", "Les deux — au choix du visiteur", "Cả hai — khách tự chọn"),
+        new("any", "Designer's choice", "Au choix du designer", "Để designer chọn"),
+    ];
+
+    public static readonly BriefColor[] Backgrounds =
+    [
+        new("#ffffff", "White", "Blanc", "Trắng"),
+        new("#faf7f2", "Cream", "Crème", "Kem"),
+        new("#f3ece3", "Warm beige", "Beige chaud", "Be ấm"),
+        new("#fbefec", "Soft blush", "Rose poudré", "Hồng phấn nhạt"),
+        new("#eef0e6", "Sage tint", "Sauge pâle", "Xanh xô thơm nhạt"),
+        new("#eef3f7", "Cool mist", "Brume froide", "Xám xanh nhạt"),
+        new("#f0f0f0", "Light grey", "Gris clair", "Xám nhạt"),
+        new("#2a2522", "Charcoal", "Charbon", "Xám than"),
+        new("#0f1a2e", "Midnight navy", "Marine nuit", "Xanh đêm"),
+        new("#0d0d0d", "Black", "Noir", "Đen"),
+    ];
+
+    public static readonly BriefColor[] Accents =
+    [
+        new("#c0392b", "Maple red", "Rouge érable", "Đỏ phong"),
+        new("#e07b4a", "Terracotta", "Terracotta", "Cam đất"),
+        new("#c9a45c", "Gold", "Or", "Vàng kim"),
+        new("#d98c9a", "Rose", "Rose", "Hồng đào"),
+        new("#ff7eb6", "Pink", "Rose vif", "Hồng"),
+        new("#8e6bbf", "Lavender", "Lavande", "Tím oải hương"),
+        new("#6f8a5b", "Sage", "Sauge", "Xanh xô thơm"),
+        new("#1f8a5b", "Emerald", "Émeraude", "Xanh ngọc lục bảo"),
+        new("#1f6f8b", "Teal", "Sarcelle", "Xanh mòng két"),
+        new("#2f5fd0", "Blue", "Bleu", "Xanh dương"),
+        new("#1d2a44", "Navy", "Marine", "Xanh navy"),
+        new("#111111", "Black", "Noir", "Đen"),
+    ];
+
+    public static string ColorLabel(string hex, string culture) =>
+        Backgrounds.Concat(Accents).FirstOrDefault(c => c.Hex.Equals(hex, StringComparison.OrdinalIgnoreCase))?.Label(culture) ?? hex;
+
+    public static readonly BriefOption[] CopyAspects =
+    [
+        new("layout", "Layout & structure", "Mise en page", "Bố cục"),
+        new("colours", "Colours", "Couleurs", "Màu sắc"),
+        new("fonts", "Fonts", "Typographie", "Kiểu chữ"),
+        new("photos", "Photo style", "Style photo", "Phong cách ảnh"),
+        new("feel", "Overall feel", "Ambiance générale", "Cảm giác tổng thể"),
+        new("booking", "Booking / ordering flow", "Parcours de réservation / commande", "Cách đặt lịch / đặt món"),
+    ];
+
+    /// <summary>Legacy: the palette picker was replaced by background + accent.</summary>
     public static readonly BriefPalette[] Palettes =
     [
         new("neutral", "Soft neutrals", "Neutres doux", "Trung tính nhẹ", ["#faf8f5", "#e9e4dc", "#b9afa3", "#6d655c", "#2b2723"]),
@@ -216,6 +279,19 @@ public static class WebsiteBriefOptions
         new("products", "Products", "Produits", "Sản phẩm"),
     ];
 
+    public static readonly BriefOption[] AssetTypes =
+    [
+        new("logofiles", "Logo files (SVG, PNG, AI)", "Fichiers du logo (SVG, PNG, AI)", "File logo (SVG, PNG, AI)"),
+        new("guide", "Brand guide", "Guide de marque", "Bộ nhận diện thương hiệu"),
+        new("shop", "Photos of our shop", "Photos de notre commerce", "Ảnh cửa tiệm"),
+        new("work", "Photos of our work / products", "Photos de nos réalisations / produits", "Ảnh sản phẩm / tác phẩm"),
+        new("team", "Team photos", "Photos de l'équipe", "Ảnh đội ngũ"),
+        new("fonts", "Our fonts", "Nos polices", "Font chữ riêng"),
+        new("video", "Videos", "Vidéos", "Video"),
+        new("print", "Menus, flyers, price lists we designed", "Menus, dépliants, listes de prix déjà conçus", "Menu, tờ rơi, bảng giá đã thiết kế"),
+        new("none", "Nothing yet — please create or source them", "Rien encore — à créer ou trouver", "Chưa có — nhờ MapleKiosk chuẩn bị"),
+    ];
+
     public static readonly BriefOption[] Tone =
     [
         new("friendly", "Friendly & warm", "Amical et chaleureux", "Thân thiện, ấm áp"),
@@ -254,6 +330,32 @@ public static class WebsiteBriefOptions
         ["pickTwo"] = ("Pick up to 2", "Choisissez-en jusqu'à 2", "Chọn tối đa 2"),
         ["pickOne"] = ("Pick one", "Choisissez-en un", "Chọn một"),
 
+        ["sec.start"] = ("Starting point", "Point de départ", "Hiện trạng"),
+        ["sec.goals"] = ("Goals & clients", "Objectifs et clientèle", "Mục tiêu & khách hàng"),
+        ["sec.pages"] = ("Pages & features", "Pages et fonctions", "Trang & tính năng"),
+        ["sec.style"] = ("Style", "Style", "Phong cách"),
+        ["sec.colours"] = ("Colours", "Couleurs", "Màu sắc"),
+        ["sec.examples"] = ("Websites to copy", "Sites à imiter", "Website muốn làm theo"),
+        ["sec.logo"] = ("Logo, photos & assets", "Logo, photos et ressources", "Logo, hình ảnh & tài nguyên"),
+        ["sec.voice"] = ("Voice & words", "Ton et textes", "Giọng văn & nội dung"),
+        ["sec.timeline"] = ("Timeline & approval", "Échéancier et approbation", "Thời gian & duyệt"),
+
+        ["mode"] = ("Light or dark?", "Clair ou sombre?", "Nền sáng hay tối?"),
+        ["mode.hint"] = ("Light sites feel open and fresh; dark sites feel premium and dramatic.", "Un site clair paraît ouvert et frais; un site sombre, haut de gamme et dramatique.", "Nền sáng tạo cảm giác thoáng, tươi; nền tối sang trọng, ấn tượng."),
+        ["bg"] = ("Background colour", "Couleur de fond", "Màu nền"),
+        ["bg.hint"] = ("The main colour behind the text — most of the page.", "La couleur principale derrière le texte — la majeure partie de la page.", "Màu chính phía sau chữ — chiếm phần lớn trang."),
+        ["accent"] = ("Accent colour", "Couleur d'accent", "Màu nhấn"),
+        ["accent.hint"] = ("Used for buttons, links and highlights — the colour people remember.", "Pour les boutons, liens et points forts — la couleur dont on se souvient.", "Dùng cho nút, liên kết và điểm nhấn — màu khách sẽ nhớ."),
+        ["custom"] = ("Custom…", "Personnalisée…", "Tự chọn…"),
+        ["noPref"] = ("No preference", "Aucune préférence", "Không yêu cầu"),
+        ["preview"] = ("Preview", "Aperçu", "Xem trước"),
+        ["preview.hint"] = ("A rough idea of your choices together — your designer will refine it.", "Une idée approximative de vos choix — votre designer l'affinera.", "Hình dung sơ bộ các lựa chọn — designer sẽ tinh chỉnh thêm."),
+        ["preview.cta"] = ("Book now", "Réserver", "Đặt lịch"),
+        ["preview.tag"] = ("Welcome — we can't wait to see you.", "Bienvenue — au plaisir de vous voir.", "Chào mừng — rất mong được gặp bạn."),
+        ["examples.intro"] = ("Share up to 3 websites whose design you'd like us to follow — from any business or country. Tell us what to copy from each.", "Partagez jusqu'à 3 sites dont vous aimeriez qu'on s'inspire — de tout secteur, tout pays. Dites-nous quoi reprendre de chacun.", "Gửi tối đa 3 website bạn muốn chúng tôi làm theo — bất kỳ ngành, quốc gia nào. Cho biết muốn lấy điểm gì từ mỗi trang."),
+        ["examples.copy"] = ("What should we copy?", "Que devons-nous reprendre?", "Muốn làm theo điểm nào?"),
+        ["examples.open"] = ("Open ↗", "Ouvrir ↗", "Mở ↗"),
+
         ["s1"] = ("Starting point", "Point de départ", "Hiện trạng"),
         ["s1.site"] = ("Do you have a website today?", "Avez-vous un site Web aujourd'hui?", "Hiện bạn đã có website chưa?"),
         ["s1.url"] = ("Current website address", "Adresse du site actuel", "Địa chỉ website hiện tại"),
@@ -290,8 +392,12 @@ public static class WebsiteBriefOptions
         ["s5.logo"] = ("Your logo", "Votre logo", "Logo của bạn"),
         ["s5.photos"] = ("Photos for the site", "Photos pour le site", "Hình ảnh cho website"),
         ["s5.mood"] = ("What kind of pictures?", "Quel genre d'images?", "Kiểu hình ảnh nào?"),
-        ["s5.upload"] = ("Upload logo, brand guide or photos", "Téléversez logo, guide de marque ou photos", "Tải lên logo, bộ nhận diện hoặc hình ảnh"),
-        ["s5.uploadHint"] = ("Images, PDF, AI/EPS/SVG or a ZIP · up to 25 MB each", "Images, PDF, AI/EPS/SVG ou ZIP · 25 Mo max. chacun", "Ảnh, PDF, AI/EPS/SVG hoặc ZIP · tối đa 25 MB mỗi file"),
+        ["assets"] = ("Which web assets can you share with us?", "Quelles ressources pouvez-vous nous fournir?", "Bạn có thể gửi những tài nguyên nào?"),
+        ["assets.fonts"] = ("Font names you use (if any)", "Noms des polices utilisées (s'il y a lieu)", "Tên font chữ đang dùng (nếu có)"),
+        ["assets.link"] = ("Link to a shared folder (Google Drive, Dropbox, OneDrive)", "Lien vers un dossier partagé (Google Drive, Dropbox, OneDrive)", "Link thư mục chia sẻ (Google Drive, Dropbox, OneDrive)"),
+        ["assets.linkHint"] = ("Best for many photos, videos or big files. Please allow anyone with the link to view.", "Idéal pour beaucoup de photos, des vidéos ou de gros fichiers. Autorisez l'accès à toute personne ayant le lien.", "Phù hợp khi có nhiều ảnh, video hoặc file lớn. Vui lòng cho phép “bất kỳ ai có link” được xem."),
+        ["s5.upload"] = ("Upload images, fonts and brand files", "Téléversez images, polices et fichiers de marque", "Tải lên hình ảnh, font chữ và file thương hiệu"),
+        ["s5.uploadHint"] = ("Images, fonts (TTF/OTF/WOFF), PDF, AI/EPS/SVG, short videos or a ZIP · up to 25 MB each", "Images, polices (TTF/OTF/WOFF), PDF, AI/EPS/SVG, courtes vidéos ou ZIP · 25 Mo max. chacun", "Ảnh, font (TTF/OTF/WOFF), PDF, AI/EPS/SVG, video ngắn hoặc ZIP · tối đa 25 MB mỗi file"),
 
         ["s6"] = ("Voice & words", "Ton et textes", "Giọng văn & nội dung"),
         ["s6.tone"] = ("How should the website sound?", "Quel ton pour le site?", "Website nên “nói chuyện” thế nào?"),
