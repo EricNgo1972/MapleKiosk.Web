@@ -1,0 +1,165 @@
+@page "/garage"
+@page "/fr/garage"
+@page "/vi/garage"
+@page "/ru/garage"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["gar.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["gar.meta.desc"]" />
+    <meta property="og:title" content="@L["gar.meta.title"]" />
+    <meta property="og:description" content="@L["gar.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+    <meta property="og:image" content="@(Nav.BaseUri)img/garage/board.jpg" />
+</HeadContent>
+
+<NavBar />
+
+<main class="gp">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="gp-hero" id="top">
+        <Breadcrumbs Current="@L["nav.garage"]" />
+        <div class="container gp-hero__grid">
+            <div>
+                <p class="gp-hero__product">MapleGarage</p>
+                <h1 class="gp-hero__title">@L["gar.hero.title"]</h1>
+                <p class="gp-hero__sub">@L["gar.hero.sub"]</p>
+                <div class="gp-hero__ctas">
+                    <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                    <button type="button" class="btn gp-btn-ghost" data-video="@VideoId">
+                        @L["gar.hero.watch"] <span>1:28</span>
+                    </button>
+                </div>
+                <p class="gp-hero__note">@L["gar.hero.note"]</p>
+            </div>
+            <button type="button" class="gp-shot gp-shot--hero" data-video="@VideoId" data-start="45"
+                    aria-label="@($"{L["gar.watch"]}: {L["gar.s.board.t"]}")">
+                <img src="img/garage/board.jpg" alt="@L["gar.s.board.alt"]" width="1280" height="580" />
+                <span class="hp-play" aria-hidden="true"></span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ===================== A CAR COMES IN ===================== -->
+    <section class="gp-day">
+        <div class="container">
+            <h2 class="gp-h2">@L["gar.day.title"]</h2>
+            <p class="gp-lead">@L["gar.day.sub"]</p>
+
+            <ol class="gp-steps">
+                @for (var i = 0; i < _scenes.Length; i++)
+                {
+                    var s = _scenes[i];
+                    <li class="gp-step @(i % 2 == 1 ? "gp-step--flip" : "")">
+                        <button type="button" class="gp-shot" data-video="@VideoId" data-start="@s.Start"
+                                aria-label="@($"{L["gar.watch"]}: {L[$"gar.s.{s.Key}.t"]} ({Clock(s.Start)})")">
+                            <img src="img/garage/@(s.Key).jpg" alt="@L[$"gar.s.{s.Key}.alt"]" loading="lazy" width="1280" height="580" />
+                            <span class="hp-play" aria-hidden="true"></span>
+                        </button>
+                        <div class="gp-step__body">
+                            <span class="gp-step__num">@(i + 1)</span>
+                            <h3>@L[$"gar.s.{s.Key}.t"]</h3>
+                            <p>@L[$"gar.s.{s.Key}.d"]</p>
+                            <button type="button" class="hp-link" data-video="@VideoId" data-start="@s.Start">
+                                @L["gar.watch"] <span>@Clock(s.Start)</span>
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ol>
+        </div>
+    </section>
+
+    <!-- ===================== THE ASSISTANT ===================== -->
+    <section class="gp-ai">
+        <div class="container gp-ai__grid">
+            <h2 class="gp-h2">@L["gar.ai.title"]</h2>
+            <div>
+                <p class="gp-lead">@L["gar.ai.d"]</p>
+                <ul class="gp-ai__rules">
+                    <li>@L["gar.ai.r1"]</li>
+                    <li>@L["gar.ai.r2"]</li>
+                    <li>@L["gar.ai.r3"]</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== ONE TABLET ===================== -->
+    <section class="gp-tablet">
+        <div class="container gp-tablet__grid">
+            <div>
+                <h2 class="gp-h2">@L["gar.s.tablet.t"]</h2>
+                <p class="gp-lead">@L["gar.s.tablet.d"]</p>
+            </div>
+            <button type="button" class="gp-shot" data-video="@VideoId" data-start="8"
+                    aria-label="@($"{L["gar.watch"]}: {L["gar.s.tablet.t"]} (0:08)")">
+                <img src="img/garage/one-tablet.jpg" alt="@L["gar.s.tablet.alt"]" loading="lazy" width="1280" height="580" />
+                <span class="hp-play" aria-hidden="true"></span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ===================== ALSO IN THE BOX ===================== -->
+    <section class="gp-more">
+        <div class="container">
+            <h2 class="gp-h2">@L["gar.more.title"]</h2>
+            <dl class="gp-more__list">
+                @foreach (var k in new[] { "kiosk", "tv", "follow", "card" })
+                {
+                    <div>
+                        <dt>@L[$"gar.more.{k}.t"]</dt>
+                        <dd>@L[$"gar.more.{k}.d"]</dd>
+                    </div>
+                }
+            </dl>
+        </div>
+    </section>
+
+    <!-- ===================== CLOSE ===================== -->
+    <section class="gp-end">
+        <div class="container">
+            <h2 class="gp-h2">@L["gar.end.title"]</h2>
+            <div class="hp-end__actions">
+                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<TrialForm Culture="@L.Culture" />
+<Footer />
+<MobileCta />
+
+@code {
+    // "MapleGarage Overview" on the Maple Kiosk channel; each scene deep-links
+    // to the second its caption appears.
+    private const string VideoId = "t1_a_Nac8wA";
+
+    private record Scene(string Key, int Start);
+
+    private readonly Scene[] _scenes =
+    {
+        new("book",      16),
+        new("check-in",  24),
+        new("quote",     34),
+        new("board",     45),
+        new("my-jobs",   53),
+        new("parts",     60),
+        new("bill",      68),
+        new("car-story", 76),
+    };
+
+    private static string Clock(int seconds) => $"{seconds / 60}:{seconds % 60:00}";
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

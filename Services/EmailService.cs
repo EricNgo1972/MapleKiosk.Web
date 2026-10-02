@@ -6,30 +6,42 @@ namespace MapleKiosk.Web.Services;
 public class EmailService
 {
     private readonly ILogger<EmailService> _logger;
-    private readonly SendGridClient? _client;
-    private readonly EmailAddress _from;
+    private readonly IConfiguration _config;
+    private readonly Task<(SendGridClient? Client, EmailAddress From)> _setup;
 
     public EmailService(ILogger<EmailService> logger, IConfiguration config)
     {
         _logger = logger;
+        _config = config;
+        _setup = ResolveAsync();
+    }
 
-        var apiKey = Environment.GetEnvironmentVariable("SENDGRID_API_KEY")
-                     ?? config["SENDGRID_API_KEY"];
-
-        _from = ParseFrom(
-            Environment.GetEnvironmentVariable("SENDGRID_FROM") ?? config["SENDGRID_FROM"],
-            Environment.GetEnvironmentVariable("SENDGRID_FROM_NAME") ?? config["SENDGRID_FROM_NAME"]);
+    // Env var → keyvalue table → appsettings. The site's own SendGrid/maplekiosk
+    // row wins; SendGrid/AppleWallet and Email/* are the rows the
+    // monorepo's SendGridEmailService and email intake read.
+    private async Task<(SendGridClient?, EmailAddress)> ResolveAsync()
+    {
+        var apiKey = await KeyValueTable.ResolveAsync("SENDGRID_API_KEY", "SendGrid", "maplekiosk");
+        if (string.IsNullOrWhiteSpace(apiKey))
+            apiKey = await Resolve("SENDGRID_API_KEY", "SendGrid", "AppleWallet");
+        var from = ParseFrom(
+            await Resolve("SENDGRID_FROM", "Email", "FromAddress"),
+            await Resolve("SENDGRID_FROM_NAME", "Email", "FromName"));
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            _logger.LogWarning("SENDGRID_API_KEY not set — emails will be skipped.");
-            return;
+            _logger.LogWarning("SendGrid API key not found (SENDGRID_API_KEY or keyvalue SendGrid/maplekiosk, SendGrid/AppleWallet) — emails will be skipped.");
+            return (null, from);
         }
 
-        _client = new SendGridClient(apiKey);
+        return (new SendGridClient(apiKey), from);
     }
 
-    public bool Enabled => _client is not null;
+    private async Task<string?> Resolve(string envVar, string partition, string row)
+    {
+        var value = await KeyValueTable.ResolveAsync(envVar, partition, row);
+        return string.IsNullOrWhiteSpace(value) ? _config[envVar] : value;
+    }
 
     // Ultimate fallback:  MapleKiosk <no-reply@maplekiosk.ca>
     private static EmailAddress ParseFrom(string? from, string? name)
@@ -61,18 +73,19 @@ public class EmailService
 
     public async Task SendAsync(string to, string subject, string htmlBody)
     {
-        if (_client is null) return;
+        var (client, from) = await _setup;
+        if (client is null) return;
 
         try
         {
             var msg = MailHelper.CreateSingleEmail(
-                _from,
+                from,
                 new EmailAddress(to),
                 subject,
                 plainTextContent: null,
                 htmlContent: htmlBody);
 
-            var response = await _client.SendEmailAsync(msg);
+            var response = await client.SendEmailAsync(msg);
 
             if ((int)response.StatusCode >= 400)
             {

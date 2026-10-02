@@ -1,0 +1,6 @@
+@inject NavigationManager Nav
+
+@code {
+    // Signed-in user without the needed role (e.g. a customer on a staff page).
+    protected override void OnInitialized() => Nav.NavigateTo("/access-denied", forceLoad: true);
+}

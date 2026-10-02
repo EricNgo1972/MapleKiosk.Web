@@ -1,0 +1,345 @@
+@using O = MapleKiosk.Web.Onboarding.WebsiteBriefOptions
+@inject OnboardingStore Store
+
+@* One section (1–8) of the website design interview. The page owns saving;
+   every edit here just raises OnChanged. *@
+
+@switch (Section)
+{
+    case 1:
+        <div class="onb-q">
+            <h3>@T("s1.site")</h3>
+            <BriefChips Options="O.CurrentSite" Culture="@Culture" @bind-Value="B.CurrentSite" OnChanged="Changed" />
+        </div>
+        @if (B.CurrentSite is "redesign" or "keep")
+        {
+            <div class="onb-grid">
+                <label class="onb-span">@T("s1.url")
+                    <input type="url" @bind="B.CurrentSiteUrl" @bind:after="Changed" placeholder="https://" />
+                </label>
+                <label>@T("s1.likes")
+                    <textarea rows="3" @bind="B.CurrentLikes" @bind:after="Changed"></textarea>
+                </label>
+                <label>@T("s1.problems")
+                    <textarea rows="3" @bind="B.CurrentProblems" @bind:after="Changed"></textarea>
+                </label>
+            </div>
+        }
+        <div class="onb-q">
+            <h3>@T("s1.domain")</h3>
+            <BriefChips Options="O.Domain" Culture="@Culture" @bind-Value="B.Domain" OnChanged="Changed" />
+        </div>
+        <div class="onb-grid">
+            <label>@T("s1.domainName")
+                <input @bind="B.DomainName" @bind:after="Changed" placeholder="lilynails.ca" />
+            </label>
+            <div></div>
+            <label class="onb-check onb-span">
+                <input type="checkbox" @bind="B.WantsEmail" @bind:after="Changed" /> @T("s1.email")
+            </label>
+            @if (B.WantsEmail)
+            {
+                <label class="onb-span">@T("s1.emailList")
+                    <input @bind="B.EmailAddresses" @bind:after="Changed" placeholder="info@@, booking@@, lily@@" />
+                </label>
+            }
+        </div>
+        break;
+
+    case 2:
+        <div class="onb-q">
+            <h3>@T("s2.goals") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.For(O.Goals, Industry)" Culture="@Culture" Values="B.Goals" OnChanged="Changed" />
+        </div>
+        @if (B.Goals.Count > 1)
+        {
+            <div class="onb-q">
+                <h3>@T("s2.primary")</h3>
+                <BriefChips Options="O.Goals.Where(g => B.Goals.Contains(g.Id))" Culture="@Culture" @bind-Value="B.PrimaryGoal" OnChanged="Changed" />
+            </div>
+        }
+        <div class="onb-q">
+            <h3>@T("s2.audience") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.For(O.Audience, Industry)" Culture="@Culture" Values="B.Audience" OnChanged="Changed" />
+        </div>
+        <div class="onb-grid">
+            <label class="onb-span">@T("s2.audienceNotes")
+                <input @bind="B.AudienceNotes" @bind:after="Changed" />
+            </label>
+            <label class="onb-span">@T("s2.difference")
+                <textarea rows="3" @bind="B.Difference" @bind:after="Changed"></textarea>
+            </label>
+            <label class="onb-span">@T("s2.words")
+                <input @bind="B.ThreeWords" @bind:after="Changed" placeholder="@(Culture == "vi" ? "sạch sẽ, tỉ mỉ, thân thiện" : Culture == "fr" ? "propre, minutieux, chaleureux" : "clean, careful, welcoming")" />
+            </label>
+        </div>
+        break;
+
+    case 3:
+        <div class="onb-q">
+            <h3>@T("s3.pages") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.For(O.Pages, Industry)" Culture="@Culture" Values="B.Pages" OnChanged="Changed" />
+        </div>
+        <div class="onb-q">
+            <h3>@T("s3.features") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.For(O.Features, Industry)" Culture="@Culture" Values="B.Features" OnChanged="Changed" />
+        </div>
+        <div class="onb-q">
+            <h3>@T("s3.languages")</h3>
+            <BriefChips Options="O.Languages" Culture="@Culture" Values="B.Languages" OnChanged="Changed" />
+        </div>
+        <label class="onb-block">@T("s3.notes")
+            <textarea rows="3" @bind="B.PagesNotes" @bind:after="Changed"></textarea>
+        </label>
+        break;
+
+    case 4:
+        <div class="onb-q">
+            <h3>@T("s4.styles") <small>@T("pickTwo")</small></h3>
+            <div class="wb-styles">
+                @foreach (var st in O.Styles)
+                {
+                    var on = B.Styles.Contains(st.Id);
+                    <button type="button" class="wb-style @(on ? "is-on" : "")" aria-pressed="@(on ? "true" : "false")" @onclick="() => ToggleStyle(st.Id)">
+                        <span class="wb-style__preview" style="background:@st.Bg;color:@st.Fg;font-family:@st.Font">
+                            <span class="wb-style__nav"><i style="background:@st.Fg"></i><i style="background:@st.Fg"></i><i style="background:@st.Fg"></i></span>
+                            <span class="wb-style__h">Aa</span>
+                            <span class="wb-style__line" style="background:@st.Fg"></span>
+                            <span class="wb-style__line wb-style__line--s" style="background:@st.Fg"></span>
+                            <span class="wb-style__btn" style="background:@st.Accent;color:@st.Bg;border-radius:@(st.Radius)px">Book</span>
+                        </span>
+                        <span class="wb-style__meta">
+                            <strong>@if (on) { <span class="wb-chip__tick">✓</span> }@st.Label(Culture)</strong>
+                            <small>@st.Desc(Culture)</small>
+                        </span>
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="onb-q">
+            <h3>@T("s4.sliders")</h3>
+            <div class="wb-sliders">
+                @foreach (var sl in O.Sliders)
+                {
+                    <div class="wb-slider">
+                        <span>@sl.Left.Label(Culture)</span>
+                        <input type="range" min="1" max="5" step="1" value="@B.Slider(sl.Id)"
+                               @onchange="e => SetSlider(sl.Id, e)" aria-label="@sl.Left.Label(Culture) – @sl.Right.Label(Culture)" />
+                        <span>@sl.Right.Label(Culture)</span>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="onb-q">
+            <h3>@T("s4.palette") <small>@T("pickOne")</small></h3>
+            <div class="wb-palettes">
+                @foreach (var p in O.Palettes)
+                {
+                    var on = B.Palette == p.Id;
+                    <button type="button" class="wb-palette @(on ? "is-on" : "")" aria-pressed="@(on ? "true" : "false")" @onclick="() => SetPalette(p.Id)">
+                        <span class="wb-palette__sw">
+                            @if (p.Colors.Length == 0)
+                            {
+                                <span class="wb-palette__brand">?</span>
+                            }
+                            @foreach (var c in p.Colors)
+                            {
+                                <i style="background:@c"></i>
+                            }
+                        </span>
+                        <span>@if (on) { <span class="wb-chip__tick">✓</span> }@p.Label(Culture)</span>
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="onb-grid">
+            <label>@T("s4.brand")
+                <input @bind="B.BrandColors" @bind:after="Changed" placeholder="#c0392b, navy…" />
+            </label>
+            <label>@T("s4.avoid")
+                <input @bind="B.AvoidColors" @bind:after="Changed" />
+            </label>
+        </div>
+        <div class="onb-q">
+            <h3>@T("s4.fonts")</h3>
+            <BriefChips Options="O.Fonts" Culture="@Culture" @bind-Value="B.Fonts" OnChanged="Changed" />
+        </div>
+        break;
+
+    case 5:
+        <div class="onb-q">
+            <h3>@T("s5.logo")</h3>
+            <BriefChips Options="O.Logo" Culture="@Culture" @bind-Value="B.Logo" OnChanged="Changed" />
+        </div>
+        <div class="onb-q">
+            <h3>@T("s5.photos")</h3>
+            <BriefChips Options="O.Photos" Culture="@Culture" @bind-Value="B.Photos" OnChanged="Changed" />
+        </div>
+        <div class="onb-q">
+            <h3>@T("s5.mood") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.ImageryMood" Culture="@Culture" Values="B.ImageryMood" OnChanged="Changed" />
+        </div>
+        <label class="onb-drop @(_uploading ? "is-busy" : "")">
+            <InputFile OnChange="OnFilesSelected" multiple accept="image/*,.pdf,.ai,.eps,.svg,.zip" />
+            <strong>@T("s5.upload")</strong>
+            <small>@T("s5.uploadHint")</small>
+        </label>
+        @if (B.Files.Count > 0)
+        {
+            <ul class="onb-files">
+                @foreach (var file in B.Files)
+                {
+                    <li>
+                        <span>📎 @file.FileName <small class="onb__muted">(@(file.Size / 1024) KB)</small></span>
+                        <button type="button" class="onb-files__rm" @onclick="() => RemoveFile(file)" aria-label="Remove">✕</button>
+                    </li>
+                }
+            </ul>
+        }
+        @if (_fileError is not null) { <p class="onb-error">@_fileError</p> }
+        break;
+
+    case 6:
+        <div class="onb-q">
+            <h3>@T("s6.tone") <small>@T("pickMany")</small></h3>
+            <BriefChips Options="O.Tone" Culture="@Culture" Values="B.Tone" OnChanged="Changed" />
+        </div>
+        <div class="onb-q">
+            <h3>@T("s6.copy")</h3>
+            <BriefChips Options="O.Copy" Culture="@Culture" @bind-Value="B.Copy" OnChanged="Changed" />
+        </div>
+        <label class="onb-block">@T("s6.messages")
+            <textarea rows="4" @bind="B.KeyMessages" @bind:after="Changed" placeholder="@T("s6.messagesPh")"></textarea>
+        </label>
+        break;
+
+    case 7:
+        <div class="onb-q">
+            <h3>@T("s7.refs")</h3>
+            <p class="onb__muted">@T("s7.refsHint")</p>
+            @for (var i = 0; i < B.References.Count; i++)
+            {
+                var r = B.References[i];
+                <div class="wb-ref">
+                    <span class="wb-ref__n">@(i + 1)</span>
+                    <div class="onb-grid">
+                        <label class="onb-span">@T("s7.url")
+                            <input type="url" @bind="r.Url" @bind:after="Changed" placeholder="https://" />
+                        </label>
+                        <label>@T("s7.likes")
+                            <textarea rows="2" @bind="r.Likes" @bind:after="Changed"></textarea>
+                        </label>
+                        <label>@T("s7.dislikes")
+                            <textarea rows="2" @bind="r.Dislikes" @bind:after="Changed"></textarea>
+                        </label>
+                    </div>
+                </div>
+            }
+        </div>
+        <div class="onb-grid">
+            <label class="onb-span">@T("s7.competitors")
+                <input @bind="B.Competitors" @bind:after="Changed" />
+            </label>
+            <label>@T("s7.must")
+                <textarea rows="3" @bind="B.MustHave" @bind:after="Changed"></textarea>
+            </label>
+            <label>@T("s7.avoid")
+                <textarea rows="3" @bind="B.Avoid" @bind:after="Changed"></textarea>
+            </label>
+        </div>
+        break;
+
+    case 8:
+        <div class="onb-grid">
+            <label>@T("s8.date")
+                <input type="date" value="@B.LaunchDate" @onchange="SetDate" />
+            </label>
+            <label>@T("s8.reason")
+                <input @bind="B.LaunchReason" @bind:after="Changed" />
+            </label>
+            <label>@T("s8.approver")
+                <input @bind="B.Approver" @bind:after="Changed" />
+            </label>
+            <label>@T("s8.approverContact")
+                <input @bind="B.ApproverContact" @bind:after="Changed" />
+            </label>
+            <label class="onb-span">@T("s8.notes")
+                <textarea rows="4" @bind="B.Notes" @bind:after="Changed"></textarea>
+            </label>
+        </div>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired] public WebsiteBrief B { get; set; } = new();
+    [Parameter, EditorRequired] public string Token { get; set; } = "";
+    [Parameter] public int Section { get; set; } = 1;
+    [Parameter] public string Industry { get; set; } = OnboardingIndustries.Nails;
+    [Parameter] public string Culture { get; set; } = "en";
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private const long MaxFileBytes = 25 * 1024 * 1024;
+    private bool _uploading;
+    private string? _fileError;
+
+    private string T(string key) => O.T(key, Culture);
+
+    private Task Changed() => OnChanged.InvokeAsync();
+
+    private Task ToggleStyle(string id)
+    {
+        if (!B.Styles.Remove(id))
+        {
+            if (B.Styles.Count >= 2) B.Styles.RemoveAt(0);
+            B.Styles.Add(id);
+        }
+        return Changed();
+    }
+
+    private Task SetPalette(string id)
+    {
+        B.Palette = B.Palette == id ? "" : id;
+        return Changed();
+    }
+
+    private Task SetSlider(string id, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v)) B.Sliders[id] = Math.Clamp(v, 1, 5);
+        return Changed();
+    }
+
+    // <input type=date> binds to DateTime in Blazor; keep the "yyyy-MM-dd" string.
+    private Task SetDate(ChangeEventArgs e)
+    {
+        var v = e.Value?.ToString() ?? "";
+        B.LaunchDate = DateOnly.TryParse(v, out var d) ? d.ToString("yyyy-MM-dd") : v;
+        return Changed();
+    }
+
+    private async Task OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _fileError = null;
+        _uploading = true;
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(20))
+            {
+                if (file.Size > MaxFileBytes) { _fileError = $"{file.Name} > 25 MB"; continue; }
+                using var ms = new MemoryStream();
+                await file.OpenReadStream(MaxFileBytes).CopyToAsync(ms);
+                ms.Position = 0;
+                B.Files.Add(await Store.UploadFileAsync(Token, ms, file.Name, file.ContentType));
+            }
+            await Changed();
+        }
+        catch { _fileError = "Upload failed. Please try again."; }
+        finally { _uploading = false; }
+    }
+
+    private async Task RemoveFile(OnboardingFile file)
+    {
+        B.Files.Remove(file);
+        await Changed();
+        try { await Store.DeleteFileAsync(Token, file.Id); } catch { /* orphan blob is harmless */ }
+    }
+}
