@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @inject OnboardingStore Store
 @inject OnboardingService Service
+@inject DemoLinkStore Demos
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
@@ -12,6 +13,7 @@
     <div class="container onb-top__inner">
         <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
         <span class="adm-title">Customers</span>
+        <button type="button" class="btn btn-ghost onb-small adm-top__action" @onclick="OpenDemos">Demo links</button>
     </div>
 </header>
 
@@ -103,6 +105,33 @@
         <div class="adm-sheet__actions">
             <button type="button" class="btn btn-ghost" @onclick="() => _adding = false">Cancel</button>
             <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="Create">@(_busy ? "Adding…" : "Add")</button>
+        </div>
+    </div>
+}
+
+@* ---- Demo links (the welcome email of a "Book a demo" request links the chosen product's demo) ---- *@
+@if (_demos is not null)
+{
+    <div class="adm-scrim" @onclick="() => _demos = null"></div>
+    <div class="adm-sheet adm-sheet--wide" role="dialog" aria-label="Demo links">
+        <h2>Demo links</h2>
+        <p class="onb__muted">Sent in the welcome email when someone books a demo, by the business type they pick. Leave the link empty to send no demo link.</p>
+        <div class="adm-form">
+            @foreach (var d in _demos)
+            {
+                <div class="adm-field adm-demo">
+                    <span>@d.Label</span>
+                    <span class="adm-demo__row">
+                        <input @bind="d.Product" placeholder="Product" aria-label="@($"{d.Label} product")" />
+                        <input type="url" @bind="d.Url" placeholder="https://…" aria-label="@($"{d.Label} demo link")" />
+                    </span>
+                </div>
+            }
+        </div>
+        @if (_demoError is not null) { <p class="onb-error">@_demoError</p> }
+        <div class="adm-sheet__actions">
+            <button type="button" class="btn btn-ghost" @onclick="() => _demos = null">Cancel</button>
+            <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="SaveDemos">@(_busy ? "Saving…" : "Save")</button>
         </div>
     </div>
 }
@@ -253,6 +282,46 @@
     }
 
     private void Close() => _current = null;
+
+    // Demo links sheet
+    private sealed class DemoRow { public string Type = "", Label = "", Product = "", Url = ""; }
+    private List<DemoRow>? _demos;
+    private string? _demoError;
+
+    private async Task OpenDemos()
+    {
+        _demoError = Demos.IsConfigured ? null : "Storage is not configured (STORAGE_CONNECTION_STRING).";
+        var links = await Demos.GetAllAsync();
+        _demos = links
+            .Select(l => new DemoRow
+            {
+                Type = l.BusinessType,
+                Label = DemoLinkStore.BusinessTypes.First(t => t.Type == l.BusinessType).Label,
+                Product = l.Product,
+                Url = l.Url
+            })
+            .ToList();
+    }
+
+    private async Task SaveDemos()
+    {
+        if (_demos is null) return;
+        _demoError = null;
+        var links = new List<DemoLink>();
+        foreach (var d in _demos)
+        {
+            if (DemoLinkStore.NormalizeUrl(d.Url) is not { } url) { _demoError = $"{d.Label}: the link isn't a web address."; return; }
+            links.Add(new DemoLink(d.Type, string.IsNullOrWhiteSpace(d.Product) ? "MapleKiosk" : d.Product, url));
+        }
+        _busy = true;
+        try
+        {
+            await Demos.SaveAsync(links);
+            _demos = null;
+        }
+        catch (Exception ex) { _demoError = ex.Message; }
+        finally { _busy = false; }
+    }
 
     private async Task SetIncludesWebsite(OnboardingRecord r, ChangeEventArgs e)
     {

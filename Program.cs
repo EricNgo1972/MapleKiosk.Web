@@ -32,6 +32,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<LocalizationService>();
+builder.Services.AddSingleton<DemoLinkStore>();
 builder.Services.AddSingleton<TrialSignupService>();
 builder.Services.AddSingleton<EmailService>();
 

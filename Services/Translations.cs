@@ -208,7 +208,7 @@ public static class Translations
             ["email.client.h1"]      = "Welcome to MapleKiosk, {0}!",
             ["email.client.p1"]      = "Thank you for registering for your free trial. Your account is being set up — our team will reach out shortly to help you get started.",
             ["email.client.p2"]      = "In the meantime, you can try our demo app right now:",
-            ["email.client.btn"]     = "Open the demo app",
+            ["email.client.btn"]     = "Open the {0} demo",
             ["email.client.alt"]     = "Or paste this link into your browser:",
 
             // MapleSpa (/nails) page
@@ -907,7 +907,7 @@ public static class Translations
             ["email.client.h1"]      = "Bienvenue chez MapleKiosk, {0} !",
             ["email.client.p1"]      = "Merci de vous être inscrit à notre essai gratuit. Votre compte est en cours de création — notre équipe vous contactera bientôt pour vous accompagner.",
             ["email.client.p2"]      = "En attendant, vous pouvez essayer notre application de démonstration dès maintenant :",
-            ["email.client.btn"]     = "Ouvrir la démo",
+            ["email.client.btn"]     = "Ouvrir la démo {0}",
             ["email.client.alt"]     = "Ou collez ce lien dans votre navigateur :",
             // MapleSpa (/nails) page
             ["spa.meta.title"]   = "MapleSpa — logiciel de gestion pour salons d'ongles et d'esthétique | MapleKiosk",
@@ -1592,7 +1592,7 @@ public static class Translations
             ["email.client.h1"]      = "Chào mừng đến MapleKiosk, {0}!",
             ["email.client.p1"]      = "Cảm ơn bạn đã đăng ký dùng thử miễn phí. Tài khoản của bạn đang được thiết lập — đội ngũ của chúng tôi sẽ sớm liên hệ để hỗ trợ bạn bắt đầu.",
             ["email.client.p2"]      = "Trong lúc chờ, bạn có thể dùng thử ứng dụng demo ngay bây giờ:",
-            ["email.client.btn"]     = "Mở ứng dụng demo",
+            ["email.client.btn"]     = "Mở bản demo {0}",
             ["email.client.alt"]     = "Hoặc dán liên kết này vào trình duyệt:",
             // MapleSpa (/nails) page
             ["spa.meta.title"]   = "MapleSpa — phần mềm quản lý tiệm nail & làm đẹp | MapleKiosk",
@@ -2277,7 +2277,7 @@ public static class Translations
             ["email.client.h1"]      = "Добро пожаловать в MapleKiosk, {0}!",
             ["email.client.p1"]      = "Спасибо, что зарегистрировались на бесплатную пробную версию. Ваш аккаунт настраивается — наша команда скоро свяжется с вами, чтобы помочь начать.",
             ["email.client.p2"]      = "А пока вы можете попробовать наше демо-приложение прямо сейчас:",
-            ["email.client.btn"]     = "Открыть демо",
+            ["email.client.btn"]     = "Открыть демо {0}",
             ["email.client.alt"]     = "Или вставьте эту ссылку в браузер:",
             // MapleSpa (/nails) page
             ["spa.meta.title"]   = "MapleSpa — программное обеспечение для маникюрных и косметических салонов | MapleKiosk",
