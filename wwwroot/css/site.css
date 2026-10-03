@@ -330,7 +330,7 @@ body.modal-open{overflow:hidden}
 .field{min-width:0}
 .field input,.field select{width:100%;max-width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:15px;transition:border-color .2s}
 .field input:focus,.field select:focus{outline:none;border-color:var(--red)}
-.field input::placeholder{color:#55524d}
+.field input::placeholder{color:var(--muted);opacity:.55}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .field-row--3{grid-template-columns:1.1fr 1.2fr 1fr}
 .field .validation-message{color:var(--accent);font-size:13px;margin-top:6px}
@@ -343,8 +343,19 @@ body.modal-open{overflow:hidden}
 .trial__success p{color:var(--muted);margin-bottom:24px}
 @media (max-width:900px){
   .trial__grid{grid-template-columns:1fr;gap:40px}
-  .trial__card{padding:28px}
-  .field-row,.field-row--3{grid-template-columns:1fr}
+  .field-row,.field-row--3{grid-template-columns:1fr;gap:0}
+}
+/* phones: the demo form is a full-screen sheet — whole width for the fields, close button always in reach */
+@media (max-width:640px){
+  .modal{padding:0;align-items:stretch}
+  .modal__dialog{width:100%;max-height:none;height:100vh;height:100dvh;border:0;border-radius:0;box-shadow:none;
+    padding:calc(56px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom))}
+  .modal__close{position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;z-index:2;width:44px;height:44px;padding:0;
+    background:var(--surface-2);border-radius:50%}
+  .trial__intro{margin-bottom:20px}
+  .trial__intro h2{font-size:26px}
+  .field{margin-bottom:14px}
+  .field input,.field select{font-size:16px} /* below 16px iOS zooms the page on focus */
 }
 
 /* ============ FALLBACK ============ */
