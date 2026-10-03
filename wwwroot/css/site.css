@@ -873,6 +873,9 @@ body.modal-open{overflow:hidden}
 .adm-fab:hover{background:var(--accent);transform:scale(1.06)}
 .adm-scrim{position:fixed;inset:0;z-index:40;background:rgba(29,26,23,.35)}
 .adm-sheet{position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;background:var(--surface);border-radius:16px;padding:24px;box-shadow:0 30px 80px -20px rgba(0,0,0,.4)}
+.adm-sheet .onb__muted{margin:-8px 0 16px;font-size:14px}
+.adm-sheet--wide{width:min(640px,calc(100vw - 32px))}
+.adm-demo__row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px}
 .adm-sheet h2,.adm-drawer h2{font-family:'DM Sans',system-ui,sans-serif;font-size:20px;font-weight:700;margin:0 0 16px}
 .adm-sheet__actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
 .adm-form{display:flex;flex-direction:column;gap:16px}

@@ -59,17 +59,18 @@ public class TrialSignupService
 {
     private const string TableName = "clientrequest";
     private const string SalesInbox = "sales@maplekiosk.ca";
-    private const string DemoUrl = "https://demo.maplekiosk.ca";
 
     private readonly List<TrialSignup> _signups = new();
     private readonly ILogger<TrialSignupService> _logger;
     private readonly EmailService _email;
+    private readonly DemoLinkStore _demos;
     private readonly TableClient? _table;
 
-    public TrialSignupService(ILogger<TrialSignupService> logger, IConfiguration config, EmailService email)
+    public TrialSignupService(ILogger<TrialSignupService> logger, IConfiguration config, EmailService email, DemoLinkStore demos)
     {
         _logger = logger;
         _email = email;
+        _demos = demos;
         var connection = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING")
                          ?? config["STORAGE_CONNECTION_STRING"];
 
@@ -155,13 +156,20 @@ public class TrialSignupService
         var t = Translations.All[culture];
         string T(string k) => t.TryGetValue(k, out var v) ? v : Translations.All["en"][k];
 
+        // The demo of the product they picked (set on /onboarding/admin); no link set → no demo paragraph.
+        var demo = await _demos.GetAsync(s.BusinessType);
+        var url = WebUtility.HtmlEncode(demo.Url);
+        var demoHtml = string.IsNullOrEmpty(demo.Url) ? "" : $"""
+              <p>{WebUtility.HtmlEncode(T("email.client.p2"))}</p>
+              <p><a href="{url}" style="display:inline-block;background:#c0392b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:600">{WebUtility.HtmlEncode(string.Format(T("email.client.btn"), demo.Product))}</a></p>
+              <p style="color:#666;font-size:13px">{WebUtility.HtmlEncode(T("email.client.alt"))} <a href="{url}">{url}</a></p>
+            """;
+
         var clientHtml = $"""
             <div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#222">
               <h2 style="color:#c0392b">{WebUtility.HtmlEncode(string.Format(T("email.client.h1"), s.CompanyName))}</h2>
               <p>{WebUtility.HtmlEncode(T("email.client.p1"))}</p>
-              <p>{WebUtility.HtmlEncode(T("email.client.p2"))}</p>
-              <p><a href="{DemoUrl}" style="display:inline-block;background:#c0392b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:600">{WebUtility.HtmlEncode(T("email.client.btn"))}</a></p>
-              <p style="color:#666;font-size:13px">{WebUtility.HtmlEncode(T("email.client.alt"))} <a href="{DemoUrl}">{DemoUrl}</a></p>
+              {demoHtml}
               <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
               <p style="color:#888;font-size:12px">MapleKiosk — Made in Canada 🍁</p>
             </div>
