@@ -28,14 +28,19 @@
                 <p class="gp-hero__sub">@L["rp.hero.sub"]</p>
                 <div class="gp-hero__ctas">
                     <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
-                    <button type="button" class="btn gp-btn-ghost" data-video="@Film(Overview)">
-                        @L["rp.hero.watch"] <span>@Overview.Length</span>
+                    <button type="button" class="btn gp-btn-ghost" data-video="@Overview.En" data-video-fr="@Overview.Fr">
+                        @L["rp.hero.watch"] <span @attributes="Len(Overview)">@Length(Overview)</span>
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["rp.hero.note"]</p>
+                <div class="film-lang" role="group" aria-label="@L["rp.lang"]">
+                    <span>@L["rp.lang"]</span>
+                    <button type="button" data-film-lang="en" lang="en" aria-pressed="@((Default == "en").ToString().ToLowerInvariant())">English</button>
+                    <button type="button" data-film-lang="fr" lang="fr" aria-pressed="@((Default == "fr").ToString().ToLowerInvariant())">Français</button>
+                </div>
             </div>
-            <button type="button" class="gp-shot gp-shot--hero" data-video="@Film(Overview)"
-                    aria-label="@($"{L["rp.watch"]}: {L["rp.hero.watch"]} ({Overview.Length})")">
+            <button type="button" class="gp-shot gp-shot--hero" data-video="@Overview.En" data-video-fr="@Overview.Fr"
+                    aria-label="@($"{L["rp.watch"]}: {L["rp.hero.watch"]}")">
                 <img src="img/restaurant/hero.jpg" alt="@L["rp.hero.alt"]" width="1280" height="720" />
                 <span class="hp-play" aria-hidden="true"></span>
             </button>
@@ -53,8 +58,8 @@
                 {
                     var f = _films[i];
                     <li class="gp-step @(i % 2 == 1 ? "gp-step--flip" : "")">
-                        <button type="button" class="gp-shot gp-shot--film" data-video="@Film(f)"
-                                aria-label="@($"{L["rp.watch"]}: {L[$"rp.s.{f.Key}.t"]} ({f.Length})")">
+                        <button type="button" class="gp-shot gp-shot--film" data-video="@f.En" data-video-fr="@f.Fr"
+                                aria-label="@($"{L["rp.watch"]}: {L[$"rp.s.{f.Key}.t"]}")">
                             <img src="img/restaurant/@(f.Key).jpg" alt="@L[$"rp.s.{f.Key}.alt"]" loading="lazy" width="1280" height="720" />
                             <span class="hp-play" aria-hidden="true"></span>
                         </button>
@@ -62,8 +67,8 @@
                             <span class="gp-step__num">@(i + 1)</span>
                             <h3>@L[$"rp.s.{f.Key}.t"]</h3>
                             <p>@L[$"rp.s.{f.Key}.d"]</p>
-                            <button type="button" class="hp-link" data-video="@Film(f)">
-                                @L["rp.watch"] <span>@f.Length</span>
+                            <button type="button" class="hp-link" data-video="@f.En" data-video-fr="@f.Fr">
+                                @L["rp.watch"] <span @attributes="Len(f)">@Length(f)</span>
                             </button>
                         </div>
                     </li>
@@ -90,30 +95,32 @@
 <MobileCta />
 
 @code {
-    // The "Meet MaplePOS" films (MaplePOS repo, docs/videos/episodes/<file>/out/<file>.mp4).
-    // YouTube = the video id once it's on the Maple Kiosk channel — paste it in and the page plays
-    // it from YouTube. Until then (null) the film plays from /media/restaurant/<file>.mp4 (private
-    // blob container site-media, streamed by the site).
-    private record FilmInfo(string Key, string File, string Length, string? YouTube = null);
+    // The "Meet MaplePOS" films on the Maple Kiosk YouTube channel, one playlist per language:
+    // English "MaplePOS: your whole restaurant, one floor" (PLSRbUy6KcG6U) and French
+    // "Découvrez MaplePOS" (PLDtkmLGiaJb0). The visitor picks the language (site.js remembers it);
+    // the French page starts in French, every other page in English.
+    private record FilmInfo(string Key, string En, string EnLength, string Fr, string FrLength);
 
-    private static readonly FilmInfo Overview = new("hero", "m1-overview", "0:52", YouTube: null);
+    private static readonly FilmInfo Overview = new("hero", "yNZny11acfk", "0:52", "dvio2Pc7DQQ", "0:56");
 
     // Ordered as one night of service: the book fills, the floor runs, the bill closes, the week after.
     private readonly FilmInfo[] _films =
     {
-        new("book",     "m6-full-book",            "1:19", YouTube: null),
-        new("phone",    "m5-book-while-you-sleep", "1:17", YouTube: null),
-        new("floor",    "m2-next-move",            "1:08", YouTube: null),
-        new("qr",       "m3-table-qr-languages",   "1:12", YouTube: null),
-        new("kitchen",  "m4-kitchen-sync",         "1:10", YouTube: null),
-        new("bill",     "m7-bill-in-seconds",      "1:10", YouTube: null),
-        new("tips",     "m8-tips-payday",          "1:12", YouTube: null),
-        new("regulars", "m9-regulars",             "1:08", YouTube: null),
-        new("menu",     "m10-menu-once",           "1:10", YouTube: null),
+        new("book",     "g5qjmIv-xnY", "1:19", "UO_YqWy5gIA", "1:28"),
+        new("phone",    "2SLdSOflvIM", "1:17", "nvqCqa6-6ow", "1:30"),
+        new("floor",    "PIgmafCS_Fo", "1:08", "Q11LB20gRlY", "1:14"),
+        new("qr",       "p701-06Dhqo", "1:12", "G3ENTSur3ik", "1:16"),
+        new("kitchen",  "evf6wCDIirE", "1:10", "YSUYnh1Z_jI", "1:11"),
+        new("bill",     "hJiZ4VKCFok", "1:10", "5qKT4qKsU40", "1:16"),
+        new("tips",     "71u7Ylsjf_s", "1:12", "bW4pK_uNf3Q", "1:20"),
+        new("regulars", "Rhe8uYCOzxU", "1:08", "x0g8J87PY9s", "1:14"),
+        new("menu",     "rOqKCAwLaY0", "1:10", "190OK7pMQqA", "1:16"),
     };
 
-    // data-video value for the lightbox: a YouTube id, or the site-served file.
-    private static string Film(FilmInfo f) => f.YouTube ?? $"/media/restaurant/{f.File}.mp4";
+    private string Default => L.Culture == "fr" ? "fr" : "en";
+    private string Length(FilmInfo f) => Default == "fr" ? f.FrLength : f.EnLength;
+    // Both lengths on the label, so site.js can swap it when the visitor changes language.
+    private static Dictionary<string, object> Len(FilmInfo f) => new() { ["data-len"] = f.EnLength, ["data-len-fr"] = f.FrLength };
 
     protected override void OnInitialized()
     {

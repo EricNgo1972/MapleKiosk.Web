@@ -33,18 +33,45 @@
 
   // ===== Video lightbox: any [data-video] opens it — a YouTube id, or a site-served
   // file path ("/media/....mp4") played in a native <video> =====
+  // A trigger with data-video-fr has a French cut (data-video = English); the visitor's choice
+  // is remembered, and the French page starts in French.
   function isFile(id) { return /^\/|^https?:|\.mp4$/i.test(id); }
   let lastFocus = null;
-  function openVideo(id, start) {
+  function filmLang() {
+    try { const v = localStorage.getItem('mk.filmLang'); if (v === 'en' || v === 'fr') return v; } catch (e) { }
+    return location.pathname.split('/')[1] === 'fr' ? 'fr' : 'en';
+  }
+  function setFilmLang(lang) {
+    try { localStorage.setItem('mk.filmLang', lang); } catch (e) { }
+    showFilmLang();
+  }
+  // Pressed state of the page's language buttons and the film lengths for that language.
+  function showFilmLang() {
+    const lang = filmLang();
+    document.querySelectorAll('[data-film-lang]').forEach((b) => b.setAttribute('aria-pressed', String(b.getAttribute('data-film-lang') === lang)));
+    document.querySelectorAll('[data-len-fr]').forEach((el) => { el.textContent = el.getAttribute(lang === 'fr' ? 'data-len-fr' : 'data-len'); });
+  }
+  showFilmLang();
+  onEnhancedLoad(showFilmLang);
+  function openFilm(trigger) {
+    const fr = trigger.getAttribute('data-video-fr');
+    const en = trigger.getAttribute('data-video');
+    const lang = fr ? filmLang() : null;
+    openVideo(lang === 'fr' ? fr : en, trigger.getAttribute('data-start'), fr ? { en: en, fr: fr, lang: lang } : null);
+  }
+  function openVideo(id, start, alt) {
     closeVideo();
     lastFocus = document.activeElement;
-    const lang = document.documentElement.lang || 'en';
+    const lang = alt ? alt.lang : (document.documentElement.lang || 'en');
     const box = document.createElement('div');
     box.className = 'vbox';
     box.setAttribute('role', 'dialog');
     box.setAttribute('aria-modal', 'true');
     box.innerHTML =
       '<button type="button" class="vbox__close" aria-label="Close" data-close-video>&times;</button>' +
+      (alt ? '<div class="vbox__lang film-lang" role="group" aria-label="Language">' +
+        '<button type="button" lang="en" data-vbox-lang="en" aria-pressed="' + (alt.lang === 'en') + '">English</button>' +
+        '<button type="button" lang="fr" data-vbox-lang="fr" aria-pressed="' + (alt.lang === 'fr') + '">Français</button></div>' : '') +
       '<div class="vbox__frame">' + (isFile(id)
         ? '<video src="' + encodeURI(id) + (start ? '#t=' + (parseInt(start, 10) || 0) : '') +
           '" controls autoplay playsinline preload="auto" title="MapleKiosk video"></video>'
@@ -52,7 +79,16 @@
           '?autoplay=1&rel=0&modestbranding=1&hl=' + lang +
           (start ? '&start=' + (parseInt(start, 10) || 0) : '') + '" title="MapleKiosk video"' +
           ' allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>') + '</div>';
-    box.addEventListener('click', (e) => { if (e.target === box) closeVideo(); });
+    box.addEventListener('click', (e) => {
+      if (e.target === box) { closeVideo(); return; }
+      const pick = e.target.closest('[data-vbox-lang]');
+      if (pick && alt && pick.getAttribute('data-vbox-lang') !== alt.lang) {
+        const keep = lastFocus;
+        setFilmLang(pick.getAttribute('data-vbox-lang'));
+        openVideo(alt[pick.getAttribute('data-vbox-lang')], null, { en: alt.en, fr: alt.fr, lang: pick.getAttribute('data-vbox-lang') });
+        lastFocus = keep;
+      }
+    });
     document.body.appendChild(box);
     document.body.classList.add('modal-open');
     box.querySelector('.vbox__close').focus();
@@ -67,7 +103,9 @@
 
   document.addEventListener('click', (ev) => {
     const vid = ev.target.closest('[data-video]');
-    if (vid) { ev.preventDefault(); ev.stopPropagation(); openVideo(vid.getAttribute('data-video'), vid.getAttribute('data-start')); return; }
+    if (vid) { ev.preventDefault(); ev.stopPropagation(); openFilm(vid); return; }
+    const langBtn = ev.target.closest('[data-film-lang]');
+    if (langBtn) { ev.preventDefault(); setFilmLang(langBtn.getAttribute('data-film-lang')); return; }
     if (ev.target.closest('[data-close-video]')) { ev.preventDefault(); closeVideo(); return; }
 
     const menuBtn = ev.target.closest('[data-user-menu]');
