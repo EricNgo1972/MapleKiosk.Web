@@ -29,7 +29,7 @@
                     <article class="hp-door hp-door--@d.Key" id="@d.Key">
                         @if (d.VideoId is not null)
                         {
-                            <button type="button" class="hp-door__media" data-video="@d.VideoId"
+                            <button type="button" class="hp-door__media" data-video="@d.VideoId" data-video-fr="@d.VideoFr"
                                     aria-label="@($"{L["hp.watch"]}: {d.Product} ({d.Length})")">
                                 <img src="img/home/@d.Image" alt="" loading="@(d.Key == "coffee" ? "eager" : "lazy")" width="1280" height="720" />
                                 <span class="hp-play" aria-hidden="true"></span>
@@ -52,7 +52,7 @@
                             <div class="hp-door__actions">
                                 @if (d.VideoId is not null)
                                 {
-                                    <button type="button" class="hp-link" data-video="@d.VideoId">@L["hp.watch"] <span>@d.Length</span></button>
+                                    <button type="button" class="hp-link" data-video="@d.VideoId" data-video-fr="@d.VideoFr">@L["hp.watch"] <span>@d.Length</span></button>
                                 }
                                 @if (d.Page is not null)
                                 {
@@ -142,16 +142,16 @@
 
 @code {
     // One door per trade. VideoId = YouTube video on the Maple Kiosk channel;
-    // Page = the trade's own page (null until it ships).
-    private record Door(string Key, string Product, string? VideoId, string? Image, string? Length, string? Page, bool Vietnamese = false);
+    // Page = the trade's own page (null until it ships). VideoFr = a French cut (the lightbox offers
+    // English / Français).
+    private record Door(string Key, string Product, string? VideoId, string? Image, string? Length, string? Page, bool Vietnamese = false, string? VideoFr = null);
 
     private readonly Door[] _doors =
     {
         new("coffee", "MapleCoffee", "DOrVkwVhBVQ", "coffee-morning-rush.jpg", "1:08", "/coffee"),
         new("nails",  "MapleSPA",    "pO7CuFU-pm8", "nails-turn-board.jpg",    "1:02", "/nails", Vietnamese: true),
         new("garage", "MapleGarage", "t1_a_Nac8wA", "garage-my-jobs.jpg",      "1:28", "/garage"),
-        // MaplePOS film plays from the site (/media) until it's on YouTube — then put its id here.
-        new("resto",  "MaplePOS",    "/media/restaurant/m1-overview.mp4", "resto-floor.jpg", "0:52", "/restaurants"),
+        new("resto",  "MaplePOS",    "yNZny11acfk", "resto-floor.jpg",         "0:52", "/restaurants", VideoFr: "dvio2Pc7DQQ"),
     };
 
     protected override void OnInitialized()
