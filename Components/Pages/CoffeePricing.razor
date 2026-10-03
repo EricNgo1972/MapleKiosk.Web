@@ -1,0 +1,18 @@
+@page "/coffee/pricing"
+@page "/fr/coffee/pricing"
+@page "/vi/coffee/pricing"
+@page "/ru/coffee/pricing"
+@layout Layout.CoffeeLayout
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PricingBuilder Slug="coffee" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Localized routes: /coffee/pricing (en), /fr/coffee/pricing, /vi/coffee/pricing, /ru/coffee/pricing.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

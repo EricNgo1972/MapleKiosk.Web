@@ -1,0 +1,415 @@
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+@* The quote builder behind every /{product}/pricing page: pick setup, software, SMS and marketing,
+   and the bill adds up (site.js, data-quote); printing gives a one-page quote. *@
+
+<PageTitle>@T("meta.title")</PageTitle>
+<HeadContent>
+    <meta name="description" content="@T("meta.desc")" />
+    <meta property="og:title" content="@T("meta.title")" />
+    <meta property="og:description" content="@T("meta.desc")" />
+    <meta property="og:url" content="@Nav.Uri" />
+    <meta property="og:image" content="@(Nav.BaseUri + ShareImage)" />
+</HeadContent>
+
+<NavBar />
+
+<main class="gp pr">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="gp-hero pr-hero" id="top">
+        <Breadcrumbs Current="@T("crumb")" />
+        <div class="container @(Brochure is null ? null : "pr-hero__grid")">
+            <div>
+                <p class="gp-hero__product">@T("product")</p>
+                <h1 class="gp-hero__title">@T("hero.title")</h1>
+                <p class="gp-hero__sub">@T("hero.sub")</p>
+                <div class="gp-hero__ctas">
+                    <a class="btn btn-primary" href="#quote">@T("hero.build") <span aria-hidden="true">↓</span></a>
+                    @if (Brochure is not null)
+                    {
+                        <a class="btn gp-btn-ghost" href="@Brochure.Pdf" download="@Brochure.File">@T("dl.btn")</a>
+                    }
+                </div>
+                <p class="gp-hero__note">@T("hero.note")</p>
+            </div>
+            @if (Brochure is not null)
+            {
+                <a class="pr-pages" href="@Brochure.Pdf" download="@Brochure.File" aria-label="@T("dl.btn")">
+                    <img src="img/pricing/@(Brochure.Images)-p3.jpg" alt="" width="480" height="621" loading="lazy" />
+                    <img src="img/pricing/@(Brochure.Images)-p2.jpg" alt="" width="480" height="621" loading="lazy" />
+                    <img src="img/pricing/@(Brochure.Images)-p1.jpg" alt="@T("dl.alt")" width="480" height="621" />
+                    <span class="pr-pages__tag">PDF · 4 <span aria-hidden="true">↓</span></span>
+                </a>
+            }
+        </div>
+    </section>
+
+    <!-- ===================== WHY CHOOSE IT ===================== -->
+    <section class="gp-more pr-why">
+        <div class="container">
+            <h2 class="gp-h2">@T("why.title")</h2>
+            <p class="gp-lead">@T("why.sub")</p>
+            <dl class="gp-more__list">
+                @for (var i = 1; i <= 4; i++)
+                {
+                    <div>
+                        <dt><span class="pr-why__num">@i</span>@T($"why.{i}.t")</dt>
+                        <dd>@T($"why.{i}.d")</dd>
+                    </div>
+                }
+            </dl>
+        </div>
+    </section>
+
+    <!-- ===================== THE QUOTE BUILDER =====================
+         Every option carries its price (data-price) and whether it's paid once or monthly
+         (data-period); site.js adds up whatever is ticked into the bill on the right. -->
+    <section class="pr-build" id="quote">
+        <div class="container pr-build__grid" data-quote data-locale="@Locale"
+             data-per-month="@T("month")" data-empty="@T("bill.empty")">
+
+            <div class="pr-options">
+
+                <div class="pr-group" role="group" aria-labelledby="pr-g1">
+                    <h2 class="gp-h2 pr-group__title" id="pr-g1">@T("setup.title")</h2>
+                    <p class="pr-group__sub">@T("setup.sub")</p>
+                    <div class="pr-cards pr-cards--3">
+                        @foreach (var s in _setup)
+                        {
+                            <label class="pr-card">
+                                <input type="checkbox" name="setup" value="@s.Key"
+                                       data-price="@Raw(s.Price)" data-period="once" data-name="@T($"setup.{s.Key}.t")" data-detail="@T($"setup.{s.Key}.d1")" />
+                                <span class="pr-card__head">
+                                    <span class="pr-card__name">@T($"setup.{s.Key}.t")</span>
+                                    <span class="pr-card__price"><span data-money="@Raw(s.Price)">@Money(s.Price)</span> <small>@T("once")</small></span>
+                                </span>
+                                <ul class="pr-card__list">
+                                    @for (var i = 1; i <= s.Points; i++)
+                                    {
+                                        <li>@T($"setup.{s.Key}.d{i}")</li>
+                                    }
+                                </ul>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <div class="pr-group" role="group" aria-labelledby="pr-g2">
+                    <h2 class="gp-h2 pr-group__title" id="pr-g2">@T("soft.title")</h2>
+                    <p class="pr-group__sub">@T("soft.sub")</p>
+                    <div class="pr-cards pr-cards--2">
+                        @foreach (var p in _software)
+                        {
+                            <label class="pr-card @(p.Recommended ? "pr-card--rec" : null)">
+                                <input type="radio" name="soft" value="@p.Key"
+                                       data-price="@Raw(p.Price)" data-period="month" data-name="@T($"soft.{p.Key}.t")" data-detail="@T($"soft.{p.Key}.goal")" />
+                                @if (p.Recommended)
+                                {
+                                    <span class="pr-card__badge">@T("rec")</span>
+                                }
+                                <span class="pr-card__head">
+                                    <span class="pr-card__name">@T($"soft.{p.Key}.t")</span>
+                                    <span class="pr-card__price"><span data-money="@Raw(p.Price)">@Money(p.Price)</span> <small>@T("month")</small></span>
+                                </span>
+                                <span class="pr-card__goal">@T($"soft.{p.Key}.goal")</span>
+                                <ul class="pr-card__list pr-card__list--check">
+                                    @for (var f = 1; f <= SoftwareFeatures; f++)
+                                    {
+                                        var has = f <= p.Features;
+                                        <li class="@(has ? null : "is-off")">
+                                            <span class="visually-hidden">@T(has ? "inc" : "notinc"):</span>
+                                            @T($"soft.f{f}")
+                                        </li>
+                                    }
+                                </ul>
+                            </label>
+                        }
+                    </div>
+                    <QuoteNone Group="soft" />
+                </div>
+
+                <div class="pr-group" role="group" aria-labelledby="pr-g3">
+                    <h2 class="gp-h2 pr-group__title" id="pr-g3">@T("sms.title")</h2>
+                    <p class="pr-group__sub">@T("sms.sub")</p>
+                    <div class="pr-cards pr-cards--3">
+                        @foreach (var s in _sms)
+                        {
+                            <label class="pr-card">
+                                <input type="radio" name="sms" value="@s.Key"
+                                       data-price="@Raw(s.Price)" data-period="month" data-name="@T($"sms.{s.Key}.t")" data-detail="@T($"sms.{s.Key}.d")" />
+                                <span class="pr-card__head">
+                                    <span class="pr-card__name">@T($"sms.{s.Key}.t")</span>
+                                    <span class="pr-card__price"><span data-money="@Raw(s.Price)">@Money(s.Price)</span> <small>@T("month")</small></span>
+                                </span>
+                                <span class="pr-card__goal">@T($"sms.{s.Key}.d")</span>
+                            </label>
+                        }
+                    </div>
+                    <p class="pr-group__note">@T("sms.over")</p>
+                    <QuoteNone Group="sms" />
+                </div>
+
+                <div class="pr-group" role="group" aria-labelledby="pr-g4">
+                    <h2 class="gp-h2 pr-group__title" id="pr-g4">@T("mkt.title")</h2>
+                    <p class="pr-group__sub">@T("mkt.sub")</p>
+                    <div class="pr-cards pr-cards--3">
+                        @foreach (var m in _marketing)
+                        {
+                            <label class="pr-card @(m.Recommended ? "pr-card--rec" : null)">
+                                <input type="radio" name="mkt" value="@m.Key"
+                                       data-price="@Raw(m.Price)" data-period="month" data-name="@T($"mkt.{m.Key}.t")" data-detail="@T($"mkt.{m.Key}.goal")" />
+                                @if (m.Recommended)
+                                {
+                                    <span class="pr-card__badge">@T("rec")</span>
+                                }
+                                <span class="pr-card__head">
+                                    <span class="pr-card__name">@T($"mkt.{m.Key}.t")</span>
+                                    <span class="pr-card__price"><span data-money="@Raw(m.Price)">@Money(m.Price)</span> <small>@T("month")</small></span>
+                                </span>
+                                <span class="pr-card__goal">@T($"mkt.{m.Key}.goal")</span>
+                                <dl class="pr-card__facts">
+                                    @foreach (var fact in MarketingFacts)
+                                    {
+                                        <div>
+                                            <dt>@T($"mkt.l.{fact}")</dt>
+                                            <dd>@T($"mkt.{m.Key}.{fact}")</dd>
+                                        </div>
+                                    }
+                                </dl>
+                            </label>
+                        }
+                    </div>
+                    <QuoteNone Group="mkt" />
+                </div>
+
+                <section class="pr-group pr-pay" aria-labelledby="pr-pay-title">
+                    <h2 class="gp-h2 pr-group__title" id="pr-pay-title">@T("pay.title")</h2>
+                    <p class="pr-group__sub">@T("pay.sub")</p>
+                    <ul class="gp-ai__rules pr-pay__rules">
+                        <li>@T("pay.r1")</li>
+                        <li>@T("pay.r2")</li>
+                        <li>@T("pay.r3")</li>
+                    </ul>
+                </section>
+            </div>
+
+            <!-- ===================== THE BILL ===================== -->
+            <aside class="pr-bill" id="bill" aria-labelledby="pr-bill-title">
+                <h2 class="pr-bill__title" id="pr-bill-title">@T("bill.title")</h2>
+                <ul class="pr-bill__lines" data-quote-lines aria-live="polite">
+                    <li class="pr-bill__empty">@T("bill.empty")</li>
+                </ul>
+                <dl class="pr-bill__totals">
+                    <div>
+                        <dt>@T("bill.once")</dt>
+                        <dd data-quote-once>@Money(0)</dd>
+                    </div>
+                    <div>
+                        <dt>@T("bill.month")</dt>
+                        <dd><span data-quote-month>@Money(0)</span> <small>@T("month")</small></dd>
+                    </div>
+                    <div class="pr-bill__first">
+                        <dt>@T("bill.first") <small>@T("bill.first.d")</small></dt>
+                        <dd data-quote-first>@Money(0)</dd>
+                    </div>
+                </dl>
+                <p class="pr-bill__fine">@T("bill.fine")</p>
+                <div class="pr-cust">
+                    <p class="pr-cust__title">@T("cust.title") <small>@T("cust.sub")</small></p>
+                    <label><span>@T("doc.salon")</span><input type="text" data-cust="salon" autocomplete="organization" maxlength="80" /></label>
+                    <label><span>@T("doc.contact")</span><input type="text" data-cust="name" autocomplete="name" maxlength="80" /></label>
+                    <label><span>@T("doc.phone")</span><input type="tel" data-cust="phone" autocomplete="tel" maxlength="40" /></label>
+                </div>
+                <div class="pr-bill__actions">
+                    <button type="button" class="btn btn-ghost" data-quote-print>@T("bill.print")</button>
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    @if (Brochure is not null)
+    {
+        <!-- ===================== TAKE THE QUOTE WITH YOU ===================== -->
+        <section class="gp-end pr-end">
+            <div class="container pr-end__grid">
+                <div>
+                    <h2 class="gp-h2">@T("end.title")</h2>
+                    <p class="gp-lead">@T("end.d")</p>
+                    <div class="hp-end__actions">
+                        <a class="btn btn-primary" href="@Brochure.Pdf" download="@Brochure.File">@T("dl.btn")</a>
+                        <span>@T("dl.meta")</span>
+                    </div>
+                    <p class="pr-end__mail">@T("end.mail") <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></p>
+                </div>
+                <a class="pr-pages pr-pages--end" href="@Brochure.Pdf" download="@Brochure.File" aria-label="@T("dl.btn")">
+                    <img src="img/pricing/@(Brochure.Images)-p2.jpg" alt="" width="480" height="621" loading="lazy" />
+                    <img src="img/pricing/@(Brochure.Images)-p3.jpg" alt="" width="480" height="621" loading="lazy" />
+                    <img src="img/pricing/@(Brochure.Images)-p1.jpg" alt="" width="480" height="621" loading="lazy" />
+                </a>
+            </div>
+        </section>
+    }
+
+    <!-- ===================== THE PRINTED QUOTE =====================
+         Only shown when printing (Print or save as PDF). site.js fills in the number, dates, the
+         customer and the lines from what's picked above. -->
+    <article class="pr-doc" data-quote-doc data-once="@T("doc.oncel")" data-monthly="@T("doc.monthl")"
+             data-g-once="@T("bill.once")" data-g-month="@T("doc.monthg")" data-empty="@T("doc.empty")">
+        <header class="pr-doc__top">
+            <div class="pr-doc__vendor">
+                <img src="MapleKiosk_rectangle.png" alt="MapleKiosk" width="200" height="50" />
+                <p><strong>Kiosque Érable Inc. (MapleKiosk)</strong><br />
+                   507 Rue Montcalm, Longueuil, Québec J4J 2L3, Canada<br />
+                   <span data-mail-text="sales" data-domain="maplekiosk.ca"></span> · web.maplekiosk.ca</p>
+            </div>
+            <div class="pr-doc__meta">
+                <h2>@T("doc.quote")</h2>
+                <dl>
+                    <div><dt>@T("doc.no")</dt><dd data-doc="no"></dd></div>
+                    <div><dt>@T("doc.date")</dt><dd data-doc="date"></dd></div>
+                    <div><dt>@T("doc.valid")</dt><dd data-doc="valid"></dd></div>
+                </dl>
+            </div>
+        </header>
+
+        <section class="pr-doc__parties">
+            <div>
+                <h3>@T("doc.for")</h3>
+                <dl>
+                    <div><dt>@T("doc.salon")</dt><dd data-doc="salon"></dd></div>
+                    <div><dt>@T("doc.contact")</dt><dd data-doc="name"></dd></div>
+                    <div><dt>@T("doc.phone")</dt><dd data-doc="phone"></dd></div>
+                </dl>
+            </div>
+            <div>
+                <h3>@T("doc.by")</h3>
+                <p>MapleKiosk · @T("doc.team")<br /><span data-mail-text="sales" data-domain="maplekiosk.ca"></span><br />@Product.Name · @L[$"prod.{Product.Key}.for"]</p>
+            </div>
+        </section>
+
+        <table class="pr-doc__items">
+            <thead>
+                <tr><th class="pr-doc__n">#</th><th>@T("doc.item")</th><th>@T("doc.billing")</th><th class="pr-doc__amt">@T("doc.amount")</th></tr>
+            </thead>
+            <tbody data-doc="lines"></tbody>
+        </table>
+
+        <div class="pr-doc__sum">
+            <div class="pr-doc__terms">
+                <h3>@T("doc.terms.t")</h3>
+                <ol>
+                    <li>@T("doc.t1")</li>
+                    <li>@T("doc.t2")</li>
+                    <li>@T("doc.t3")</li>
+                    <li>@T("doc.t4")</li>
+                </ol>
+            </div>
+            <dl class="pr-doc__totals">
+                <div><dt>@T("bill.once")</dt><dd data-doc="once"></dd></div>
+                <div><dt>@T("doc.monthg")</dt><dd data-doc="month"></dd></div>
+                <div class="pr-doc__due"><dt>@T("doc.due")<small>@T("bill.first.d")</small></dt><dd data-doc="first"></dd></div>
+            </dl>
+        </div>
+
+        <section class="pr-doc__sign">
+            <div><span></span><p>@T("doc.sign.c") · @T("doc.sign.line")</p></div>
+            <div><span></span><p>@T("doc.sign.v") · @T("doc.sign.line")</p></div>
+        </section>
+
+        <footer class="pr-doc__foot">@T("doc.thanks") · web.maplekiosk.ca</footer>
+    </article>
+
+    <!-- Phones: the bill sits below every option, so keep the totals in view. -->
+    <a class="pr-bar" href="#bill" data-quote-bar>
+        <span>@T("bill.once") <strong data-quote-once>@Money(0)</strong></span>
+        <span>@T("bill.month") <strong data-quote-month>@Money(0)</strong></span>
+        <span class="pr-bar__go">@T("bar.view") <span aria-hidden="true">↓</span></span>
+    </a>
+
+</main>
+
+<TrialForm Culture="@L.Culture" />
+<Footer />
+
+@code {
+    // The product whose quote this is: a SiteProducts slug ("nails", "coffee", ...).
+    [Parameter, EditorRequired] public string Slug { get; set; } = "";
+
+    private SiteProduct Product => SiteProducts.All.First(p => p.Slug == Slug);
+
+    // Copy is pr.{key}, written for salons; a product swaps in its own wording with pr.{product}.{key}.
+    private string T(string key)
+    {
+        var own = $"pr.{Product.Key}.{key}";
+        var v = L[own];
+        return v == own ? L[$"pr.{key}"] : v;
+    }
+
+    // The picture shown when the page is shared: the product page's own.
+    private string ShareImage => Product.Key switch
+    {
+        "resto"  => "img/restaurant/hero.jpg",
+        "garage" => "img/garage/board.jpg",
+        _        => $"img/{Product.Key}/hero.jpg",
+    };
+
+    // A product's printed brochure, for visitors to keep; its pages are the previews in img/pricing.
+    private record BrochureInfo(string Pdf, string File, string Images);
+
+    // So far only the salon quote (4 pages, Vietnamese).
+    private BrochureInfo? Brochure => Slug == "nails"
+        ? new("docs/MapleSPA-salon-quote.pdf", "MapleSPA-salon-quote.pdf", "quote")
+        : null;
+
+    // Prices in US dollars, from the salon quote (setup, software, SMS, marketing). Every trade gets
+    // the same packages; only the wording differs.
+    private record Setup(string Key, decimal Price, int Points);
+    private record Plan(string Key, decimal Price, int Features = 0, bool Recommended = false);
+
+    private readonly Setup[] _setup =
+    {
+        new("server", 500m, 3),
+        new("web",    300m, 3),
+        new("train",  350m, 4),
+    };
+
+    // The software plans share one feature list (pr.soft.f1..f8): the AI plan has the first three,
+    // the full system all of them.
+    private const int SoftwareFeatures = 8;
+
+    private readonly Plan[] _software =
+    {
+        new("booking", 49.99m,  Features: 3),
+        new("salon",   120.00m, Features: SoftwareFeatures, Recommended: true),
+    };
+
+    private readonly Plan[] _sms =
+    {
+        new("1", 39.99m),
+        new("2", 89.99m),
+        new("3", 199.99m),
+    };
+
+    private readonly Plan[] _marketing =
+    {
+        new("basic", 249m),
+        new("pro",   549m, Recommended: true),
+        new("vip",   749m),
+    };
+
+    private static readonly string[] MarketingFacts = { "freq", "format", "maps", "channels", "print", "report" };
+
+    // site.js formats every amount with the same locale (Intl), so the bill and the cards match.
+    private string Locale => L.Culture switch { "fr" => "fr-CA", "vi" => "vi-VN", "ru" => "ru-RU", _ => "en-US" };
+
+    private static string Raw(decimal d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    private string Money(decimal d)
+    {
+        var nf = (System.Globalization.NumberFormatInfo)new System.Globalization.CultureInfo(Locale).NumberFormat.Clone();
+        nf.CurrencySymbol = "$";
+        return d.ToString("C", nf);
+    }
+}

@@ -1,0 +1,18 @@
+@page "/nails/pricing"
+@page "/fr/nails/pricing"
+@page "/vi/nails/pricing"
+@page "/ru/nails/pricing"
+@layout Layout.NailsLayout
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PricingBuilder Slug="nails" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Localized routes: /nails/pricing (en), /fr/nails/pricing, /vi/nails/pricing, /ru/nails/pricing.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

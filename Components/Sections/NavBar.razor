@@ -85,7 +85,9 @@
     // switch keeps you on the current page for these; anything else falls back to
     // the localized home so we never link to a non-existent localized route.
     private static readonly HashSet<string> LocalizedPaths =
-        new(new[] { "", "privacy", "terms", "tos" }.Concat(SiteProducts.All.Select(p => p.Slug)));
+        new(new[] { "", "privacy", "terms", "tos" }
+            .Concat(SiteProducts.All.Select(p => p.Slug))
+            .Concat(SiteProducts.In(ProductGroup.Trade).Select(p => $"{p.Slug}/pricing")));
 
     // The page you're on, without its culture prefix: "/fr/coffee" -> "coffee".
     private string CurrentPage

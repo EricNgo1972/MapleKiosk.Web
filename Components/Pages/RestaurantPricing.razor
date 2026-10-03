@@ -1,0 +1,17 @@
+@page "/restaurants/pricing"
+@page "/fr/restaurants/pricing"
+@page "/vi/restaurants/pricing"
+@page "/ru/restaurants/pricing"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PricingBuilder Slug="restaurants" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Localized routes: /restaurants/pricing (en), /fr/restaurants/pricing, /vi/restaurants/pricing, /ru/restaurants/pricing.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

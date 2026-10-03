@@ -25,6 +25,18 @@
     <loc>https://web.maplekiosk.ca/ru/nails</loc>
   </url>
   <url>
+    <loc>https://web.maplekiosk.ca/nails/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/fr/nails/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/vi/nails/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ru/nails/pricing</loc>
+  </url>
+  <url>
     <loc>https://web.maplekiosk.ca/restaurants</loc>
   </url>
   <url>
@@ -37,6 +49,18 @@
     <loc>https://web.maplekiosk.ca/ru/restaurants</loc>
   </url>
   <url>
+    <loc>https://web.maplekiosk.ca/restaurants/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/fr/restaurants/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/vi/restaurants/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ru/restaurants/pricing</loc>
+  </url>
+  <url>
     <loc>https://web.maplekiosk.ca/coffee</loc>
   </url>
   <url>
@@ -47,6 +71,18 @@
   </url>
   <url>
     <loc>https://web.maplekiosk.ca/ru/coffee</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/coffee/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/fr/coffee/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/vi/coffee/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ru/coffee/pricing</loc>
   </url>
   <url>
     <loc>https://web.maplekiosk.ca/privacy</loc>
@@ -89,6 +125,18 @@
   </url>
   <url>
     <loc>https://web.maplekiosk.ca/ru/garage</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/garage/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/fr/garage/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/vi/garage/pricing</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ru/garage/pricing</loc>
   </url>
   <url>
     <loc>https://web.maplekiosk.ca/ai-agent</loc>

@@ -1,0 +1,17 @@
+@page "/garage/pricing"
+@page "/fr/garage/pricing"
+@page "/vi/garage/pricing"
+@page "/ru/garage/pricing"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PricingBuilder Slug="garage" />
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Localized routes: /garage/pricing (en), /fr/garage/pricing, /vi/garage/pricing, /ru/garage/pricing.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}
