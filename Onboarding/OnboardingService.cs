@@ -88,8 +88,10 @@ public sealed class OnboardingService
         await _email.SendAsync(r.ContactEmail, T(r.Language, "onb.mail.invite.subject"), html);
     }
 
+    /// <summary>First submit, or "send the update" after changes (until staff lock it as final).</summary>
     public async Task SubmitAsync(OnboardingRecord r, string baseUri)
     {
+        var isUpdate = r.Status == OnboardingStatus.Submitted;
         r.Status = OnboardingStatus.Submitted;
         r.SubmittedAt = DateTimeOffset.UtcNow;
         r.UpdatedAt = r.SubmittedAt;
@@ -102,10 +104,10 @@ public sealed class OnboardingService
             var html = "<div style='font-family:Arial,Helvetica,sans-serif;color:#111'>" +
                        $"<p><a href='{Enc(baseUri.TrimEnd('/'))}/onboarding/admin'>Open in onboarding admin</a></p>" +
                        SummaryHtml(r, f => FileUrl(baseUri, r, f)) + "</div>";
-            await _email.SendAsync(inbox, $"[onboarding] {r.Form.BusinessName} submitted setup info", html);
+            await _email.SendAsync(inbox, $"[onboarding] {r.Form.BusinessName} {(isUpdate ? "updated" : "submitted")} setup info", html);
         }
 
-        if (!string.IsNullOrWhiteSpace(r.ContactEmail))
+        if (!isUpdate && !string.IsNullOrWhiteSpace(r.ContactEmail))
         {
             var html = "<div style='font-family:Arial,Helvetica,sans-serif;color:#111;max-width:560px'>" +
                        $"<h2>{Enc(T(r.Language, "onb.mail.done.title"))}</h2>" +

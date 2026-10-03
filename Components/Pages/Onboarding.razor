@@ -119,7 +119,11 @@
             </nav>
 
             <div class="onb-main">
-                @if (_record.Status == OnboardingStatus.Submitted)
+                @if (_record.IsFinal)
+                {
+                    <div class="onb-banner onb-banner--ok">✓ @string.Format(L["onb.final.banner"], _record.FinalizedAt?.ToLocalTime().ToString("yyyy-MM-dd"))</div>
+                }
+                else if (_record.Status == OnboardingStatus.Submitted)
                 {
                     <div class="onb-banner onb-banner--ok">✓ @string.Format(L["onb.submitted.banner"], _record.SubmittedAt?.ToLocalTime().ToString("yyyy-MM-dd"))</div>
                 }
@@ -163,7 +167,7 @@
                                 </li>
                             }
                         </ol>
-                        @if (_record.Status != OnboardingStatus.Submitted)
+                        @if (!_record.IsFinal)
                         {
                             <div class="onb-tasks__foot">
                                 <a class="btn btn-primary" href="@Href("review")" @onclick="() => GoTo(StepReview)" @onclick:preventDefault>@L["onb.nav.review"] →</a>
@@ -199,7 +203,7 @@
 
                         @if (Locked(current.Id))
                         {
-                            <div class="onb-banner">@string.Format(L["onb.locked"], _record.SubmittedAt?.ToLocalTime().ToString("yyyy-MM-dd"))</div>
+                            <div class="onb-banner">@string.Format(L["onb.locked"], _record.FinalizedAt?.ToLocalTime().ToString("yyyy-MM-dd"))</div>
                         }
 
                         <fieldset class="onb-fieldset" disabled="@Locked(current.Id)">
@@ -469,9 +473,14 @@
                                         </li>
                                     }
                                 </ul>
-                                @if (_record.Status != OnboardingStatus.Submitted)
+                                @if (!_record.IsFinal)
                                 {
-                                    @if (RequiredDone(steps))
+                                    var again = _record.Status == OnboardingStatus.Submitted;
+                                    @if (again)
+                                    {
+                                        <p class="onb-banner">@L["onb.review.update"]</p>
+                                    }
+                                    else if (RequiredDone(steps))
                                     {
                                         <p class="onb-banner onb-banner--ok">@L["onb.review.ready"]</p>
                                     }
@@ -480,7 +489,7 @@
                                         <p class="onb-error">@string.Join(" · ", _errors)</p>
                                     }
                                     <button type="button" class="btn btn-primary onb-submit" disabled="@(_busy || !RequiredDone(steps))" @onclick="Submit">
-                                        @(_busy ? L["onb.submitting"] : L["onb.submit"])
+                                        @(_busy ? L["onb.submitting"] : again ? L["onb.submit.again"] : L["onb.submit"])
                                     </button>
                                 }
                                 break;
@@ -699,7 +708,8 @@
     }
 
     // The setup form is frozen once submitted; the website brief stays editable.
-    private bool Locked(string step) => _record!.Status == OnboardingStatus.Submitted && step != "website";
+    // Read-only once staff lock it as final (the website brief too); until then, editable even after submitting.
+    private bool Locked(string step) => _record!.IsFinal;
 
     /// <summary>"todo" / "started" / "done" for the checklist and sidebar.</summary>
     private string Status(string step)
@@ -827,7 +837,8 @@
         try
         {
             if (!await StillOpenAsync()) return;
-            if (version != _savedVersion && _record.Status != OnboardingStatus.Submitted)
+            if (_record.IsFinal) return; // locked by staff while this page was open
+            if (version != _savedVersion)
             {
                 if (_record.Status == OnboardingStatus.Sent) _record.Status = OnboardingStatus.InProgress;
                 _record.UpdatedAt = DateTimeOffset.UtcNow;
@@ -938,17 +949,19 @@
 
         _busy = true;
         await _saveLock.WaitAsync(); // let an in-flight autosave finish first
+        var (status, submittedAt) = (_record!.Status, _record.SubmittedAt);
         try
         {
-            if (!await StillOpenAsync()) return;
-            await Service.SubmitAsync(_record!, Nav.BaseUri);
+            if (!await StillOpenAsync() || _record!.IsFinal) return;
+            await Service.SubmitAsync(_record, Nav.BaseUri);
+            _savedVersion = _version; // the submit wrote every pending change
+            _savedAt = _record.UpdatedAt;
             _step = null;
             try { await JS.InvokeVoidAsync("history.replaceState", null, "", Href(null)); } catch (JSDisconnectedException) { }
         }
         catch
         {
-            _record!.Status = OnboardingStatus.InProgress;
-            _record.SubmittedAt = null;
+            if (_record is not null) (_record.Status, _record.SubmittedAt) = (status, submittedAt);
             _errors.Add(L["onb.save.failed"]);
         }
         finally
@@ -965,8 +978,8 @@
         await _saveLock.WaitAsync();
         try
         {
-            if (!await StillOpenAsync()) return;
-            await Service.SendBriefAsync(_record!, _brief!, Nav.BaseUri);
+            if (!await StillOpenAsync() || _record!.IsFinal) return;
+            await Service.SendBriefAsync(_record, _brief!, Nav.BaseUri);
             _briefSavedVersion = _briefVersion;
             _savedAt = _brief.UpdatedAt;
         }

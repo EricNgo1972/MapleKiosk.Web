@@ -891,6 +891,8 @@ body.modal-open{overflow:hidden}
 .adm-access--suspended{background:#fdf0d5;color:#8a5a00}
 .adm-access--archived{background:var(--bg);color:var(--muted)}
 .adm-banner{margin:0 0 16px;padding:10px 12px;border-radius:10px;background:#fdf0d5;color:#5c3d00;font-size:14px}
+.adm-banner--ok{background:#e6f4ea;color:#1e5631}
+.onb-status--final{background:#e6f4ea;color:#1e5631}
 .adm-confirm{margin-top:8px;padding:12px;border-radius:10px;background:var(--bg);font-weight:400;display:flex;flex-direction:column;gap:10px}
 .adm-confirm p{margin:0}
 .adm-access{margin:20px 0;display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:600}

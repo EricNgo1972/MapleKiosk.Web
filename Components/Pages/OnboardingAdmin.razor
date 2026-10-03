@@ -59,13 +59,13 @@
                             <span class="adm-row__side">
                                 @if (r.Access == OnboardingAccess.Active)
                                 {
-                                    <span class="onb-status onb-status--@r.Status.ToString().ToLowerInvariant()">@StatusLabel(r.Status)</span>
+                                    <span class="onb-status onb-status--@StatusClass(r)">@StatusLabel(r)</span>
                                 }
                                 else
                                 {
                                     <span class="onb-status adm-access--@r.Access.ToString().ToLowerInvariant()">@r.Access</span>
                                 }
-                                <small>@Ago(r.SubmittedAt ?? r.UpdatedAt ?? r.CreatedAt)</small>
+                                <small>@(UpdatedSinceSent(r) ? "updated " : "")@Ago(r.UpdatedAt ?? r.SubmittedAt ?? r.CreatedAt)</small>
                             </span>
                         </button>
                     </li>
@@ -159,7 +159,7 @@
         <div class="adm-drawer__head">
             <div>
                 <h2>@c.Form.BusinessName</h2>
-                <span class="onb-status onb-status--@c.Status.ToString().ToLowerInvariant()">@StatusLabel(c.Status)</span>
+                <span class="onb-status onb-status--@StatusClass(c)">@StatusLabel(c)</span>
             </div>
             <button type="button" class="adm-close" aria-label="Close" @onclick="Close">✕</button>
         </div>
@@ -171,13 +171,25 @@
             {
                 <button type="button" class="btn btn-ghost onb-small" @onclick="() => Resend(c)">@(_note == "resent" ? "Sent ✓" : "Resend invite")</button>
             }
-            else if (c.Status == OnboardingStatus.Submitted)
+            @if (c.IsFinal)
             {
-                <button type="button" class="btn btn-ghost onb-small" @onclick="() => Reopen(c)">Reopen for edits</button>
+                <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="() => SetFinal(c, false)">Unlock for edits</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="() => SetFinal(c, true)">Lock as final</button>
             }
             <a class="btn btn-ghost onb-small" href="/onboarding/@c.Token" target="_blank">View as customer ↗</a>
         </div>
 
+        @if (c.IsFinal)
+        {
+            <p class="adm-banner adm-banner--ok"><strong>Final</strong> since @c.FinalizedAt!.Value.ToLocalTime().ToString("yyyy-MM-dd") — the customer can read but no longer change their answers.</p>
+        }
+        else if (UpdatedSinceSent(c))
+        {
+            <p class="adm-banner">Changed by the customer since they sent it on @c.SubmittedAt!.Value.ToLocalTime().ToString("yyyy-MM-dd") (last @Ago(c.UpdatedAt!.Value)). Lock as final when it's ready.</p>
+        }
         @if (c.Access != OnboardingAccess.Active)
         {
             <p class="adm-banner">
@@ -295,12 +307,18 @@
     private static string Initial(OnboardingRecord r) =>
         string.IsNullOrWhiteSpace(r.Form.BusinessName) ? "?" : r.Form.BusinessName.Trim()[..1].ToUpperInvariant();
 
-    private static string StatusLabel(OnboardingStatus s) => s switch
+    private static string StatusLabel(OnboardingRecord r) => r.IsFinal ? "Final" : r.Status switch
     {
         OnboardingStatus.Sent => "Not started",
         OnboardingStatus.InProgress => "In progress",
         _ => "Submitted"
     };
+
+    private static string StatusClass(OnboardingRecord r) => r.IsFinal ? "final" : r.Status.ToString().ToLowerInvariant();
+
+    // Submitted, then edited again (customers can keep updating until it's locked as final).
+    private static bool UpdatedSinceSent(OnboardingRecord r) =>
+        !r.IsFinal && r.SubmittedAt is { } sent && r.UpdatedAt is { } upd && upd > sent.AddMinutes(1);
 
     private static string Ago(DateTimeOffset at)
     {
@@ -340,6 +358,10 @@
 
     private async Task Open(OnboardingRecord r)
     {
+        // The latest answers — the list may have loaded before the customer's last edits.
+        r = await Store.FindAsync(r.Token) ?? r;
+        var i = _records.FindIndex(x => x.Token == r.Token);
+        if (i >= 0) _records[i] = r;
         _current = r;
         _editEmail = r.ContactEmail;
         _note = null;
@@ -390,11 +412,23 @@
         finally { _busy = false; }
     }
 
+    /// <summary>Apply one staff change to the latest stored record (not the copy loaded with the
+    /// list — the customer may have edited since) and refresh the list and drawer.</summary>
+    private async Task<OnboardingRecord> PatchAsync(OnboardingRecord r, Action<OnboardingRecord> change)
+    {
+        var stored = await Store.FindAsync(r.Token) ?? r;
+        change(stored);
+        await Store.SaveAsync(stored);
+        var i = _records.FindIndex(x => x.Token == r.Token);
+        if (i >= 0) _records[i] = stored;
+        if (_current?.Token == r.Token) _current = stored;
+        return stored;
+    }
+
     private async Task SetIncludesWebsite(OnboardingRecord r, ChangeEventArgs e)
     {
-        r.IncludesWebsite = e.Value is true;
-        await Store.SaveAsync(r);
-        _brief = r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
+        var stored = await PatchAsync(r, x => x.IncludesWebsite = e.Value is true);
+        _brief = stored.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
     }
 
     private void AskEmailChange()
@@ -419,10 +453,10 @@
         _busy = true;
         try
         {
-            r.ContactEmail = OnboardingRecord.CanonicalEmail(_editEmail);
-            _editEmail = r.ContactEmail;
-            await Store.SaveAsync(r);
-            if (_inviteNewOwner && r.Access == OnboardingAccess.Active) await Service.SendInviteAsync(r, Nav.BaseUri);
+            var email = OnboardingRecord.CanonicalEmail(_editEmail);
+            var stored = await PatchAsync(r, x => x.ContactEmail = email);
+            _editEmail = stored.ContactEmail;
+            if (_inviteNewOwner && stored.Access == OnboardingAccess.Active) await Service.SendInviteAsync(stored, Nav.BaseUri);
             _confirmEmail = false;
             _emailError = null;
         }
@@ -435,9 +469,7 @@
         _busy = true;
         try
         {
-            r.Access = access;
-            r.AccessChangedAt = DateTimeOffset.UtcNow;
-            await Store.SaveAsync(r);
+            await PatchAsync(r, x => { x.Access = access; x.AccessChangedAt = DateTimeOffset.UtcNow; });
             if (access == OnboardingAccess.Archived) _current = null; // it leaves the list
         }
         finally { _busy = false; }
@@ -455,10 +487,15 @@
         _note = "resent";
     }
 
-    private async Task Reopen(OnboardingRecord r)
+    // Final = the customer's answers are read-only (the version we build from). Unlock to let them edit again.
+    private async Task SetFinal(OnboardingRecord r, bool final)
     {
-        r.Status = OnboardingStatus.InProgress;
-        r.SubmittedAt = null;
-        await Store.SaveAsync(r);
+        _busy = true;
+        try
+        {
+            var stored = await PatchAsync(r, x => x.FinalizedAt = final ? DateTimeOffset.UtcNow : null);
+            await Open(stored); // show the answers as locked
+        }
+        finally { _busy = false; }
     }
 }

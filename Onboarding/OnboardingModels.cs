@@ -140,6 +140,11 @@ public sealed class OnboardingRecord
     public bool IncludesWebsite { get; set; }
 
     public OnboardingAccess Access { get; set; } = OnboardingAccess.Active;
+
+    /// <summary>Set by staff ("Lock as final"): the customer's answers become read-only.
+    /// Until then the customer can keep updating, even after submitting.</summary>
+    public DateTimeOffset? FinalizedAt { get; set; }
+    public bool IsFinal => FinalizedAt is not null;
     public DateTimeOffset? AccessChangedAt { get; set; }
 
     /// <summary>The one access rule: staff see every record; a customer only an active
@@ -159,6 +164,7 @@ public sealed class OnboardingRecord
         Access = stored.Access;
         AccessChangedAt = stored.AccessChangedAt;
         IncludesWebsite = stored.IncludesWebsite;
+        FinalizedAt = stored.FinalizedAt;
         Industry = stored.Industry;
         OrderRef = stored.OrderRef;
     }
