@@ -10,8 +10,9 @@
     }
     m.classList.add('open');
     document.body.classList.add('modal-open');
+    // Desktop only: on a phone, focusing pops the keyboard over the modal as it opens.
     const first = m.querySelector('input, select, textarea');
-    if (first) setTimeout(() => first.focus(), 50);
+    if (first && !matchMedia('(pointer: coarse)').matches) setTimeout(() => first.focus(), 50);
   }
   function closeTrialModal() {
     const m = document.getElementById('trialModal');
@@ -210,6 +211,17 @@
     busyTimer = setTimeout(navDone, 15000); // never leave the bar stuck
   }, true); // capture: Blazor's enhanced-navigation handler stops the click before the bubble phase
   onEnhancedLoad(navDone);
+
+  // Forms (the demo request) post as enhanced forms: show the bar and lock the button meanwhile.
+  document.addEventListener('submit', (ev) => {
+    const btn = ev.target.querySelector('button[type="submit"][data-busy-label]');
+    if (btn) { btn.disabled = true; btn.textContent = btn.getAttribute('data-busy-label'); }
+    document.documentElement.classList.add('nav-busy');
+    clearTimeout(busyTimer);
+    busyTimer = setTimeout(navDone, 15000);
+  });
+  // A demo request that failed validation comes back with the modal still open.
+  onEnhancedLoad(() => document.body.classList.toggle('modal-open', !!document.querySelector('#trialModal.open')));
   window.addEventListener('pageshow', navDone);
 
   // ===== Scroll to top on page change =====
