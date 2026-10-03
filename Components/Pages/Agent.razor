@@ -1,0 +1,178 @@
+@page "/ai-agent"
+@page "/fr/ai-agent"
+@page "/vi/ai-agent"
+@page "/ru/ai-agent"
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+<PageTitle>@L["ag.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["ag.meta.desc"]" />
+    <meta property="og:title" content="@L["ag.meta.title"]" />
+    <meta property="og:description" content="@L["ag.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+    <meta property="og:image" content="@(Nav.BaseUri)img/agent/book.jpg" />
+</HeadContent>
+
+<NavBar />
+
+<main class="gp ag">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="gp-hero" id="top">
+        <Breadcrumbs Current="@L["nav.agent"]" />
+        <div class="container gp-hero__grid ag-hero__grid">
+            <div>
+                <p class="gp-hero__product">@L["ag.product"]</p>
+                <h1 class="gp-hero__title">@L["ag.hero.title"]</h1>
+                <p class="gp-hero__sub">@L["ag.hero.sub"]</p>
+                <div class="gp-hero__ctas">
+                    <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                    <button type="button" class="btn gp-btn-ghost" data-video="@VideoId" data-video-tall>
+                        @L["ag.hero.watch"] <span>1:21</span>
+                    </button>
+                </div>
+                <p class="ag-alone">@L["ag.hero.alone"]</p>
+            </div>
+            <button type="button" class="gp-shot gp-shot--hero ag-shot" data-video="@VideoId" data-video-tall data-start="23"
+                    aria-label="@($"{L["ag.watch"]}: {L["ag.s.book.t"]}")">
+                <img src="img/agent/book.jpg" alt="@L["ag.s.book.alt"]" width="720" height="960" />
+                <span class="hp-play" aria-hidden="true"></span>
+            </button>
+        </div>
+    </section>
+
+    <!-- ===================== THE MISSED CALL ===================== -->
+    <section class="ag-why">
+        <div class="container ag-why__grid">
+            <button type="button" class="gp-shot ag-shot" data-video="@VideoId" data-video-tall
+                    aria-label="@($"{L["ag.watch"]}: {L["ag.why.title"]} (0:00)")">
+                <img src="img/agent/missed.jpg" alt="@L["ag.why.alt"]" loading="lazy" width="720" height="960" />
+                <span class="hp-play" aria-hidden="true"></span>
+            </button>
+            <div>
+                <h2 class="gp-h2">@L["ag.why.title"]</h2>
+                <p class="gp-lead">@L["ag.why.d"]</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== WHAT IT DOES ===================== -->
+    <section class="gp-day">
+        <div class="container">
+            <h2 class="gp-h2">@L["ag.does.title"]</h2>
+            <p class="gp-lead">@L["ag.does.sub"]</p>
+
+            <ol class="gp-steps">
+                @for (var i = 0; i < _scenes.Length; i++)
+                {
+                    var s = _scenes[i];
+                    <li class="gp-step ag-step @(i % 2 == 1 ? "gp-step--flip ag-step--flip" : "")">
+                        <button type="button" class="gp-shot ag-shot" data-video="@VideoId" data-video-tall data-start="@s.Start"
+                                aria-label="@($"{L["ag.watch"]}: {L[$"ag.s.{s.Key}.t"]} ({Clock(s.Start)})")">
+                            <img src="img/agent/@(s.Key).jpg" alt="@L[$"ag.s.{s.Key}.alt"]" loading="lazy" width="720" height="960" />
+                            <span class="hp-play" aria-hidden="true"></span>
+                        </button>
+                        <div class="gp-step__body">
+                            <span class="gp-step__num">@(i + 1)</span>
+                            <h3>@L[$"ag.s.{s.Key}.t"]</h3>
+                            <p>@L[$"ag.s.{s.Key}.d"]</p>
+                            <button type="button" class="hp-link" data-video="@VideoId" data-video-tall data-start="@s.Start">
+                                @L["ag.watch"] <span>@Clock(s.Start)</span>
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ol>
+        </div>
+    </section>
+
+    <!-- ===================== ON ITS OWN, OR BUILT IN ===================== -->
+    <section class="gp-ai">
+        <div class="container gp-ai__grid">
+            <h2 class="gp-h2">@L["ag.own.title"]</h2>
+            <div>
+                <p class="gp-lead">@L["ag.own.d"]</p>
+                <ul class="gp-ai__rules">
+                    <li>@L["ag.own.r1"]</li>
+                    <li>@L["ag.own.r2"]</li>
+                    <li>@L["ag.own.r3"]</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== ALREADY IN EVERY MAPLE PRODUCT ===================== -->
+    <section class="gp-more">
+        <div class="container">
+            <h2 class="gp-h2">@L["ag.in.title"]</h2>
+            <p class="gp-lead">@L["ag.in.sub"]</p>
+            <dl class="gp-more__list">
+                @foreach (var p in _products)
+                {
+                    <div>
+                        <dt><a href="@CulturePath(p.Page)">@p.Product <span aria-hidden="true">→</span></a></dt>
+                        <dd>@L[$"ag.in.{p.Key}"]</dd>
+                    </div>
+                }
+            </dl>
+        </div>
+    </section>
+
+    <!-- ===================== CLOSE ===================== -->
+    <section class="gp-end">
+        <div class="container">
+            <h2 class="gp-h2">@L["ag.end.title"]</h2>
+            <div class="hp-end__actions">
+                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<TrialForm Culture="@L.Culture" Product="AI Voice Agent" />
+<Footer />
+<MobileCta />
+
+@code {
+    // "Maple Kiosk AI Voice Agent" — a vertical short (9:16) on the Maple Kiosk channel. Each scene
+    // deep-links to the second its caption starts.
+    private const string VideoId = "aC6QGrsEQ9c";
+
+    private record Scene(string Key, int Start);
+
+    private readonly Scene[] _scenes =
+    {
+        new("book",      23),
+        new("order",     38),
+        new("questions", 50),
+        new("team",      59),
+    };
+
+    private record Built(string Key, string Product, string Page);
+
+    private readonly Built[] _products =
+    {
+        new("coffee", "MapleCoffee", "coffee"),
+        new("nails",  "MapleSPA",    "nails"),
+        new("resto",  "MaplePOS",    "restaurants"),
+        new("garage", "MapleGarage", "garage"),
+    };
+
+    private static string Clock(int seconds) => $"{seconds / 60}:{seconds % 60:00}";
+
+    private string CulturePath(string page)
+    {
+        var root = L.Path(L.Culture).TrimEnd('/');
+        return string.IsNullOrEmpty(root) ? $"/{page}" : $"{root}/{page}";
+    }
+
+    protected override void OnInitialized()
+    {
+        var uri = new Uri(Nav.Uri);
+        var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+    }
+}

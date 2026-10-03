@@ -34,6 +34,10 @@ public class TrialSignup
     public DateTimeOffset SubmittedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public string Culture { get; set; } = "en";
+
+    // Set when the visitor signed up from a stand-alone product's page (e.g. "AI Voice Agent").
+    [StringLength(60)]
+    public string? Product { get; set; }
 }
 
 internal class ClientRequestEntity : ITableEntity
@@ -53,6 +57,7 @@ internal class ClientRequestEntity : ITableEntity
     public string Phone { get; set; } = "";
     public DateTimeOffset SubmittedAt { get; set; }
     public string Culture { get; set; } = "en";
+    public string? Product { get; set; }
 }
 
 public class TrialSignupService
@@ -99,8 +104,8 @@ public class TrialSignupService
         signup.SubmittedAt = DateTimeOffset.UtcNow;
         _signups.Add(signup);
 
-        _logger.LogInformation("Trial signup: {Company} | {Email} | {Type}",
-            signup.CompanyName, signup.Email, signup.BusinessType);
+        _logger.LogInformation("Trial signup: {Company} | {Email} | {Type} | {Product}",
+            signup.CompanyName, signup.Email, signup.BusinessType, signup.Product);
 
         if (_table is null) return;
 
@@ -118,6 +123,7 @@ public class TrialSignupService
             Email = signup.Email,
             Phone = signup.Phone,
             SubmittedAt = signup.SubmittedAt,
+            Product = string.IsNullOrWhiteSpace(signup.Product) ? null : signup.Product,
         };
 
         try
@@ -139,6 +145,7 @@ public class TrialSignupService
             <h2>New MapleKiosk trial signup</h2>
             <table cellpadding="6" style="font-family:Arial,sans-serif;font-size:14px">
               <tr><td><b>Company</b></td><td>{WebUtility.HtmlEncode(s.CompanyName)}</td></tr>
+              {(string.IsNullOrWhiteSpace(s.Product) ? "" : $"<tr><td><b>Product</b></td><td>{WebUtility.HtmlEncode(s.Product)} only</td></tr>")}
               <tr><td><b>Business type</b></td><td>{WebUtility.HtmlEncode(s.BusinessType)}</td></tr>
               <tr><td><b>Contact name</b></td><td>{WebUtility.HtmlEncode(s.ContactName)}</td></tr>
               <tr><td><b>Address</b></td><td>{WebUtility.HtmlEncode(s.Address)}</td></tr>
@@ -175,7 +182,8 @@ public class TrialSignupService
             </div>
             """;
 
-        var salesTask  = _email.SendAsync(SalesInbox, $"New trial signup: {s.CompanyName}", salesHtml);
+        var salesTask  = _email.SendAsync(SalesInbox,
+            string.IsNullOrWhiteSpace(s.Product) ? $"New trial signup: {s.CompanyName}" : $"New trial signup ({s.Product}): {s.CompanyName}", salesHtml);
         var clientTask = _email.SendAsync(s.Email, T("email.client.subject"), clientHtml);
         await Task.WhenAll(salesTask, clientTask);
     }

@@ -33,33 +33,49 @@
 
   // ===== Video lightbox: any [data-video] opens it — a YouTube id, or a site-served
   // file path ("/media/....mp4") played in a native <video> =====
-  // A trigger with data-video-fr has a French cut (data-video = English); the visitor's choice
-  // is remembered, and the French page starts in French.
+  // A film can come in several languages: data-video is the cut in data-video-lang (English when
+  // absent) and data-video-<lang> adds the others. The visitor's pick is remembered; failing that
+  // the page's language, then the first cut.
+  const FILM_LANGS = { en: 'English', fr: 'Français', vi: 'Tiếng Việt', ru: 'Русский' };
   function isFile(id) { return /^\/|^https?:|\.mp4$/i.test(id); }
   let lastFocus = null;
-  function filmLang() {
-    try { const v = localStorage.getItem('mk.filmLang'); if (v === 'en' || v === 'fr') return v; } catch (e) { }
-    return location.pathname.split('/')[1] === 'fr' ? 'fr' : 'en';
+  function filmLang(langs) {
+    try { const v = localStorage.getItem('mk.filmLang'); if (langs.indexOf(v) >= 0) return v; } catch (e) { }
+    const seg = location.pathname.split('/')[1];
+    const page = FILM_LANGS[seg] ? seg : 'en';
+    return langs.indexOf(page) >= 0 ? page : langs[0];
   }
   function setFilmLang(lang) {
     try { localStorage.setItem('mk.filmLang', lang); } catch (e) { }
     showFilmLang();
   }
-  // Pressed state of the page's language buttons and the film lengths for that language.
+  // Pressed state of each language group on the page, and film lengths (data-len-<lang>) in the
+  // language each film will play in.
   function showFilmLang() {
-    const lang = filmLang();
-    document.querySelectorAll('[data-film-lang]').forEach((b) => b.setAttribute('aria-pressed', String(b.getAttribute('data-film-lang') === lang)));
-    document.querySelectorAll('[data-len-fr]').forEach((el) => { el.textContent = el.getAttribute(lang === 'fr' ? 'data-len-fr' : 'data-len'); });
+    document.querySelectorAll('.film-lang').forEach((g) => {
+      const btns = Array.from(g.querySelectorAll('[data-film-lang]'));
+      const lang = filmLang(btns.map((b) => b.getAttribute('data-film-lang')));
+      btns.forEach((b) => b.setAttribute('aria-pressed', String(b.getAttribute('data-film-lang') === lang)));
+    });
+    const sel = Object.keys(FILM_LANGS).map((l) => '[data-len-' + l + ']').join(',');
+    document.querySelectorAll(sel).forEach((el) => {
+      const langs = Object.keys(FILM_LANGS).filter((l) => el.hasAttribute('data-len-' + l));
+      el.textContent = el.getAttribute('data-len-' + filmLang(langs));
+    });
   }
   showFilmLang();
   onEnhancedLoad(showFilmLang);
   function openFilm(trigger) {
-    const fr = trigger.getAttribute('data-video-fr');
-    const en = trigger.getAttribute('data-video');
-    const lang = fr ? filmLang() : null;
-    openVideo(lang === 'fr' ? fr : en, trigger.getAttribute('data-start'), fr ? { en: en, fr: fr, lang: lang } : null);
+    const cuts = {};
+    cuts[trigger.getAttribute('data-video-lang') || 'en'] = trigger.getAttribute('data-video');
+    Object.keys(FILM_LANGS).forEach((l) => { const id = trigger.getAttribute('data-video-' + l); if (id) cuts[l] = id; });
+    const langs = Object.keys(cuts);
+    const lang = filmLang(langs);
+    openVideo(cuts[lang], trigger.getAttribute('data-start'), langs.length > 1 ? { cuts: cuts, lang: lang } : null,
+      trigger.hasAttribute('data-video-tall'));
   }
-  function openVideo(id, start, alt) {
+  // tall = a vertical (9:16) film, e.g. a YouTube Short.
+  function openVideo(id, start, alt, tall) {
     closeVideo();
     lastFocus = document.activeElement;
     const lang = alt ? alt.lang : (document.documentElement.lang || 'en');
@@ -70,9 +86,9 @@
     box.innerHTML =
       '<button type="button" class="vbox__close" aria-label="Close" data-close-video>&times;</button>' +
       (alt ? '<div class="vbox__lang film-lang" role="group" aria-label="Language">' +
-        '<button type="button" lang="en" data-vbox-lang="en" aria-pressed="' + (alt.lang === 'en') + '">English</button>' +
-        '<button type="button" lang="fr" data-vbox-lang="fr" aria-pressed="' + (alt.lang === 'fr') + '">Français</button></div>' : '') +
-      '<div class="vbox__frame">' + (isFile(id)
+        Object.keys(alt.cuts).map((l) => '<button type="button" lang="' + l + '" data-vbox-lang="' + l +
+          '" aria-pressed="' + (alt.lang === l) + '">' + FILM_LANGS[l] + '</button>').join('') + '</div>' : '') +
+      '<div class="vbox__frame' + (tall ? ' vbox__frame--tall' : '') + '">' + (isFile(id)
         ? '<video src="' + encodeURI(id) + (start ? '#t=' + (parseInt(start, 10) || 0) : '') +
           '" controls autoplay playsinline preload="auto" title="MapleKiosk video"></video>'
         : '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
@@ -85,7 +101,7 @@
       if (pick && alt && pick.getAttribute('data-vbox-lang') !== alt.lang) {
         const keep = lastFocus;
         setFilmLang(pick.getAttribute('data-vbox-lang'));
-        openVideo(alt[pick.getAttribute('data-vbox-lang')], null, { en: alt.en, fr: alt.fr, lang: pick.getAttribute('data-vbox-lang') });
+        openVideo(alt.cuts[pick.getAttribute('data-vbox-lang')], null, { cuts: alt.cuts, lang: pick.getAttribute('data-vbox-lang') }, tall);
         lastFocus = keep;
       }
     });

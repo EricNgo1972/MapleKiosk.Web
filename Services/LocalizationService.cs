@@ -27,5 +27,13 @@ public class LocalizationService
         }
     }
 
+    // Product names stay as-is (MapleCoffee, ...) unless the culture translates one (prod.{key}.name).
+    public string ProductName(SiteProduct p)
+    {
+        var k = $"prod.{p.Key}.name";
+        var v = this[k];
+        return v == k ? p.Name : v;
+    }
+
     public string Path(string culture) => culture == "en" ? "/" : $"/{culture}";
 }

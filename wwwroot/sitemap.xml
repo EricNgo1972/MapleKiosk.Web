@@ -90,4 +90,16 @@
   <url>
     <loc>https://web.maplekiosk.ca/ru/garage</loc>
   </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ai-agent</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/fr/ai-agent</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/vi/ai-agent</loc>
+  </url>
+  <url>
+    <loc>https://web.maplekiosk.ca/ru/ai-agent</loc>
+  </url>
 </urlset>
