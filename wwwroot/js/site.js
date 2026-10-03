@@ -215,6 +215,108 @@
   // Re-run after Blazor enhanced navigation swaps the DOM.
   onEnhancedLoad(wireMail);
 
+  // ===== Quote builder (/nails/pricing) =====
+  // Each option is an input with data-price and data-period ("once" or "month"). Whatever is
+  // ticked becomes a bill line; the totals are the one-time setup, the monthly bill, and the
+  // first payment (setup plus the first month). Amounts are formatted in the page's locale.
+  // The same lines fill the printed quote ([data-quote-doc]) with the customer's details, which
+  // this browser remembers for next time.
+  function wireQuote() {
+    const root = document.querySelector('[data-quote]');
+    if (!root || root.dataset.quoteWired) return;
+    root.dataset.quoteWired = '1';
+    const locale = root.dataset.locale || 'en-US';
+    const fmt = new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol' });
+    const money = (n) => fmt.format(Math.round(n * 100) / 100);
+    const set = (sel, text) => document.querySelectorAll(sel).forEach((el) => { el.textContent = text; });
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    root.querySelectorAll('[data-money]').forEach((e) => { e.textContent = money(+e.dataset.money); });
+
+    const doc = document.querySelector('[data-quote-doc]');
+    const docSet = (k, v) => { const e = doc && doc.querySelector('[data-doc="' + k + '"]'); if (e) e.textContent = v; };
+    const day = (d) => d.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    docSet('no', 'Q-' + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + '-' + String(Math.floor(Math.random() * 9000) + 1000));
+    docSet('date', day(now));
+    docSet('valid', day(new Date(now.getTime() + 30 * 864e5)));
+    document.querySelectorAll('[data-mail-text][data-domain]').forEach((e) => { e.textContent = e.dataset.mailText + '@' + e.dataset.domain; });
+
+    // Customer details: typed in the bill, printed on the quote. Blank prints as a line to write on.
+    const cust = Array.from(root.querySelectorAll('[data-cust]'));
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('mk.quoteCustomer') || '{}') || {}; } catch (e) { }
+    cust.forEach((i) => { if (saved[i.dataset.cust]) i.value = saved[i.dataset.cust]; });
+    function customer() {
+      const v = {};
+      cust.forEach((i) => { v[i.dataset.cust] = i.value.trim(); docSet(i.dataset.cust, v[i.dataset.cust]); });
+      try { localStorage.setItem('mk.quoteCustomer', JSON.stringify(v)); } catch (e) { }
+    }
+    root.addEventListener('input', (ev) => { if (ev.target.matches('[data-cust]')) customer(); });
+    customer();
+
+    const lines = root.querySelector('[data-quote-lines]');
+    function update() {
+      let once = 0, month = 0;
+      const picked = [];
+      lines.replaceChildren();
+      root.querySelectorAll('input[data-price]:checked').forEach((i) => {
+        const price = +i.dataset.price, monthly = i.dataset.period === 'month';
+        if (monthly) month += price; else once += price;
+        picked.push({ name: i.dataset.name, detail: i.dataset.detail || '', price: price, monthly: monthly });
+        const li = el('li');
+        li.append(el('span', null, i.dataset.name), el('span', null, money(price) + (monthly ? ' ' + root.dataset.perMonth : '')));
+        lines.append(li);
+      });
+      if (!picked.length) lines.append(el('li', 'pr-bill__empty', root.dataset.empty));
+      set('[data-quote-once]', money(once));
+      set('[data-quote-month]', money(month));
+      set('[data-quote-first]', money(once + month));
+
+      if (!doc) return;
+      const body = doc.querySelector('[data-doc="lines"]');
+      body.replaceChildren();
+      let n = 0;
+      [[false, doc.dataset.gOnce], [true, doc.dataset.gMonth]].forEach(([monthly, title]) => {
+        const rows = picked.filter((p) => p.monthly === monthly);
+        if (!rows.length) return;
+        const g = el('tr', 'pr-doc__group');
+        const th = el('th', null, title); th.colSpan = 4; g.append(th);
+        body.append(g);
+        rows.forEach((p) => {
+          const tr = el('tr');
+          const d = el('td');
+          d.append(el('strong', null, p.name));
+          if (p.detail) d.append(el('small', null, p.detail));
+          tr.append(el('td', 'pr-doc__n', String(++n)), d,
+            el('td', null, monthly ? doc.dataset.monthly : doc.dataset.once),
+            el('td', 'pr-doc__amt', money(p.price) + (monthly ? ' ' + root.dataset.perMonth : '')));
+          body.append(tr);
+        });
+      });
+      if (!picked.length) {
+        const tr = el('tr'); const td = el('td', 'pr-doc__none', doc.dataset.empty); td.colSpan = 4; tr.append(td); body.append(tr);
+      }
+      docSet('once', money(once));
+      docSet('month', money(month) + ' ' + root.dataset.perMonth);
+      docSet('first', money(once + month));
+    }
+    root.addEventListener('change', update);
+    update();
+
+    const print = root.querySelector('[data-quote-print]');
+    if (print) print.addEventListener('click', () => window.print());
+
+    // The phone bar is for getting to the bill; hide it once the bill is on screen.
+    const bar = document.querySelector('[data-quote-bar]');
+    const bill = root.querySelector('.pr-bill');
+    if (bar && bill && 'IntersectionObserver' in window) {
+      new IntersectionObserver((es) => bar.classList.toggle('is-hidden', es[0].isIntersecting)).observe(bill);
+    }
+  }
+  wireQuote();
+  onEnhancedLoad(wireQuote);
+
   // Blazor raises 'enhancedload' through Blazor.addEventListener (not as a DOM event).
   function onEnhancedLoad(fn) {
     if (window.Blazor && typeof window.Blazor.addEventListener === 'function') window.Blazor.addEventListener('enhancedload', fn);

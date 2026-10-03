@@ -33,6 +33,7 @@
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["gar.hero.note"]</p>
+                <a class="hp-link spa-price" href="@PricingPath">@L["spa.cta.pricing"] <span aria-hidden="true">→</span></a>
             </div>
             <button type="button" class="gp-shot gp-shot--hero" data-video="@VideoId" data-start="45"
                     aria-label="@($"{L["gar.watch"]}: {L["gar.s.board.t"]}")">
@@ -124,6 +125,7 @@
             <h2 class="gp-h2">@L["gar.end.title"]</h2>
             <div class="hp-end__actions">
                 <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                <a class="btn gp-btn-ghost" href="@PricingPath">@L["spa.cta.pricing"]</a>
                 <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
             </div>
         </div>
@@ -162,4 +164,6 @@
         var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
         L.SetCulture(seg);
     }
+
+    private string PricingPath => L.Culture == "en" ? "/garage/pricing" : $"/{L.Culture}/garage/pricing";
 }

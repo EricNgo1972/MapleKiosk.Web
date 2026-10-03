@@ -34,6 +34,7 @@
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["spa.hero.note"]</p>
+                <a class="hp-link spa-price" href="@CulturePath("nails/pricing")">@L["spa.cta.pricing"] <span aria-hidden="true">→</span></a>
                 <div class="film-lang" role="group" aria-label="@L["spa.lang"]">
                     <span>@L["spa.lang"]</span>
                     <button type="button" data-film-lang="vi" lang="vi" aria-pressed="@((Default == "vi").ToString().ToLowerInvariant())">Tiếng Việt</button>
@@ -89,6 +90,7 @@
             <div class="hp-end__actions">
                 <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
                 <a class="btn gp-btn-ghost" href="@TestDrive" target="_blank" rel="noopener">@L["spa.cta.trial"]</a>
+                <a class="btn gp-btn-ghost" href="@CulturePath("nails/pricing")">@L["spa.cta.pricing"]</a>
                 <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
             </div>
         </div>
@@ -123,6 +125,12 @@
         new("promos",   "GwhcO3sguvw", "0:52", "VHmvhSuSo38", "0:57"),
         new("photo",    null,          null,   "IDm_50EGFVk", "1:09"),
     };
+
+    private string CulturePath(string page)
+    {
+        var root = L.Path(L.Culture).TrimEnd('/');
+        return string.IsNullOrEmpty(root) ? $"/{page}" : $"{root}/{page}";
+    }
 
     private string Default => L.Culture == "ru" ? "ru" : "vi";
     private string Length(FilmInfo f) => Default == "ru" || f.Vi is null ? f.RuLength : f.ViLength!;
