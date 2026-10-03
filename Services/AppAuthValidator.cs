@@ -36,8 +36,9 @@ public static class AppAuthValidator
         if (IsStaff(canonical))
             return new List<Claim> { new(ClaimTypes.Role, AdminRole) };
 
+        // Archived-only customers no longer sign in; suspended ones do, and see the "paused" page.
         var records = await onboarding.FindByEmailAsync(canonical);
-        if (records.Count > 0)
+        if (records.Any(r => r.Access != OnboardingAccess.Archived))
             return new List<Claim> { new(ClaimTypes.Role, CustomerRole) };
 
         return null;

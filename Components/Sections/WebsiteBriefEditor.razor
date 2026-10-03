@@ -331,6 +331,8 @@
     [Parameter] public string Culture { get; set; } = "en";
     [Parameter] public string BusinessName { get; set; } = "";
     [Parameter] public EventCallback OnChanged { get; set; }
+    /// <summary>Checked before an upload or removal touches storage (false once staff suspend the tenant).</summary>
+    [Parameter] public Func<Task<bool>>? CanWrite { get; set; }
 
     private const long MaxFileBytes = 25 * 1024 * 1024;
     private bool _uploading;
@@ -397,6 +399,7 @@
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
+        if (CanWrite is not null && !await CanWrite()) return;
         _fileError = null;
         _uploading = true;
         try
@@ -417,6 +420,7 @@
 
     private async Task RemoveFile(OnboardingFile file)
     {
+        if (CanWrite is not null && !await CanWrite()) return;
         B.Files.Remove(file);
         await Changed();
         try { await Store.DeleteFileAsync(Token, file.Id); } catch { /* orphan blob is harmless */ }

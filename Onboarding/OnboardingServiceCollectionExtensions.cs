@@ -24,8 +24,7 @@ public static class OnboardingServiceCollectionExtensions
             var record = await store.FindAsync(token, ct);
             if (record is null) return Results.NotFound();
             var user = http.User;
-            var email = OnboardingRecord.CanonicalEmail(user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value);
-            if (!user.IsInRole(AppAuthValidator.AdminRole) && email != OnboardingRecord.CanonicalEmail(record.ContactEmail))
+            if (!record.IsOpenTo(user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value, user.IsInRole(AppAuthValidator.AdminRole)))
                 return Results.NotFound();
             var file = record.Files.FirstOrDefault(f => f.Id == fileId)
                        ?? (record.Form.Logo?.Id == fileId ? record.Form.Logo : null)

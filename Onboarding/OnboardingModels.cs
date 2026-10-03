@@ -24,6 +24,10 @@ public static class OnboardingIndustries
 
 public enum OnboardingStatus { Sent, InProgress, Submitted }
 
+/// <summary>Whether the customer can reach the record. Set by staff; Suspended and
+/// Archived both lock the customer out (data kept), Archived also leaves the main list.</summary>
+public enum OnboardingAccess { Active, Suspended, Archived }
+
 /// <summary>Answer to an "give us access" step. We never ask for passwords —
 /// the owner invites us (Google Manager, Meta Partner) and ticks the result.</summary>
 public static class AccessAnswers
@@ -134,6 +138,30 @@ public sealed class OnboardingRecord
     /// <summary>Scope includes a website: the customer also gets the website
     /// brief sub-page (/onboarding/{token}/website). Set by staff.</summary>
     public bool IncludesWebsite { get; set; }
+
+    public OnboardingAccess Access { get; set; } = OnboardingAccess.Active;
+    public DateTimeOffset? AccessChangedAt { get; set; }
+
+    /// <summary>The one access rule: staff see every record; a customer only an active
+    /// record on their own (non-empty) signed-in email.</summary>
+    public bool IsOpenTo(string? signedInEmail, bool isAdmin)
+    {
+        if (isAdmin) return true;
+        var email = CanonicalEmail(signedInEmail);
+        return Access == OnboardingAccess.Active && email.Length > 0 && email == CanonicalEmail(ContactEmail);
+    }
+
+    /// <summary>Take the staff-owned fields from the stored copy, so a customer's page
+    /// that was open while staff changed them can't write the old values back.</summary>
+    public void CopyStaffFieldsFrom(OnboardingRecord stored)
+    {
+        ContactEmail = stored.ContactEmail;
+        Access = stored.Access;
+        AccessChangedAt = stored.AccessChangedAt;
+        IncludesWebsite = stored.IncludesWebsite;
+        Industry = stored.Industry;
+        OrderRef = stored.OrderRef;
+    }
 
     // 128 bits, lowercase hex — safe in a URL and a blob path.
     public static string NewToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
