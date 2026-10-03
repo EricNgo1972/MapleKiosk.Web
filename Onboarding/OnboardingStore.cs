@@ -31,6 +31,7 @@ public sealed class OnboardingEntity : ITableEntity
     public bool IncludesWebsite { get; set; }
     public string Access { get; set; } = nameof(OnboardingAccess.Active);
     public DateTimeOffset? AccessChangedAt { get; set; }
+    public DateTimeOffset? FinalizedAt { get; set; }
 
     public static OnboardingEntity FromRecord(OnboardingRecord r) => new()
     {
@@ -48,7 +49,8 @@ public sealed class OnboardingEntity : ITableEntity
         FilesJson = JsonSerializer.Serialize(r.Files),
         IncludesWebsite = r.IncludesWebsite,
         Access = r.Access.ToString(),
-        AccessChangedAt = r.AccessChangedAt
+        AccessChangedAt = r.AccessChangedAt,
+        FinalizedAt = r.FinalizedAt
     };
 
     public OnboardingRecord ToRecord() => new()
@@ -68,7 +70,8 @@ public sealed class OnboardingEntity : ITableEntity
         IncludesWebsite = IncludesWebsite,
         // Rows from before access states existed have no Access column → Active.
         Access = Enum.TryParse<OnboardingAccess>(Access, out var a) ? a : OnboardingAccess.Active,
-        AccessChangedAt = AccessChangedAt
+        AccessChangedAt = AccessChangedAt,
+        FinalizedAt = FinalizedAt
     };
 }
 
