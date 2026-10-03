@@ -316,6 +316,8 @@ html.fade-ready .fade-in.visible{opacity:1;transform:none}
 .modal__close{position:absolute;top:14px;right:16px;background:transparent;border:0;color:var(--muted);font-size:30px;line-height:1;cursor:pointer;padding:4px 10px;border-radius:6px;transition:color .2s,background .2s}
 .modal__close:hover{color:var(--text);background:rgba(255,255,255,0.05)}
 body.modal-open{overflow:hidden}
+/* phones: a full-screen backdrop blur is expensive to paint — a plain dim is enough */
+@media (pointer:coarse){.modal__backdrop{background:rgba(6,6,8,0.88);backdrop-filter:none;-webkit-backdrop-filter:none}}
 @keyframes modalFade{from{opacity:0}to{opacity:1}}
 @keyframes modalRise{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:none}}
 
