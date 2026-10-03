@@ -42,6 +42,10 @@
         }
         else
         {
+            @if (_showArchived)
+            {
+                <p class="adm-view"><button type="button" class="adm-link" @onclick="() => _showArchived = false">← Customers</button> <strong>Archived</strong></p>
+            }
             <ul class="adm-list">
                 @foreach (var r in Filtered)
                 {
@@ -53,13 +57,24 @@
                                 <small>@r.ContactEmail · @OnboardingIndustries.Label(r.Industry)@(r.IncludesWebsite ? " · Website" : "")</small>
                             </span>
                             <span class="adm-row__side">
-                                <span class="onb-status onb-status--@r.Status.ToString().ToLowerInvariant()">@StatusLabel(r.Status)</span>
+                                @if (r.Access == OnboardingAccess.Active)
+                                {
+                                    <span class="onb-status onb-status--@r.Status.ToString().ToLowerInvariant()">@StatusLabel(r.Status)</span>
+                                }
+                                else
+                                {
+                                    <span class="onb-status adm-access--@r.Access.ToString().ToLowerInvariant()">@r.Access</span>
+                                }
                                 <small>@Ago(r.SubmittedAt ?? r.UpdatedAt ?? r.CreatedAt)</small>
                             </span>
                         </button>
                     </li>
                 }
             </ul>
+            @if (!_showArchived && ArchivedCount > 0)
+            {
+                <p class="adm-view"><button type="button" class="adm-link" @onclick="() => _showArchived = true">Archived (@ArchivedCount) →</button></p>
+            }
         }
     </div>
 </main>
@@ -151,28 +166,71 @@
 
         <div class="adm-actions">
             <button type="button" class="btn btn-ghost onb-small" @onclick="() => CopyLink(c)">@(_note == "copied" ? "Copied ✓" : "Copy link")</button>
-            @if (c.Status != OnboardingStatus.Submitted)
+            @* No invite for a suspended or archived customer — they can't open the page. *@
+            @if (c.Access == OnboardingAccess.Active && c.Status != OnboardingStatus.Submitted)
             {
                 <button type="button" class="btn btn-ghost onb-small" @onclick="() => Resend(c)">@(_note == "resent" ? "Sent ✓" : "Resend invite")</button>
             }
-            else
+            else if (c.Status == OnboardingStatus.Submitted)
             {
                 <button type="button" class="btn btn-ghost onb-small" @onclick="() => Reopen(c)">Reopen for edits</button>
             }
             <a class="btn btn-ghost onb-small" href="/onboarding/@c.Token" target="_blank">View as customer ↗</a>
         </div>
 
+        @if (c.Access != OnboardingAccess.Active)
+        {
+            <p class="adm-banner">
+                <strong>@c.Access</strong>@(c.AccessChangedAt is { } at ? $" on {at.ToLocalTime():yyyy-MM-dd}" : "") — the customer can't open their setup page or files.
+            </p>
+        }
+
         <div class="adm-form">
-            <label>Login email
+            <div class="adm-field">
+                <span>Owner email</span>
+                <small>The Google or Microsoft account that signs in to this setup.</small>
                 <span class="adm-inline">
-                    <input type="email" @bind="_editEmail" />
-                    @if (_editEmail != c.ContactEmail)
+                    <input type="email" @bind="_editEmail" @bind:event="oninput" aria-label="Owner email" />
+                    @if (OnboardingRecord.CanonicalEmail(_editEmail) != c.ContactEmail && !_confirmEmail)
                     {
-                        <button type="button" class="btn btn-primary onb-small" @onclick="() => SaveEmail(c)">Save</button>
+                        <button type="button" class="btn btn-primary onb-small" @onclick="AskEmailChange">Change</button>
                     }
                 </span>
-            </label>
+                @if (_confirmEmail)
+                {
+                    <div class="adm-confirm">
+                        <p>Move this setup to <b>@OnboardingRecord.CanonicalEmail(_editEmail)</b>? <b>@c.ContactEmail</b> will lose access.</p>
+                        <label class="adm-switch"><input type="checkbox" @bind="_inviteNewOwner" /> Email the new owner an invitation</label>
+                        <span class="adm-inline">
+                            <button type="button" class="btn btn-ghost onb-small" @onclick="CancelEmailChange">Cancel</button>
+                            <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="() => SaveEmail(c)">Move access</button>
+                        </span>
+                    </div>
+                }
+                @if (_emailError is not null) { <p class="onb-error">@_emailError</p> }
+            </div>
             <label class="adm-switch"><input type="checkbox" checked="@c.IncludesWebsite" @onchange="e => SetIncludesWebsite(c, e)" /> Includes a website</label>
+        </div>
+
+        <div class="adm-field adm-access">
+            <span>Access</span>
+            <span class="adm-inline">
+                @if (c.Access == OnboardingAccess.Active)
+                {
+                    <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="() => SetAccess(c, OnboardingAccess.Suspended)">Suspend</button>
+                    <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="() => SetAccess(c, OnboardingAccess.Archived)">Archive</button>
+                }
+                else if (c.Access == OnboardingAccess.Suspended)
+                {
+                    <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="() => SetAccess(c, OnboardingAccess.Active)">Resume access</button>
+                    <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="() => SetAccess(c, OnboardingAccess.Archived)">Archive</button>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="() => SetAccess(c, OnboardingAccess.Active)">Restore</button>
+                }
+            </span>
+            <small>Suspend: they can still sign in but see "paused". Archive: also hidden from this list and no sign-in. Nothing is deleted.</small>
         </div>
 
         <div class="adm-summary">
@@ -211,6 +269,9 @@
     private WebsiteBrief? _brief;
     private string _editEmail = "";
     private string? _note;
+    private bool _confirmEmail;
+    private bool _inviteNewOwner = true;
+    private string? _emailError;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
@@ -221,11 +282,15 @@
         _loading = false;
     }
 
+    private bool _showArchived;
+    private int ArchivedCount => _records.Count(r => r.Access == OnboardingAccess.Archived);
+
     private IEnumerable<OnboardingRecord> Filtered =>
-        string.IsNullOrWhiteSpace(_query)
-            ? _records
-            : _records.Where(r => r.Form.BusinessName.Contains(_query, StringComparison.OrdinalIgnoreCase)
-                               || r.ContactEmail.Contains(_query, StringComparison.OrdinalIgnoreCase));
+        _records
+            .Where(r => (r.Access == OnboardingAccess.Archived) == _showArchived)
+            .Where(r => string.IsNullOrWhiteSpace(_query)
+                        || r.Form.BusinessName.Contains(_query, StringComparison.OrdinalIgnoreCase)
+                        || r.ContactEmail.Contains(_query, StringComparison.OrdinalIgnoreCase));
 
     private static string Initial(OnboardingRecord r) =>
         string.IsNullOrWhiteSpace(r.Form.BusinessName) ? "?" : r.Form.BusinessName.Trim()[..1].ToUpperInvariant();
@@ -278,6 +343,8 @@
         _current = r;
         _editEmail = r.ContactEmail;
         _note = null;
+        _confirmEmail = false;
+        _emailError = null;
         _brief = r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
     }
 
@@ -330,13 +397,50 @@
         _brief = r.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
     }
 
-    // The login email is the customer's access — changing it moves access to the new account.
+    private void AskEmailChange()
+    {
+        var email = OnboardingRecord.CanonicalEmail(_editEmail);
+        _emailError = email.Length < 3 || email.IndexOf('@') is < 1 || email.Contains(' ') || email.EndsWith('@')
+            ? "Enter a full email address." : null;
+        _confirmEmail = _emailError is null;
+    }
+
+    private void CancelEmailChange()
+    {
+        _confirmEmail = false;
+        _emailError = null;
+        _editEmail = _current?.ContactEmail ?? "";
+    }
+
+    // The owner email is the customer's access — changing it moves access to the new account
+    // (the old one loses it at once: every page load and save re-checks the email).
     private async Task SaveEmail(OnboardingRecord r)
     {
-        if (!_editEmail.Contains('@')) return;
-        r.ContactEmail = OnboardingRecord.CanonicalEmail(_editEmail);
-        _editEmail = r.ContactEmail;
-        await Store.SaveAsync(r);
+        _busy = true;
+        try
+        {
+            r.ContactEmail = OnboardingRecord.CanonicalEmail(_editEmail);
+            _editEmail = r.ContactEmail;
+            await Store.SaveAsync(r);
+            if (_inviteNewOwner && r.Access == OnboardingAccess.Active) await Service.SendInviteAsync(r, Nav.BaseUri);
+            _confirmEmail = false;
+            _emailError = null;
+        }
+        catch (Exception ex) { _emailError = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task SetAccess(OnboardingRecord r, OnboardingAccess access)
+    {
+        _busy = true;
+        try
+        {
+            r.Access = access;
+            r.AccessChangedAt = DateTimeOffset.UtcNow;
+            await Store.SaveAsync(r);
+            if (access == OnboardingAccess.Archived) _current = null; // it leaves the list
+        }
+        finally { _busy = false; }
     }
 
     private async Task CopyLink(OnboardingRecord r)

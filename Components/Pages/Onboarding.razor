@@ -62,6 +62,15 @@
             }
         </div>
     }
+    else if (_record is null && _paused)
+    {
+        <div class="container onb__wrap">
+            <div class="onb-card">
+                <h1 class="onb__h1">@L["onb.paused.title"]</h1>
+                <p class="onb__muted">@L["onb.paused.body"]</p>
+            </div>
+        </div>
+    }
     else if (_record is null)
     {
         <div class="container onb__wrap">
@@ -428,7 +437,7 @@
                                     {
                                         <p class="onb__muted wb-intro">@BT("intro")</p>
                                     }
-                                    <WebsiteBriefEditor B="_brief" Token="@_record.Token" Section="SubSection" Industry="@_record.Industry" Culture="@L.Culture" BusinessName="@f.BusinessName" OnChanged="BriefChanged" />
+                                    <WebsiteBriefEditor B="_brief" Token="@_record.Token" Section="SubSection" Industry="@_record.Industry" Culture="@L.Culture" BusinessName="@f.BusinessName" OnChanged="BriefChanged" CanWrite="StillOpenAsync" />
                                     @if (_brief.CompletedAt is { } sentAt)
                                     {
                                         <div class="onb-banner onb-banner--ok">@string.Format(BT("sent"), sentAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))</div>
@@ -519,6 +528,7 @@
     private List<OnboardingRecord> _choices = new();
     private string _email = "";
     private bool _isAdmin;
+    private bool _paused; // their record exists but staff suspended or archived it
     private bool _loading = true;
     private bool _busy;
     private bool _uploading;
@@ -557,11 +567,14 @@
         if (!string.IsNullOrWhiteSpace(Token))
         {
             var r = await Store.FindAsync(Token);
-            if (r is not null && (_isAdmin || OnboardingRecord.CanonicalEmail(r.ContactEmail) == _email)) _record = r;
+            if (r is not null && r.IsOpenTo(_email, _isAdmin)) _record = r;
+            else if (r is not null && OnboardingRecord.CanonicalEmail(r.ContactEmail) == _email) _paused = true;
         }
         else
         {
-            _choices = (await Store.FindByEmailAsync(_email)).ToList();
+            var mine = await Store.FindByEmailAsync(_email);
+            _choices = mine.Where(r => r.IsOpenTo(_email, false)).ToList();
+            _paused = _choices.Count == 0 && mine.Count > 0;
             if (_choices.Count == 1)
             {
                 // One business: give the overview its canonical URL (/onboarding/{token}).
@@ -653,6 +666,7 @@
 
     private async Task OnLogoSelected(InputFileChangeEventArgs e)
     {
+        if (!await StillOpenAsync()) return;
         _logoError = null;
         _logoUploading = true;
         try
@@ -788,6 +802,23 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>Before writing: re-read the stored record. Staff may have suspended it or moved it
+    /// to another owner while this page was open — then lock the page; otherwise keep their fields.</summary>
+    private async Task<bool> StillOpenAsync()
+    {
+        var stored = await Store.FindAsync(_record!.Token);
+        if (stored is not null && stored.IsOpenTo(_email, _isAdmin))
+        {
+            _record.CopyStaffFieldsFrom(stored);
+            return true;
+        }
+        // Still theirs but suspended → "paused"; moved to another owner → the usual "no setup" page.
+        _paused = stored is not null && !_isAdmin && OnboardingRecord.CanonicalEmail(stored.ContactEmail) == _email;
+        _record = null;
+        _brief = null;
+        return false;
+    }
+
     private async Task SaveAsync()
     {
         if (_record is null) return;
@@ -795,6 +826,7 @@
         var (version, briefVersion) = (_version, _briefVersion);
         try
         {
+            if (!await StillOpenAsync()) return;
             if (version != _savedVersion && _record.Status != OnboardingStatus.Submitted)
             {
                 if (_record.Status == OnboardingStatus.Sent) _record.Status = OnboardingStatus.InProgress;
@@ -859,6 +891,7 @@
 
     private async Task OnFilesSelected(InputFileChangeEventArgs e)
     {
+        if (!await StillOpenAsync()) return;
         _fileError = null;
         _uploading = true;
         try
@@ -887,6 +920,7 @@
 
     private async Task RemoveFile(OnboardingFile file)
     {
+        if (!await StillOpenAsync()) return;
         _record!.Files.Remove(file);
         _version++;
         await SaveAsync();
@@ -906,6 +940,7 @@
         await _saveLock.WaitAsync(); // let an in-flight autosave finish first
         try
         {
+            if (!await StillOpenAsync()) return;
             await Service.SubmitAsync(_record!, Nav.BaseUri);
             _step = null;
             try { await JS.InvokeVoidAsync("history.replaceState", null, "", Href(null)); } catch (JSDisconnectedException) { }
@@ -930,7 +965,8 @@
         await _saveLock.WaitAsync();
         try
         {
-            await Service.SendBriefAsync(_record!, _brief, Nav.BaseUri);
+            if (!await StillOpenAsync()) return;
+            await Service.SendBriefAsync(_record!, _brief!, Nav.BaseUri);
             _briefSavedVersion = _briefVersion;
             _savedAt = _brief.UpdatedAt;
         }
