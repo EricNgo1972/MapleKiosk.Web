@@ -15,6 +15,9 @@
     <PackageReference Include="Azure.Data.Tables" Version="12.9.1" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.19.1" />
     <PackageReference Include="SendGrid" Version="9.29.3" />
+    <!-- Website assistant (Assistant/): the same Microsoft.Extensions.AI stack as the platform's chat gateway. -->
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.6.0" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
     <!-- Checkout (hosted in-app for now; extractable to a dedicated service later). -->
     <PackageReference Include="Stripe.net" Version="51.0.0" />
     <PackageReference Include="Net.Codecrete.QrCodeGenerator" Version="2.0.5" />

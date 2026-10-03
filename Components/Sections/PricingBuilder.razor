@@ -363,43 +363,13 @@
         ? new("docs/MapleSPA-salon-quote.pdf", "MapleSPA-salon-quote.pdf", "quote")
         : null;
 
-    // Prices in US dollars, from the salon quote (setup, software, SMS, marketing). Every trade gets
-    // the same packages; only the wording differs.
-    private record Setup(string Key, decimal Price, int Points);
-    private record Plan(string Key, decimal Price, int Features = 0, bool Recommended = false);
-
-    private readonly Setup[] _setup =
-    {
-        new("server", 500m, 3),
-        new("web",    300m, 3),
-        new("train",  350m, 4),
-    };
-
-    // The software plans share one feature list (pr.soft.f1..f8): the AI plan has the first three,
-    // the full system all of them.
-    private const int SoftwareFeatures = 8;
-
-    private readonly Plan[] _software =
-    {
-        new("booking", 49.99m,  Features: 3),
-        new("salon",   120.00m, Features: SoftwareFeatures, Recommended: true),
-    };
-
-    private readonly Plan[] _sms =
-    {
-        new("1", 39.99m),
-        new("2", 89.99m),
-        new("3", 199.99m),
-    };
-
-    private readonly Plan[] _marketing =
-    {
-        new("basic", 249m),
-        new("pro",   549m, Recommended: true),
-        new("vip",   749m),
-    };
-
-    private static readonly string[] MarketingFacts = { "freq", "format", "maps", "channels", "print", "report" };
+    // Prices and packages: Services/PriceBook.cs, shared with the website assistant.
+    private static PriceBook.Setup[] _setup => PriceBook.SetupItems;
+    private static PriceBook.Plan[] _software => PriceBook.Software;
+    private static PriceBook.Plan[] _sms => PriceBook.Sms;
+    private static PriceBook.Plan[] _marketing => PriceBook.Marketing;
+    private const int SoftwareFeatures = PriceBook.SoftwareFeatures;
+    private static string[] MarketingFacts => PriceBook.MarketingFacts;
 
     // site.js formats every amount with the same locale (Intl), so the bill and the cards match.
     private string Locale => L.Culture switch { "fr" => "fr-CA", "vi" => "vi-VN", "ru" => "ru-RU", _ => "en-US" };
