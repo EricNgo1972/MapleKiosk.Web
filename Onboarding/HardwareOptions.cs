@@ -28,7 +28,7 @@ public static class HardwareOptions
         new(new("scanner", "Barcode scanner", "Lecteur de codes-barres", "Máy quét mã vạch"),
             ["Zebra", "Honeywell", "Datalogic", "Socket Mobile"], "DS2208, Voyager 1450g"),
         new(new("card", "Card payment terminal", "Terminal de paiement", "Máy quẹt thẻ"),
-            ["Moneris", "Clover", "Square", "Stripe", "Global Payments", "Ingenico", "Verifone", "PAX"], "Moneris Go, Clover Flex, PAX A920"),
+            ["PAX", "Moneris", "Clover", "Square", "Stripe", "Global Payments", "Ingenico", "Verifone"], "PAX A920 Pro, PAX A35"),
         new(new("display", "Customer-facing display", "Afficheur client", "Màn hình phía khách"),
             ["Elo", "Posiflex", "Samsung", "Apple"], "Elo 1002L"),
         new(new("kiosk", "Self-service kiosk", "Borne libre-service", "Kiosk tự phục vụ"),
@@ -63,6 +63,10 @@ public static class HardwareOptions
         ["remove"] = ("Remove", "Retirer", "Xóa"),
         ["none"] = ("We don't have hardware to reuse", "Nous n'avons pas de matériel à réutiliser", "Chúng tôi không có thiết bị cần dùng lại"),
         ["eg"] = ("e.g. {0}", "ex. {0}", "vd: {0}"),
+        // Only PAX terminals connect to MapleKiosk today (POSLink semi-integration).
+        ["cardNote"] = ("MapleKiosk connects to PAX card terminals — the amount goes to the terminal and the payment comes back to the bill. A terminal of another brand can stay as a separate machine: staff key in the amount and mark the bill paid.",
+                        "MapleKiosk se connecte aux terminaux de paiement PAX — le montant part au terminal et le paiement revient sur la facture. Un terminal d'une autre marque peut rester un appareil séparé : le personnel saisit le montant et marque la facture payée.",
+                        "MapleKiosk kết nối với máy quẹt thẻ PAX — số tiền được gửi sang máy và kết quả thanh toán tự trả về hóa đơn. Máy của hãng khác vẫn dùng riêng được: nhân viên tự nhập số tiền và đánh dấu hóa đơn đã thanh toán."),
     };
 
     public static string T(string key, string culture) =>

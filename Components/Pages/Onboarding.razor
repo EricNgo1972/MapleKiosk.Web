@@ -409,6 +409,10 @@
                                         <label class="hw-notes">@HT("notes")
                                             <input @bind="h.Notes" @bind:after="Changed" />
                                         </label>
+                                        @if (h.Type == "card")
+                                        {
+                                            <p class="onb-help hw-note">@HT("cardNote")</p>
+                                        }
                                     </div>
                                 }
                                 <button type="button" class="btn btn-ghost onb-small hw-add" @onclick="AddHardware">@HT("add")</button>
@@ -755,7 +759,7 @@
         foreach (var lang in new[] { _record!.Language, "en" })
         {
             var rel = $"templates/onboarding/{_record.Industry}-{lang}.xlsx";
-            if (File.Exists(Path.Combine(Env.WebRootPath, rel))) { _templateUrl = "/" + rel; return; }
+            if (Env.WebRootFileProvider.GetFileInfo(rel).Exists) { _templateUrl = "/" + rel; return; }
         }
     }
 

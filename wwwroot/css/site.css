@@ -917,6 +917,7 @@ body.modal-open{overflow:hidden}
 .hw-row label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
 .hw-row select,.hw-row input{padding:9px 10px!important;font-size:14px!important}
 .hw-notes{grid-column:1/-1}
+.hw-note{grid-column:1/-1;margin:0}
 .hw-rm{align-self:end;margin-bottom:6px}
 .hw-add{margin-top:12px}
 /* website brief: light/dark, colours, live preview, sites to copy */
