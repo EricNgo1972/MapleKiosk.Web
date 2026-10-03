@@ -1,0 +1,66 @@
+@inject LocalizationService L
+@inject NavigationManager Nav
+
+@*
+    The website assistant's chat bubble (Assistant/, wwwroot/js/assistant.js). Static markup: the script
+    opens it, keeps the conversation in the visitor's browser, and posts each message to /assistant/message.
+    Shown on the public pages only — not in onboarding, the shop, sign-in or error pages.
+*@
+@if (Show)
+{
+    <div class="ast" data-assistant data-lang="@L.Culture" data-error="@L["ast.error"]">
+        <button type="button" class="ast-fab" data-ast-toggle aria-expanded="false" aria-controls="ast-panel">
+            <span class="ast-fab__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 3C6.5 3 2 6.8 2 11.5c0 2.3 1.1 4.4 2.9 5.9L4 21l4.2-2.1c1.2.4 2.5.6 3.8.6 5.5 0 10-3.8 10-8.5S17.5 3 12 3Zm-4.5 9.6a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.5 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4.5 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"/></svg>
+            </span>
+            <span class="ast-fab__label">@L["ast.fab"]</span>
+        </button>
+
+        <section class="ast-panel" id="ast-panel" role="dialog" aria-modal="false" aria-labelledby="ast-title" hidden>
+            <header class="ast-head">
+                <img src="favicon.png" alt="" width="32" height="32" />
+                <div>
+                    <h2 id="ast-title">@L["ast.title"]</h2>
+                    <p>@L["ast.sub"]</p>
+                </div>
+                <button type="button" class="ast-icon" data-ast-reset aria-label="@L["ast.reset"]" title="@L["ast.reset"]">↺</button>
+                <button type="button" class="ast-icon" data-ast-toggle aria-label="@L["ast.close"]" title="@L["ast.close"]">✕</button>
+            </header>
+
+            <div class="ast-log" data-ast-log aria-live="polite">
+                <div class="ast-msg ast-msg--bot" data-ast-greeting><div class="ast-b"><p>@L["ast.greeting"]</p></div></div>
+            </div>
+
+            <div class="ast-chips" data-ast-starters>
+                <button type="button" data-ast-say>@L["ast.s1"]</button>
+                <button type="button" data-ast-say>@L["ast.s2"]</button>
+                <button type="button" data-ast-say>@L["ast.s3"]</button>
+                <button type="button" data-ast-say>@L["ast.s4"]</button>
+            </div>
+
+            <form class="ast-form" data-ast-form>
+                <label class="visually-hidden" for="ast-input">@L["ast.placeholder"]</label>
+                <textarea id="ast-input" rows="1" maxlength="2000" placeholder="@L["ast.placeholder"]" data-ast-input></textarea>
+                <button type="submit" class="ast-send" aria-label="@L["ast.send"]">
+                    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.3 10l12.6 2-12.6 2z"/></svg>
+                </button>
+            </form>
+            <p class="ast-fine">@L["ast.fine"]</p>
+        </section>
+    </div>
+}
+
+@code {
+    private static readonly HashSet<string> Hidden = new(StringComparer.OrdinalIgnoreCase)
+        { "onboarding", "shop", "signin", "access-denied", "error", "not-found" };
+
+    private bool Show
+    {
+        get
+        {
+            var segs = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0].Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (segs.Count > 0 && segs[0] is "fr" or "vi" or "ru") segs.RemoveAt(0);
+            return segs.Count == 0 || !Hidden.Contains(segs[0]);
+        }
+    }
+}

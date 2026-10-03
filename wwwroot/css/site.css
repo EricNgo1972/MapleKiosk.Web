@@ -1228,3 +1228,64 @@ html.nav-busy body{cursor:progress}
   .pr-doc__sign p{margin-top:6px;color:#6b645c;font-size:10.5px}
   .pr-doc__foot{margin-top:16px;padding-top:10px;border-top:1px solid #e3dcd2;text-align:center;color:#6b645c;font-size:10.5px}
 }
+
+/* ===== Website assistant: the chat bubble on every public page (assistant.js) ===== */
+.ast{position:fixed;right:20px;bottom:20px;z-index:160;font-family:'DM Sans',system-ui,sans-serif}
+.ast-fab{display:inline-flex;align-items:center;gap:10px;padding:13px 20px 13px 16px;border:0;border-radius:999px;background:var(--red);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 12px 32px rgba(192,57,43,.35);transition:transform .2s ease,background .2s ease}
+.ast-fab:hover{background:var(--accent);transform:translateY(-2px)}
+.ast-fab:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+.ast.is-open .ast-fab{display:none}
+.ast-panel{position:absolute;right:0;bottom:0;width:390px;height:min(620px,calc(100vh - 40px));display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:0 24px 70px rgba(29,26,23,.28);overflow:hidden}
+.ast-panel[hidden]{display:none}
+.ast-head{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;background:#121a21;color:#e8edf1}
+.ast-head img{width:32px;height:32px;border-radius:8px;background:#fff;padding:3px}
+.ast-head > div{flex:1;min-width:0}
+.ast-head h2{font-family:'DM Sans',system-ui,sans-serif;font-size:15px;font-weight:700;color:#fff;letter-spacing:0}
+.ast-head p{font-size:12px;color:#9aa7b2}
+.ast-icon{width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:#e8edf1;font-size:16px;cursor:pointer}
+.ast-icon:hover,.ast-icon:focus-visible{background:rgba(255,255,255,.1)}
+.ast-log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.ast-msg{display:flex}
+.ast-msg--me{justify-content:flex-end}
+.ast-b{max-width:86%;padding:10px 14px;border-radius:14px;font-size:14.5px;line-height:1.5;overflow-wrap:anywhere}
+.ast-msg--bot .ast-b{background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text)}
+.ast-msg--me .ast-b{background:var(--red);color:#fff;border-bottom-right-radius:4px}
+.ast-msg--err .ast-b{border-color:rgba(192,57,43,.4);color:var(--red-2)}
+.ast-b p + p,.ast-b p + ul,.ast-b ul + p,.ast-b p + ol,.ast-b ol + p{margin-top:8px}
+.ast-b ul,.ast-b ol{margin:0;padding-left:20px}
+.ast-b li{margin:2px 0}
+.ast-b a{color:var(--red);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.ast-msg--me .ast-b a{color:#fff}
+.ast-b code{font-size:13px;background:var(--surface-2);padding:1px 4px;border-radius:4px}
+.ast-tbl{overflow-x:auto;margin-top:8px}
+.ast-tbl table{border-collapse:collapse;font-size:13px;width:100%}
+.ast-tbl th,.ast-tbl td{padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.ast-tbl th{font-weight:700;background:var(--surface-2)}
+.ast-choices,.ast-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ast-chips{padding:0 16px 12px;background:var(--bg)}
+.ast-chips[hidden]{display:none}
+.ast-choices button,.ast-chips button{padding:7px 12px;border:1px solid rgba(192,57,43,.4);border-radius:999px;background:var(--surface);color:var(--red-2);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.ast-choices button:hover,.ast-chips button:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.ast-form{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface)}
+.ast-form textarea{flex:1;resize:none;max-height:120px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;font:inherit;font-size:15px;line-height:1.4;background:var(--bg);color:var(--text)}
+.ast-form textarea:focus{outline:2px solid var(--red);outline-offset:0;border-color:transparent}
+.ast-send{flex:none;width:42px;height:42px;border:0;border-radius:12px;background:var(--red);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.ast-send:hover{background:var(--accent)}
+.ast-fine{padding:0 14px 10px;background:var(--surface);font-size:11px;color:var(--muted);text-align:center}
+.ast-typing{display:inline-flex;gap:4px;padding:4px 0}
+.ast-typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:ast-dot 1.2s infinite ease-in-out}
+.ast-typing i:nth-child(2){animation-delay:.15s}
+.ast-typing i:nth-child(3){animation-delay:.3s}
+@keyframes ast-dot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.ast-typing i{animation:none}.ast-fab{transition:none}}
+/* Phones: a full-screen sheet, and the bubble sits above the page's own bottom bar. */
+@media (max-width:760px){
+  .ast{right:14px;bottom:14px}
+  body:has(.mobile-cta) .ast{bottom:84px}
+  .ast-fab__label{display:none}
+  .ast-fab{padding:15px}
+  .ast.is-open{inset:0;right:0;bottom:0}
+  .ast-panel{position:fixed;inset:0;width:auto;height:auto;border-radius:0;border:0}
+}
+@media (max-width:900px){ body:has(.pr-bar:not(.is-hidden)) .ast{bottom:76px} }
+@media print{ .ast{display:none!important} }

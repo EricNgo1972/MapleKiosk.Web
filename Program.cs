@@ -1,3 +1,4 @@
+using MapleKiosk.Web.Assistant;
 using MapleKiosk.Web.Components;
 using MapleKiosk.Web.Onboarding;
 using MapleKiosk.Web.Services;
@@ -63,6 +64,9 @@ builder.Services.AddAppStore();
 // Post-deposit setup intake: /onboarding/{token} (customer) + /onboarding/admin.
 builder.Services.AddOnboarding();
 
+// Website assistant: the chat bubble on every public page (Assistant/).
+builder.Services.AddWebsiteAssistant();
+
 // Store UI (cart + checkout widget). It calls /api/checkout — same origin by
 // default, so BackendBaseUrl is left empty; the API key (if configured) is still
 // sent so the in-app endpoints accept it.
@@ -121,6 +125,7 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.MapSiteMedia();
 app.MapAppStoreEndpoints();
 app.MapOnboardingEndpoints();
+app.MapWebsiteAssistant();
 app.MapSPCAuthEndpoints();
 
 app.MapRazorComponents<App>()
