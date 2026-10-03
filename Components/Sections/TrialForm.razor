@@ -17,6 +17,7 @@
         <div class="trial__card">
             <EditForm Model="Model" OnValidSubmit="HandleSubmit" OnInvalidSubmit="() => _reopen = true" FormName="trial-signup" Enhance>
                 <DataAnnotationsValidator />
+                <InputText type="hidden" @bind-Value="Model.Product" />
 
                 <div class="field">
                     <label>@L["trial.f.company"]</label>
@@ -85,13 +86,21 @@
 @code {
     [Parameter] public string Culture { get; set; } = "en";
 
+    // The product a page sells on its own (e.g. "AI Voice Agent"), carried with the signup so
+    // sales knows the lead wants only that. Empty = the trade's full system.
+    [Parameter] public string? Product { get; set; }
+
     [SupplyParameterFromForm(FormName = "trial-signup")]
     private TrialSignup? Model { get; set; }
 
     // A post that failed validation re-renders the page — keep the modal open to show the errors.
     private bool _reopen;
 
-    protected override void OnInitialized() => Model ??= new();
+    protected override void OnInitialized()
+    {
+        Model ??= new();
+        if (string.IsNullOrEmpty(Model.Product)) Model.Product = Product ?? "";
+    }
 
     protected override void OnParametersSet()
     {

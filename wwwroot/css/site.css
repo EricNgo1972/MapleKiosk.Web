@@ -1002,3 +1002,54 @@ body.modal-open{overflow:hidden}
 html.nav-busy::before{content:"";position:fixed;top:0;left:0;z-index:1000;height:3px;width:100%;background:linear-gradient(90deg,transparent,var(--red),var(--accent),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:nav-busy 0.9s linear infinite}
 html.nav-busy body{cursor:progress}
 @keyframes nav-busy{from{background-position:-50% 0}to{background-position:150% 0}}
+
+/* ============ NAV: PRODUCTS MENU ============ */
+/* One menu for every product page (Services/SiteProducts.cs), so the bar doesn't grow with the list. */
+.nav-prod{margin-left:auto;margin-right:20px}
+.nav-prod__btn{display:inline-flex;align-items:center;gap:6px;padding:8px 4px;border:0;background:transparent;color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;opacity:.85;transition:opacity .2s,color .2s}
+.nav-prod__btn:hover,.nav-prod__btn[aria-expanded="true"]{opacity:1;color:var(--red)}
+.nav-prod__btn.active{opacity:1;color:var(--red);font-weight:600}
+.nav-prod__btn[aria-expanded="true"] .user-badge__chev{transform:rotate(180deg)}
+.nav-prod__pop{left:50%;right:auto;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));padding:14px;gap:4px 14px;flex-direction:row}
+.nav-prod__pop.open{display:grid;grid-template-columns:1.6fr 1fr}
+.nav-prod__group{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nav-prod__head{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:6px 12px 8px}
+.nav-prod__item{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:8px;color:var(--text);transition:background .15s}
+.nav-prod__item strong{font-size:14.5px;font-weight:600}
+.nav-prod__item span{font-size:13px;color:var(--muted);line-height:1.35}
+.nav-prod__item:hover{background:var(--surface-2)}
+.nav-prod__item:hover strong,.nav-prod__item.active strong{color:var(--red)}
+.nav-prod__item.active{background:var(--surface-2)}
+@media (max-width:900px){
+  .nav-prod{margin-right:10px}
+  .nav-prod__pop{position:fixed;top:72px;left:16px;right:16px;width:auto;transform:none}
+}
+@media (max-width:560px){
+  .nav-prod__pop.open{grid-template-columns:1fr;max-height:calc(100vh - 96px);overflow:auto}
+  .nav__logo img{height:32px}
+  .lang-switch{margin-right:0}
+  .lang-switch a{padding:4px 7px}
+}
+
+/* ============ AI VOICE AGENT PAGE (/ai-agent) ============ */
+/* The garage page's dark frame, with the film's vertical (3:4 crop of a 9:16 short) stills. */
+.ag-shot{max-width:400px;justify-self:center}
+.ag-hero__grid{grid-template-columns:1.3fr 1fr}
+.ag-alone{margin-top:28px;padding:14px 16px;border-left:3px solid var(--g-accent);background:var(--g-panel);border-radius:0 8px 8px 0;color:var(--g-text);font-size:15px;max-width:520px}
+.ag-why{padding:96px 0 0}
+.ag-why__grid{display:grid;grid-template-columns:minmax(0,340px) 1fr;gap:64px;align-items:center}
+.ag-why__grid .ag-shot{max-width:340px}
+.ag-step,.ag-step.gp-step--flip{grid-template-columns:minmax(0,360px) 1fr;gap:72px}
+.ag-step--flip{grid-template-columns:1fr minmax(0,360px)}
+.ag-step.ag-step--flip{grid-template-columns:1fr minmax(0,360px)}
+.ag .gp-more__list dt a{color:var(--text)}
+.ag .gp-more__list dt a:hover{color:var(--red)}
+@media (max-width:900px){
+  .ag-hero__grid,.ag-why__grid,.ag-step,.ag-step.ag-step--flip{grid-template-columns:1fr;gap:28px}
+  .ag-shot,.ag-why__grid .ag-shot{max-width:320px}
+  .ag-why{padding:72px 0 0}
+}
+
+/* Vertical films (data-video-tall) */
+.vbox__frame--tall{aspect-ratio:9/16;width:min(100%,calc((100vh - 120px) * 9 / 16))}
+.hp-ai__more{margin-top:32px}

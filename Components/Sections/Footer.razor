@@ -8,12 +8,12 @@
                 <p>@L["foot.brand"]</p>
             </div>
             <div class="footer__col">
-                <h5>@L["foot.industries"]</h5>
+                <h5>@L["nav.products"]</h5>
                 <ul>
-                    <li><a href="@CulturePath("coffee")">@L["nav.coffee"]</a></li>
-                    <li><a href="@CulturePath("nails")">@L["nav.nails"]</a></li>
-                    <li><a href="@CulturePath("garage")">@L["nav.garage"]</a></li>
-                    <li><a href="@CulturePath("restaurants")">@L["nav.resto"]</a></li>
+                    @foreach (var p in SiteProducts.All)
+                    {
+                        <li><a href="@CulturePath(p.Slug)">@L.ProductName(p)</a></li>
+                    }
                 </ul>
             </div>
             <div class="footer__col">

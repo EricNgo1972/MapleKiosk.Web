@@ -6,11 +6,27 @@
         <a class="nav__logo" href="@L.Path(L.Culture)#top">
             <img src="MapleKiosk_rectangle.png" alt="MapleKiosk" />
         </a>
-        <div class="nav__links">
-            <a href="@CulturePath("coffee")" class="@Active("coffee")" aria-current="@Current("coffee")">@L["nav.coffee"]</a>
-            <a href="@CulturePath("nails")" class="@Active("nails")" aria-current="@Current("nails")">@L["nav.nails"]</a>
-            <a href="@CulturePath("garage")" class="@Active("garage")" aria-current="@Current("garage")">@L["nav.garage"]</a>
-            <a href="@CulturePath("restaurants")" class="@Active("restaurants")" aria-current="@Current("restaurants")">@L["nav.resto"]</a>
+        @* One Products menu instead of a link per product, so the bar holds however many there are.
+           Opened by the same toggle as the user menu (site.js, data-user-menu / data-user-pop). *@
+        <div class="user-menu nav-prod">
+            <button type="button" class="nav-prod__btn @(OnProduct ? "active" : null)" data-user-menu aria-haspopup="true" aria-expanded="false">
+                @L["nav.products"] <span class="user-badge__chev" aria-hidden="true">▾</span>
+            </button>
+            <div class="user-pop nav-prod__pop" data-user-pop>
+                @foreach (var g in new[] { ProductGroup.Trade, ProductGroup.AddOn })
+                {
+                    <div class="nav-prod__group">
+                        <p class="nav-prod__head">@L[g == ProductGroup.Trade ? "nav.group.trades" : "nav.group.addons"]</p>
+                        @foreach (var p in SiteProducts.In(g))
+                        {
+                            <a class="nav-prod__item @Active(p.Slug)" href="@CulturePath(p.Slug)" aria-current="@Current(p.Slug)">
+                                <strong>@L.ProductName(p)</strong>
+                                <span>@L[$"prod.{p.Key}.for"]</span>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
         </div>
         <div class="lang-switch">
             <a href="@LangHref("en")" class="@(L.Culture == "en" ? "active" : "")">EN</a>
@@ -68,7 +84,8 @@
     // Base paths that have localized routes (/, /fr/<path>, ...). The language
     // switch keeps you on the current page for these; anything else falls back to
     // the localized home so we never link to a non-existent localized route.
-    private static readonly HashSet<string> LocalizedPaths = new() { "", "nails", "restaurants", "coffee", "garage", "privacy", "terms", "tos" };
+    private static readonly HashSet<string> LocalizedPaths =
+        new(new[] { "", "privacy", "terms", "tos" }.Concat(SiteProducts.All.Select(p => p.Slug)));
 
     // The page you're on, without its culture prefix: "/fr/coffee" -> "coffee".
     private string CurrentPage
@@ -81,6 +98,8 @@
             return segs.FirstOrDefault() ?? "";
         }
     }
+
+    private bool OnProduct => SiteProducts.All.Any(p => p.Slug == CurrentPage);
 
     private string? Active(string page) => CurrentPage == page ? "active" : null;
     private string? Current(string page) => CurrentPage == page ? "page" : null;

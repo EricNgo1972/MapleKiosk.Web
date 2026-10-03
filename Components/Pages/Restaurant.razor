@@ -120,7 +120,7 @@
     private string Default => L.Culture == "fr" ? "fr" : "en";
     private string Length(FilmInfo f) => Default == "fr" ? f.FrLength : f.EnLength;
     // Both lengths on the label, so site.js can swap it when the visitor changes language.
-    private static Dictionary<string, object> Len(FilmInfo f) => new() { ["data-len"] = f.EnLength, ["data-len-fr"] = f.FrLength };
+    private static Dictionary<string, object> Len(FilmInfo f) => new() { ["data-len-en"] = f.EnLength, ["data-len-fr"] = f.FrLength };
 
     protected override void OnInitialized()
     {
