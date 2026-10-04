@@ -33,4 +33,13 @@
     <ProjectReference Include="src\MapleShop.UI\MapleShop.UI.csproj" />
   </ItemGroup>
 
+  <!-- App_Data is the local data folder (assistant conversations, see Assistant/ChatLog.cs): never build or
+       publish it — it belongs to the machine it was written on, and the server keeps its own beside the app. -->
+  <ItemGroup>
+    <Content Remove="App_Data\**" />
+    <None Remove="App_Data\**" />
+    <Compile Remove="App_Data\**" />
+    <EmbeddedResource Remove="App_Data\**" />
+  </ItemGroup>
+
 </Project>
