@@ -1,4 +1,5 @@
 using MapleKiosk.Web.Assistant;
+using MapleKiosk.Web.Assistant.Voice;
 using MapleKiosk.Web.Components;
 using MapleKiosk.Web.Onboarding;
 using MapleKiosk.Web.Services;
@@ -66,6 +67,8 @@ builder.Services.AddOnboarding();
 
 // Website assistant: the chat bubble on every public page (Assistant/).
 builder.Services.AddWebsiteAssistant();
+// Its voice agent (Assistant/Voice/, vendored from the platform's relay): admin-only test page /voice-test for now.
+builder.Services.AddWebsiteVoice();
 
 // Store UI (cart + checkout widget). It calls /api/checkout — same origin by
 // default, so BackendBaseUrl is left empty; the API key (if configured) is still
@@ -90,6 +93,9 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found");
 
 app.UseStaticFiles();
+// The voice agent's relay socket (/assistant/voice/ws). The keep-alive is the server's ping; the relay
+// also sends its own every 20 s, under Cloudflare's idle-connection cutoff.
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -126,6 +132,7 @@ app.MapSiteMedia();
 app.MapAppStoreEndpoints();
 app.MapOnboardingEndpoints();
 app.MapWebsiteAssistant();
+app.MapWebsiteVoice();
 app.MapSPCAuthEndpoints();
 
 app.MapRazorComponents<App>()

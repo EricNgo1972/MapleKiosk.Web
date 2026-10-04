@@ -8,10 +8,10 @@ namespace MapleKiosk.Web.Assistant;
 /// The website assistant: <c>POST /assistant/message</c> answers one message from the chat bubble, and
 /// <c>GET /assistant/knowledge.md</c> serves the grounding, for the phone agent's prompt.
 ///
-/// <para>Stateless, unlike the platform's gateway: the visitor's browser keeps the conversation and sends
-/// the recent turns with each message (capped like the gateway's history window), so the site needs no
-/// session store. Same-origin only, and rate-limited per visitor and per day, since every message costs a
-/// model call.</para>
+/// <para>The visitor's browser keeps the conversation and sends the recent turns with each message (capped
+/// like the gateway's history window); every exchange is also recorded in <see cref="ChatLog"/> for the
+/// team (/chats). Same-origin only, and rate-limited per visitor and per day, since every message costs a
+/// model call. The one tool, save_guest_contact, keeps the name and contact a guest chooses to give.</para>
 /// </summary>
 public static class AssistantEndpoints
 {
@@ -26,8 +26,8 @@ public static class AssistantEndpoints
     private const int SitePerDay = 3000;
 
     public sealed record Turn(string Role, string Text);
-    public sealed record MessageRequest(string Text, List<Turn>? History, string? Lang, string? Page);
-    public sealed record MessageReply(string Reply);
+    public sealed record MessageRequest(string Text, List<Turn>? History, string? Lang, string? Page, string? ConversationId);
+    public sealed record MessageReply(string Reply, string? ConversationId = null);
 
     public static IServiceCollection AddWebsiteAssistant(this IServiceCollection services)
     {
@@ -35,6 +35,8 @@ public static class AssistantEndpoints
         services.AddSingleton<SiteKnowledge>();
         services.AddSingleton<IAssistantGrounding>(sp => sp.GetRequiredService<SiteKnowledge>());
         services.AddSingleton<VisitorLimiter>();
+        services.AddSingleton<ChatLog>();
+        services.AddSingleton<GuestContactTool>();
         return services;
     }
 
@@ -51,7 +53,7 @@ public static class AssistantEndpoints
 
     private static async Task<IResult> MessageAsync(
         MessageRequest req, HttpContext http, AssistantLlm llm, IAssistantGrounding grounding,
-        VisitorLimiter limiter, ILoggerFactory loggers, CancellationToken ct)
+        VisitorLimiter limiter, ChatLog chats, GuestContactTool contactTool, ILoggerFactory loggers, CancellationToken ct)
     {
         var log = loggers.CreateLogger("Assistant");
 
@@ -64,39 +66,70 @@ public static class AssistantEndpoints
         if (text.Length > MaxTurnChars) text = text[..MaxTurnChars];
 
         var lang = req.Lang is "fr" or "vi" or "ru" ? req.Lang : "en";
+        var id = ChatLog.IdFor(req.ConversationId);
         if (limiter.OverLimit(Visitor(http), PerMinute, PerDay, SitePerDay))
-            return Results.Ok(new MessageReply(Busy(lang)));
+            return Results.Ok(new MessageReply(Busy(lang), id));
+
+        var page = Path(req.Page);
+        var saidAt = DateTimeOffset.UtcNow;
+        var history = (req.History ?? []).Where(t => !string.IsNullOrWhiteSpace(t.Text)).TakeLast(MaxHistoryMessages).ToList();
+        var conversation = await chats.GetAsync(id, ct);
 
         string? knowledge = null;
         try { knowledge = await grounding.ForCustomerAsync(ConversationChannel.Chat, ct); }
         catch (Exception ex) { log.LogWarning(ex, "Assistant: the grounding could not be read; answering without it."); }
 
         var messages = new List<ChatMessage> { new(ChatRole.System, AssistantPrompt.For(knowledge, ConversationChannel.Chat)) };
-        foreach (var turn in (req.History ?? []).TakeLast(MaxHistoryMessages))
-        {
-            if (string.IsNullOrWhiteSpace(turn.Text)) continue;
+        foreach (var turn in history)
             messages.Add(new ChatMessage(turn.Role == "assistant" ? ChatRole.Assistant : ChatRole.User, Clip(turn.Text)));
-        }
-        // Server-supplied context sits right before the message it explains (as the gateway does).
+        // Server-supplied context sits right before the message it explains (as the gateway does): where the
+        // visitor is, how far the conversation has gone, and whether they already left a contact — the server's
+        // record, so asking for it never rests on the model's memory alone.
         // The demo button is named on screen in the visitor's language, so the reply should name it the same way.
         var demo = Translations.All[lang].TryGetValue("nav.cta", out var cta) ? cta : "Book a demo";
+        var asked = history.Count(t => t.Role == "user") + 1;
         messages.Add(new ChatMessage(ChatRole.System,
             $"The visitor is reading the site in {Language(lang)} and is on the page {Path(req.Page)}. " +
-            $"On their screen the “Book a demo” button reads “{demo}”."));
+            $"On their screen the “Book a demo” button reads “{demo}”. " +
+            $"This is their message number {asked} in this conversation. " +
+            (conversation?.Contact is { } c
+                ? $"They already left their contact ({c.Name}): do not ask for it again."
+                : "They have not left a contact yet.")));
         messages.Add(new ChatMessage(ChatRole.User, text));
 
+        string reply;
         try
         {
             var client = await llm.GetAsync();
-            var response = await client.GetResponseAsync(messages, new ChatOptions { MaxOutputTokens = MaxReplyTokens }, ct);
-            var reply = response.Text?.Trim();
-            return Results.Ok(new MessageReply(string.IsNullOrEmpty(reply) ? Unavailable(lang) : reply));
+            var options = new ChatOptions { MaxOutputTokens = MaxReplyTokens };
+            if (client is not StubChatClient)
+            {
+                options.Tools = [contactTool.For(id, lang, page)];
+                client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 2).Build();
+            }
+            var response = await client.GetResponseAsync(messages, options, ct);
+            reply = response.Text?.Trim() is { Length: > 0 } r ? r : Unavailable(lang);
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             log.LogWarning(ex, "Assistant: the model call failed — returning the unavailable message.");
-            return Results.Ok(new MessageReply(Unavailable(lang)));
+            reply = Unavailable(lang);
         }
+
+        await chats.RecordAsync(id,
+            new ChatLine("user", text, saidAt, page),
+            new ChatLine("assistant", reply, DateTimeOffset.UtcNow, page),
+            lang, http.Request.Headers["CF-IPCountry"].FirstOrDefault(), Device(http.Request), ct);
+
+        return Results.Ok(new MessageReply(reply, id));
+    }
+
+    private static string Device(HttpRequest r)
+    {
+        var ua = r.Headers.UserAgent.ToString();
+        return ua.Contains("Mobi", StringComparison.OrdinalIgnoreCase) ? "Phone"
+             : ua.Contains("iPad", StringComparison.OrdinalIgnoreCase) || ua.Contains("Tablet", StringComparison.OrdinalIgnoreCase) ? "Tablet"
+             : "Computer";
     }
 
     private static string Clip(string text) => text.Length <= MaxTurnChars ? text : text[..MaxTurnChars] + "…";

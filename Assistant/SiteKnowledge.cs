@@ -12,7 +12,7 @@ namespace MapleKiosk.Web.Assistant;
 /// four trades, the AI voice agent), the price book, the pricing pages' wording — so the assistant and the
 /// website cannot disagree. Copy no page shows any more (the old SaaS/on-premise price table, the old FAQ)
 /// is left out on purpose. Facts the site doesn't carry yet (a phone number, hours) are added by the team in
-/// the keyvalue row Assistant/Knowledge (or env ASSISTANT_KNOWLEDGE), read every few minutes.</para>
+/// the keyvalue row Assistant/Knowledge (/chats → Settings; or env ASSISTANT_KNOWLEDGE), read every few minutes.</para>
 /// </summary>
 public sealed class SiteKnowledge : IAssistantGrounding
 {
@@ -47,6 +47,9 @@ public sealed class SiteKnowledge : IAssistantGrounding
             ? Site.Value
             : Site.Value + "\n\n## More facts from the MapleKiosk team (these win over anything above)\n\n" + _extra.Trim();
     }
+
+    /// <summary>Re-read the team's extra facts on the next message (after an admin saves them).</summary>
+    public void Invalidate() => _extra = null;
 
     private static Dictionary<string, string> En => Translations.All["en"];
 

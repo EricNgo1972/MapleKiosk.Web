@@ -1,0 +1,73 @@
+@page "/voice-test"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+@using MapleKiosk.Web.Assistant
+
+@*
+    Hidden admin page (linked from nowhere): talk to the website assistant by voice, to prove the voice relay
+    (Assistant/Voice/) works in a browser before the same relay is put behind a Twilio phone line. Static SSR —
+    wwwroot/js/voice-test.js does the work over /assistant/voice/ws.
+*@
+
+<PageTitle>Voice test — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title">Voice test</span>
+        <a href="/chats" class="btn btn-ghost onb-small adm-top__action">Chats</a>
+    </div>
+</header>
+
+<main class="adm">
+    <div class="container adm__wrap">
+        <section class="vt" data-voice-test data-ready="@(_configured ? "true" : "false")" data-lang="en" data-state="idle">
+            @if (!_configured)
+            {
+                <p class="adm-banner">No Gemini API key yet. Set the Gemini API key in <a href="/chats">/chats</a> → Settings, then reload this page.</p>
+            }
+
+            <div class="vt-langs" role="group" aria-label="Language">
+                @foreach (var (lang, label) in Languages)
+                {
+                    <button type="button" class="wb-chip @(lang == "en" ? "is-on" : "")" data-vt-lang="@lang">@label</button>
+                }
+            </div>
+
+            <div class="vt-stage">
+                <button type="button" class="vt-mic" data-vt-start disabled="@(!_configured)">Start talking</button>
+                <p class="vt-state" data-vt-state aria-live="polite">Ready</p>
+            </div>
+
+            <p class="onb-error vt-error" data-vt-error role="alert" hidden></p>
+
+            <div class="vt-log" data-vt-log aria-live="polite">
+                <p class="onb__muted vt-empty" data-vt-empty>The transcript appears here as you talk.</p>
+            </div>
+
+            <p class="onb__muted vt-note">
+                Uses Gemini Live (@_model, voice @_voice) with the key from /chats → Settings, grounded in the same
+                knowledge as the chat bubble. Each call is recorded on <a href="/chats">/chats</a> as
+                “Voice (browser)” when it ends. Say goodbye, or press Stop, to end it.
+            </p>
+        </section>
+    </div>
+</main>
+
+<script src="js/voice-test.js?v=1"></script>
+
+@code {
+    private static readonly (string Code, string Label)[] Languages =
+        { ("en", "English"), ("fr", "Français"), ("vi", "Tiếng Việt"), ("ru", "Русский") };
+
+    private bool _configured;
+    private string _model = "";
+    private string _voice = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var voice = await AssistantSettings.ResolveVoiceAsync();
+        _configured = !string.IsNullOrWhiteSpace(voice.GeminiApiKey);
+        _model = voice.Model;
+        _voice = voice.Voice;
+    }
+}

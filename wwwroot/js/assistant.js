@@ -1,6 +1,6 @@
 // The website assistant's chat bubble (Components/Sections/AssistantWidget.razor, Assistant/).
-// The conversation lives in this tab (sessionStorage), so it survives page changes and the server keeps
-// nothing; each message posts the recent turns to /assistant/message. Replies are a small, safe subset of
+// The conversation lives in this tab (sessionStorage), so it survives page changes; each message posts the
+// recent turns and the conversation's id (issued by the server) to /assistant/message, which records it for /chats. Replies are a small, safe subset of
 // Markdown, rendered as the platform's web chat does (MK.Chat .../WebChat/WebChatPage.html): escape first,
 // then bold, links, lists, tables, and [[choice]] lines as quick-reply buttons.
 (function () {
@@ -149,9 +149,11 @@
         const res = await fetch('/assistant/message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: text, history: history, lang: lang, page: location.pathname }),
+          body: JSON.stringify({ text: text, history: history, lang: lang, page: location.pathname, conversationId: state.id || null }),
         });
-        reply = res.ok ? (await res.json()).reply : null;
+        const data = res.ok ? await res.json() : null;
+        reply = data && data.reply;
+        if (data && data.conversationId) state.id = data.conversationId;
       } catch (e) { reply = null; }
       typing.remove();
       if (reply) {
@@ -167,7 +169,7 @@
     }
 
     root.querySelectorAll('[data-ast-toggle]').forEach((b) => b.addEventListener('click', () => setOpen(panel.hidden)));
-    root.querySelector('[data-ast-reset]').addEventListener('click', () => { state.turns = []; save(state); render(); input.focus(); });
+    root.querySelector('[data-ast-reset]').addEventListener('click', () => { state.turns = []; state.id = null; save(state); render(); input.focus(); });
     root.querySelectorAll('[data-ast-say]').forEach((b) => b.addEventListener('click', () => send(b.textContent)));
     form.addEventListener('submit', (ev) => { ev.preventDefault(); const t = input.value; input.value = ''; grow(); send(t); });
     input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); form.requestSubmit(); } });
