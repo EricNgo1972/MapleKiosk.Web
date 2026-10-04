@@ -588,7 +588,7 @@ public static class Translations
             ["ast.reset"] = "New conversation",
             ["ast.close"] = "Close",
             ["ast.error"] = "Something went wrong. Please try again, or write to sales@maplekiosk.ca.",
-            ["ast.fine"] = "Answers come from an AI and can be wrong. Exact prices are on the pricing pages.",
+            ["ast.fine"] = "Answers come from an AI and can be wrong. Chats are saved so our team can follow up.",
             // Pricing wording for coffee (falls back to the salon wording, pr.*)
             ["pr.coffee.meta.title"] = "MapleCoffee pricing — build your café's quote | MapleKiosk",
             ["pr.coffee.meta.desc"] = "Pick the setup, software, text messages and marketing your café needs and see the total right away: what you pay once and what you pay each month, in US dollars.",
@@ -1541,7 +1541,7 @@ public static class Translations
             ["ast.reset"] = "Nouvelle conversation",
             ["ast.close"] = "Fermer",
             ["ast.error"] = "Un problème est survenu. Réessayez, ou écrivez à sales@maplekiosk.ca.",
-            ["ast.fine"] = "Les réponses viennent d'une IA et peuvent contenir des erreurs. Les prix exacts sont sur les pages de prix.",
+            ["ast.fine"] = "Les réponses viennent d'une IA et peuvent contenir des erreurs. Les conversations sont conservées pour que notre équipe puisse faire le suivi.",
             // Pricing wording for coffee (falls back to the salon wording, pr.*)
             ["pr.coffee.meta.title"] = "Prix MapleCoffee — composez la soumission de votre café | MapleKiosk",
             ["pr.coffee.meta.desc"] = "Choisissez l'installation, le logiciel, les textos et le marketing dont votre café a besoin et voyez le total tout de suite : ce que vous payez une fois et chaque mois, en dollars américains.",
@@ -2503,7 +2503,7 @@ public static class Translations
             ["ast.reset"] = "Cuộc trò chuyện mới",
             ["ast.close"] = "Đóng",
             ["ast.error"] = "Có lỗi xảy ra. Vui lòng thử lại, hoặc viết tới sales@maplekiosk.ca.",
-            ["ast.fine"] = "Câu trả lời do AI tạo và có thể sai. Giá chính xác có trên trang bảng giá.",
+            ["ast.fine"] = "Câu trả lời do AI tạo và có thể sai. Cuộc trò chuyện được lưu lại để đội ngũ của chúng tôi liên hệ hỗ trợ.",
             // Pricing wording for coffee (falls back to the salon wording, pr.*)
             ["pr.coffee.meta.title"] = "Bảng giá MapleCoffee — tự lên báo giá cho quán | MapleKiosk",
             ["pr.coffee.meta.desc"] = "Chọn gói setup, phần mềm, tin nhắn SMS và marketing quán cần, xem tổng ngay: phần trả một lần và phần trả mỗi tháng, tính bằng đô la Mỹ.",
@@ -3465,7 +3465,7 @@ public static class Translations
             ["ast.reset"] = "Новый разговор",
             ["ast.close"] = "Закрыть",
             ["ast.error"] = "Что-то пошло не так. Попробуйте ещё раз или напишите на sales@maplekiosk.ca.",
-            ["ast.fine"] = "Ответы даёт ИИ, и в них возможны ошибки. Точные цены — на страницах с ценами.",
+            ["ast.fine"] = "Ответы даёт ИИ, и в них возможны ошибки. Разговоры сохраняются, чтобы наша команда могла с вами связаться.",
             // Pricing wording for coffee (falls back to the salon wording, pr.*)
             ["pr.coffee.meta.title"] = "Цены MapleCoffee — соберите смету для кофейни | MapleKiosk",
             ["pr.coffee.meta.desc"] = "Выберите установку, программу, SMS и маркетинг для своей кофейни и сразу увидите итог: разовый платёж и ежемесячный, в долларах США.",

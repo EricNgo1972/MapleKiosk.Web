@@ -7,7 +7,8 @@ namespace MapleKiosk.Web.Services;
 /// Allowlist for the central-OAuth login (oauth.maplekiosk.ca). Two kinds of
 /// account get in:
 /// <list type="bullet">
-/// <item>Team — <c>@spc-technology.com</c> addresses plus the owner account → role <see cref="AdminRole"/>.</item>
+/// <item>Team — <c>@spc-technology.com</c> addresses plus the named accounts in <c>AllowedEmails</c>
+/// (the owner, MagSoft) → role <see cref="AdminRole"/>.</item>
 /// <item>Customers — any email on the onboarding list (added by staff after the
 /// deposit) → role <see cref="CustomerRole"/>, which only reaches their own setup page.</item>
 /// </list>
@@ -21,7 +22,7 @@ public static class AppAuthValidator
     public const string CustomerRole = "Customer";
 
     private const string AllowedDomain = "@spc-technology.com";
-    private static readonly string[] AllowedEmails = { "ericngo0305@gmail.com" };
+    private static readonly string[] AllowedEmails = { "ericngo0305@gmail.com", "magsoft@magsoft.us" };
 
     public static bool IsStaff(string canonicalEmail) =>
         canonicalEmail.EndsWith(AllowedDomain, StringComparison.Ordinal)

@@ -18,7 +18,7 @@
 
         <section class="ast-panel" id="ast-panel" role="dialog" aria-modal="false" aria-labelledby="ast-title" hidden>
             <header class="ast-head">
-                <img src="favicon.png" alt="" width="32" height="32" />
+                <img src="img/assistant-leaf.png" alt="" width="32" height="32" />
                 <div>
                     <h2 id="ast-title">@L["ast.title"]</h2>
                     <p>@L["ast.sub"]</p>
@@ -52,7 +52,7 @@
 
 @code {
     private static readonly HashSet<string> Hidden = new(StringComparer.OrdinalIgnoreCase)
-        { "onboarding", "shop", "signin", "access-denied", "error", "not-found" };
+        { "onboarding", "shop", "signin", "access-denied", "error", "not-found", "chats", "voice-test" };
 
     private bool Show
     {

@@ -38,4 +38,34 @@ public static class KeyValueTable
 
         return "";
     }
+
+    /// <summary>Row <paramref name="partition"/>/<paramref name="row"/> only (no env var); "" when unset or unreachable.</summary>
+    public static async Task<string> ReadAsync(string partition, string row)
+    {
+        var connection = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING");
+        if (string.IsNullOrWhiteSpace(connection)) return "";
+        try
+        {
+            var table = new TableClient(connection, Name);
+            var resp = await table.GetEntityIfExistsAsync<TableEntity>(partition, row);
+            return resp.HasValue && resp.Value!.TryGetValue("Value", out var v) ? v?.ToString()?.Trim() ?? "" : "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    /// <summary>Writes row <paramref name="partition"/>/<paramref name="row"/>; an empty value deletes it. False without storage.</summary>
+    public static async Task<bool> WriteAsync(string partition, string row, string? value)
+    {
+        var connection = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING");
+        if (string.IsNullOrWhiteSpace(connection)) return false;
+        var table = new TableClient(connection, Name);
+        if (string.IsNullOrWhiteSpace(value))
+            await table.DeleteEntityAsync(partition, row);
+        else
+            await table.UpsertEntityAsync(new TableEntity(partition, row) { ["Value"] = value.Trim() }, TableUpdateMode.Replace);
+        return true;
+    }
 }

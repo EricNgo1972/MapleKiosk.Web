@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Site data kept on the server (assistant conversations, ...) — see Assistant/ChatLog.cs
+App_Data/
