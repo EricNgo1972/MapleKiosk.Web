@@ -72,7 +72,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
         sb.AppendLine("- " + Tr("hp.co.title") + " " + Tr("hp.co.text"));
         sb.AppendLine("- Address: 507 Rue Montcalm, Longueuil, Québec J4J 2L3, Canada.");
         sb.AppendLine("- Email: sales@maplekiosk.ca (sales and general questions). Privacy questions: dev@maplekiosk.ca.");
-        sb.AppendLine("- Website: web.maplekiosk.ca, in English, French, Vietnamese and Russian.");
+        sb.AppendLine("- Website: www.maplekiosk.ca, in English, French, Vietnamese and Russian.");
         sb.AppendLine("- Phone: no phone number is published on the website yet. Give the email instead.");
         sb.AppendLine("- To get started: the “Book a demo” button, on every page, opens a short form; the team follows up by email. Or write to sales@maplekiosk.ca.");
         sb.AppendLine("- Free test drives, no sign-up: MapleSPA at https://nails.maplekiosk.ca, MapleCoffee at https://coffee.maplekiosk.ca.");
