@@ -11,6 +11,7 @@ public static class OnboardingServiceCollectionExtensions
     {
         services.AddSingleton<OnboardingStore>();
         services.AddSingleton<OnboardingService>();
+        services.AddSingleton<DesignerPackage>();
         return services;
     }
 
@@ -34,6 +35,30 @@ public static class OnboardingServiceCollectionExtensions
             var stream = await store.OpenFileAsync(token, fileId, ct);
             return stream is null ? Results.NotFound() : Results.File(stream, file.ContentType, file.FileName);
         }).RequireAuthorization();
+
+        // GET /onboarding/admin/{token}/designer-package — staff only: the customer's answers and
+        // files as one zip for the web designer (read-only; see DesignerPackage).
+        app.MapGet("/onboarding/admin/{token}/designer-package", async (string token, OnboardingStore store,
+            DesignerPackage package, CancellationToken ct) =>
+        {
+            var record = await store.FindAsync(token, ct);
+            if (record is null) return Results.NotFound();
+
+            // Built in a temp file (ZipArchive writes synchronously), deleted once sent.
+            var temp = new FileStream(Path.Combine(Path.GetTempPath(), $"mk-designer-{Guid.NewGuid():N}.zip"), FileMode.CreateNew,
+                FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.DeleteOnClose | FileOptions.Asynchronous);
+            try
+            {
+                await package.WriteAsync(record, temp, ct);
+                temp.Position = 0;
+                return Results.File(temp, "application/zip", DesignerPackage.ZipName(record));
+            }
+            catch
+            {
+                await temp.DisposeAsync();
+                throw;
+            }
+        }).RequireAuthorization(p => p.RequireRole(AppAuthValidator.AdminRole));
 
         return app;
     }

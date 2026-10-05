@@ -180,6 +180,7 @@
                 <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="() => SetFinal(c, true)">Lock as final</button>
             }
             <a class="btn btn-ghost onb-small" href="/onboarding/@c.Token" target="_blank">View as customer ↗</a>
+            <a class="btn btn-ghost onb-small" href="/onboarding/admin/@c.Token/designer-package" download data-enhance-nav="false">Designer package ↓</a>
         </div>
 
         @if (c.IsFinal)

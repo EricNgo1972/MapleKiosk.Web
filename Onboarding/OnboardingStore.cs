@@ -179,6 +179,20 @@ public sealed class OnboardingStore
         await _briefs.UpsertEntityAsync(entity, TableUpdateMode.Replace, ct).ConfigureAwait(false);
     }
 
+    /// <summary>The record's stored rows exactly as they are in the tables (every column, the JSON
+    /// strings untouched), so an export keeps answers even if the model no longer has the field.
+    /// Read-only.</summary>
+    public async Task<(IReadOnlyDictionary<string, object?>? Record, IReadOnlyDictionary<string, object?>? Brief)> GetRawRowsAsync(
+        string token, CancellationToken ct = default)
+    {
+        if (_table is null || _briefs is null || !OnboardingRecord.IsValidToken(token)) return (null, null);
+        var record = await _table.GetEntityIfExistsAsync<TableEntity>(OnboardingEntity.Partition, token, cancellationToken: ct).ConfigureAwait(false);
+        var brief = await _briefs.GetEntityIfExistsAsync<TableEntity>(BriefPartition, token, cancellationToken: ct).ConfigureAwait(false);
+        static IReadOnlyDictionary<string, object?>? Copy(NullableResponse<TableEntity> r)
+            => r.HasValue ? r.Value!.ToDictionary(kv => kv.Key, kv => (object?)kv.Value) : null;
+        return (Copy(record), Copy(brief));
+    }
+
     public async Task<OnboardingFile> UploadFileAsync(string token, Stream content, string fileName, string contentType,
         CancellationToken ct = default)
     {
