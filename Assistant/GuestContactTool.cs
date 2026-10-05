@@ -73,7 +73,7 @@ public sealed class GuestContactTool
               {Row("Name", c.Name)}{Row("Phone", c.Phone)}{Row("Email", c.Email)}{Row("Business", c.Business)}{Row("Interested in", c.Interest)}
               {Row("Language", lang)}{Row("Page", page)}
             </table>
-            <p style="font-family:Arial,sans-serif;font-size:14px">Read the whole conversation at <a href="https://www.maplekiosk.ca/chats?c={id}">www.maplekiosk.ca/chats</a> (admin sign-in).</p>
+            <p style="font-family:Arial,sans-serif;font-size:14px">Read the whole conversation at <a href="https://www.maplekiosk.ca/chats/{id}">www.maplekiosk.ca/chats</a> (admin sign-in).</p>
             """;
     }
 

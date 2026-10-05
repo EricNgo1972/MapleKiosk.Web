@@ -14,7 +14,7 @@
 <header class="onb-top">
     <div class="container onb-top__inner">
         <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
-        <span class="adm-title">Chats</span>
+        <span class="adm-title"><a href="/admin" style="color:inherit;text-decoration:none">Admin</a> / Chats</span>
         <button type="button" class="btn btn-ghost onb-small adm-top__action" @onclick="OpenSettings">Settings</button>
     </div>
 </header>
@@ -52,7 +52,7 @@
                 @foreach (var c in Filtered)
                 {
                     <li>
-                        <button type="button" class="adm-row" @onclick="() => Open(c.Id)">
+                        <a class="adm-row" href="/chats/@c.Id">
                             <span class="adm-avatar @(c.Contact is not null ? "cht-avatar--lead" : "")">@Initial(c)</span>
                             <span class="adm-row__main">
                                 <strong>@(c.Contact?.Name ?? "Guest")@(c.Contact?.Business is { } b ? $" · {b}" : "")</strong>
@@ -69,7 +69,7 @@
                                 }
                                 <small>@c.Lang.ToUpperInvariant() · @c.Messages msgs · @Ago(c.LastAt)</small>
                             </span>
-                        </button>
+                        </a>
                     </li>
                 }
             </ul>
@@ -77,48 +77,6 @@
         }
     </div>
 </main>
-
-@* ---- One conversation ---- *@
-@if (_open is { } conv)
-{
-    <div class="adm-scrim" @onclick="Close"></div>
-    <aside class="adm-drawer" role="dialog" aria-label="Conversation">
-        <div class="adm-drawer__head">
-            <div>
-                <h2>@(conv.Contact?.Name ?? "Guest")</h2>
-                <p class="onb__muted">Started @conv.StartedAt.ToLocalTime().ToString("MMM d, h:mm tt") · @Ago(conv.LastAt)@(IsLive(conv) ? " · live" : "")</p>
-            </div>
-            <button type="button" class="ast-icon cht-close" aria-label="Close" @onclick="Close">✕</button>
-        </div>
-
-        @if (conv.Contact is { } who)
-        {
-            <div class="cht-card">
-                <p><strong>@who.Name</strong>@(who.Business is null ? "" : $" · {who.Business}")</p>
-                @if (who.Phone is not null) { <p>📞 <a href="tel:@who.Phone">@who.Phone</a></p> }
-                @if (who.Email is not null) { <p>✉️ <a href="mailto:@who.Email">@who.Email</a></p> }
-                @if (who.Interest is not null) { <p class="onb__muted">Interested in: @who.Interest</p> }
-            </div>
-        }
-
-        <dl class="cht-meta">
-            <div><dt>Language</dt><dd>@conv.Lang.ToUpperInvariant()</dd></div>
-            <div><dt>Came in on</dt><dd>@conv.FirstPage</dd></div>
-            <div><dt>Last page</dt><dd>@conv.LastPage</dd></div>
-            <div><dt>Device</dt><dd>@(conv.Device ?? "—")@(conv.Country is { Length: > 0 } cc ? $" · {cc}" : "")</dd></div>
-        </dl>
-
-        <div class="cht-log">
-            @foreach (var m in _lines)
-            {
-                <div class="cht-line cht-line--@(m.Role == "user" ? "me" : "bot")">
-                    <div class="cht-b">@m.Text</div>
-                    <small>@m.At.ToLocalTime().ToString("h:mm tt")@(m.Role == "user" && m.Page is { } pg ? $" · {pg}" : "")</small>
-                </div>
-            }
-        </div>
-    </aside>
-}
 
 @* ---- Settings: the assistant's model, the voice agent's Gemini key, the team's extra facts ---- *@
 @if (_settings)
@@ -212,9 +170,6 @@
     private string _query = "";
     private string _filter = "all";
 
-    private ChatConversation? _open;
-    private List<ChatLine> _lines = new();
-
     private PeriodicTimer? _timer;
     private CancellationTokenSource _cts = new();
 
@@ -236,10 +191,10 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Old links (the lead email) say /chats?c={id}: send them to the conversation's page.
+        var id = System.Web.HttpUtility.ParseQueryString(new Uri(Nav.Uri).Query)["c"];
+        if (!string.IsNullOrWhiteSpace(id)) { Nav.NavigateTo($"/chats/{Uri.EscapeDataString(id)}", replace: true); return; }
         await LoadAsync();
-        var q = new Uri(Nav.Uri).Query;
-        var id = System.Web.HttpUtility.ParseQueryString(q)["c"];
-        if (!string.IsNullOrWhiteSpace(id)) await Open(id);
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -249,7 +204,7 @@
         _ = TickAsync(_cts.Token);
     }
 
-    // Live: reload the list, and the open conversation, every few seconds while the page is open.
+    // Live: reload the list every few seconds while the page is open.
     private async Task TickAsync(CancellationToken ct)
     {
         try
@@ -258,11 +213,6 @@
             {
                 if (_settings) continue;
                 await LoadAsync();
-                if (_open is not null)
-                {
-                    _open = _list.FirstOrDefault(c => c.Id == _open.Id) ?? _open;
-                    _lines = await Log.MessagesAsync(_open.Id, ct);
-                }
                 await InvokeAsync(StateHasChanged);
             }
         }
@@ -275,18 +225,6 @@
         try { _list = await Log.ListAsync(30); }
         catch { /* keep the last list; storage hiccups shouldn't blank the page */ }
         _loading = false;
-    }
-
-    private async Task Open(string id)
-    {
-        _open = _list.FirstOrDefault(c => c.Id == id) ?? await Log.GetAsync(id);
-        _lines = _open is null ? new() : await Log.MessagesAsync(id);
-    }
-
-    private void Close()
-    {
-        _open = null;
-        _lines = new();
     }
 
     private async Task OpenSettings()

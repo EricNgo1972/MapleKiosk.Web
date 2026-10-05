@@ -5,6 +5,7 @@ using MapleKiosk.Web.Onboarding;
 using MapleKiosk.Web.Services;
 using MapleKiosk.Web.Shop;
 using MapleShop.UI;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
 using SPC.Infrastructure.Auth;
 
@@ -35,6 +36,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<LocalizationService>();
 builder.Services.AddSingleton<DemoLinkStore>();
+builder.Services.AddSingleton<UserDirectory>();
 builder.Services.AddSingleton<TrialSignupService>();
 builder.Services.AddSingleton<EmailService>();
 
@@ -52,7 +54,27 @@ builder.Services.AddSPCAuth(builder.Configuration);
 builder.Services.AddScoped<AuthEmailValidator>(sp =>
 {
     var onboarding = sp.GetRequiredService<OnboardingStore>();
-    return email => AppAuthValidator.ValidateAsync(email, onboarding);
+    var users = sp.GetRequiredService<UserDirectory>();
+    return email => AppAuthValidator.ValidateAsync(email, onboarding, users);
+});
+// The Admin role is granted at sign-in and the cookie lasts 30 days: re-check it on each request
+// so someone taken off the team on /admin/users loses admin at once (cached list, no extra cost).
+builder.Services.PostConfigure<Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions>(
+    Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme, o =>
+{
+    var inner = o.Events.OnValidatePrincipal;
+    o.Events.OnValidatePrincipal = async ctx =>
+    {
+        await inner(ctx);
+        if (ctx.Principal?.IsInRole(AppAuthValidator.AdminRole) != true) return;
+        var email = OnboardingRecord.CanonicalEmail(ctx.Principal.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value);
+        var users = ctx.HttpContext.RequestServices.GetRequiredService<UserDirectory>();
+        if (!await AppAuthValidator.IsStaffAsync(email, users))
+        {
+            ctx.RejectPrincipal();
+            await ctx.HttpContext.SignOutAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
+        }
+    };
 });
 // OAuth-only — no-op password validator so /signin/password can't throw.
 builder.Services.AddScoped<AuthPasswordValidator>(_ => (_, _) => Task.FromResult<AuthPasswordResult?>(null));

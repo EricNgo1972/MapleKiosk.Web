@@ -48,17 +48,9 @@
                     <div class="user-pop" data-user-pop>
                         @if (context.User.IsInRole(AppAuthValidator.AdminRole))
                         {
-                            <a class="user-pop__item" href="/shop/admin">
-                                <span class="user-pop__icon" aria-hidden="true">🗂️</span>
-                                <span>@L["nav.catalog"]</span>
-                            </a>
-                            <a class="user-pop__item" href="/onboarding/admin">
-                                <span class="user-pop__icon" aria-hidden="true">📋</span>
-                                <span>Onboarding</span>
-                            </a>
-                            <a class="user-pop__item" href="/chats">
-                                <span class="user-pop__icon" aria-hidden="true">💬</span>
-                                <span>Chats</span>
+                            <a class="user-pop__item" href="/admin">
+                                <span class="user-pop__icon" aria-hidden="true">⚙️</span>
+                                <span>Admin</span>
                             </a>
                         }
                         else

@@ -881,6 +881,7 @@ body.modal-open{overflow:hidden}
 .adm-list li+li{border-top:1px solid var(--border)}
 .adm-row{display:flex;align-items:center;gap:14px;width:100%;padding:14px 18px;border:none;background:none;font:inherit;color:var(--text);text-align:left;cursor:pointer}
 .adm-row:hover{background:var(--bg)}
+a.adm-row{text-decoration:none}
 .adm-avatar{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--surface-2);font-weight:700;color:var(--red);flex:none}
 .adm-row__main{display:flex;flex-direction:column;min-width:0;flex:1}
 .adm-row__main strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
