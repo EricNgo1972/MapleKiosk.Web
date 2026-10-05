@@ -226,7 +226,7 @@
     if (!root || root.dataset.quoteWired) return;
     root.dataset.quoteWired = '1';
     const locale = root.dataset.locale || 'en-US';
-    const fmt = new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol' });
+    const fmt = new Intl.NumberFormat(locale, { style: 'currency', currency: 'CAD', currencyDisplay: 'narrowSymbol' });
     const money = (n) => fmt.format(Math.round(n * 100) / 100);
     const set = (sel, text) => document.querySelectorAll(sel).forEach((el) => { el.textContent = text; });
     const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -260,12 +260,14 @@
       let once = 0, month = 0;
       const picked = [];
       lines.replaceChildren();
+      // Monthly items make the monthly bill; yearly ones are listed per year; all of it is due first.
       root.querySelectorAll('input[data-price]:checked').forEach((i) => {
-        const price = +i.dataset.price, monthly = i.dataset.period === 'month';
-        if (monthly) month += price; else once += price;
-        picked.push({ name: i.dataset.name, detail: i.dataset.detail || '', price: price, monthly: monthly });
+        const price = +i.dataset.price, period = i.dataset.period, monthly = period !== 'once';
+        const per = period === 'month' ? ' ' + root.dataset.perMonth : period === 'year' ? ' ' + root.dataset.perYear : '';
+        if (period === 'month') month += price; else once += price;
+        picked.push({ name: i.dataset.name, detail: i.dataset.detail || '', price: price, monthly: monthly, period: period, per: per });
         const li = el('li');
-        li.append(el('span', null, i.dataset.name), el('span', null, money(price) + (monthly ? ' ' + root.dataset.perMonth : '')));
+        li.append(el('span', null, i.dataset.name), el('span', null, money(price) + per));
         lines.append(li);
       });
       if (!picked.length) lines.append(el('li', 'pr-bill__empty', root.dataset.empty));
@@ -289,8 +291,8 @@
           d.append(el('strong', null, p.name));
           if (p.detail) d.append(el('small', null, p.detail));
           tr.append(el('td', 'pr-doc__n', String(++n)), d,
-            el('td', null, monthly ? doc.dataset.monthly : doc.dataset.once),
-            el('td', 'pr-doc__amt', money(p.price) + (monthly ? ' ' + root.dataset.perMonth : '')));
+            el('td', null, p.period === 'month' ? doc.dataset.monthly : p.period === 'year' ? root.dataset.perYear : doc.dataset.once),
+            el('td', 'pr-doc__amt', money(p.price) + p.per));
           body.append(tr);
         });
       });
@@ -301,11 +303,54 @@
       docSet('month', money(month) + ' ' + root.dataset.perMonth);
       docSet('first', money(once + month));
     }
+    // The picks are remembered per product, so coming back from Stripe without paying (or later)
+    // finds the same quote.
+    const buy = root.querySelector('[data-quote-buy-wrap]');
+    const picksKey = 'mk.quoteItems.' + (buy ? buy.dataset.product : '');
+    try {
+      const was = JSON.parse(localStorage.getItem(picksKey) || 'null');
+      if (Array.isArray(was)) root.querySelectorAll('input[data-price]').forEach((i) => { i.checked = was.includes(i.value); });
+      // A pick-one group with nothing remembered falls back to its "Not now".
+      root.querySelectorAll('.pr-none input').forEach((n) => {
+        n.checked = !root.querySelector('input[name="' + n.name + '"][data-price]:checked');
+      });
+    } catch (e) { }
+    // What's ticked, as catalog SKUs.
+    const picks = () => Array.from(root.querySelectorAll('input[data-price]:checked')).map((i) => i.value);
+    root.addEventListener('change', () => { try { localStorage.setItem(picksKey, JSON.stringify(picks())); } catch (e) { } });
+
     root.addEventListener('change', update);
     update();
 
     const print = root.querySelector('[data-quote-print]');
     if (print) print.addEventListener('click', () => window.print());
+
+    // Buy online: send the picks (never prices; the server prices them from the catalog) and go to
+    // Stripe. Setup is paid once; monthly plans become a subscription.
+    if (buy) {
+      const btn = buy.querySelector('[data-quote-buy]');
+      const msg = buy.querySelector('[data-quote-msg]');
+      const say = (t) => { msg.textContent = t || ''; };
+      btn.addEventListener('click', async () => {
+        const p = picks();
+        if (!p.length) { say(buy.dataset.need); return; }
+        const v = {};
+        cust.forEach((i) => { v[i.dataset.cust] = i.value.trim(); });
+        const email = root.querySelector('[data-cust="email"]');
+        if (!v.email || (email && !email.checkValidity())) { say(buy.dataset.email); if (email) email.focus(); return; }
+        btn.disabled = true; say(buy.dataset.wait);
+        try {
+          const r = await fetch('/api/checkout/quote', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product: buy.dataset.product, culture: buy.dataset.culture, items: p,
+              company: v.salon, name: v.name, phone: v.phone, email: v.email })
+          });
+          const res = await r.json().catch(() => ({}));
+          if (r.ok && res.stripeUrl) { location.href = res.stripeUrl; return; }
+        } catch (e) { }
+        btn.disabled = false; say(buy.dataset.fail);
+      });
+    }
 
     // The phone bar is for getting to the bill; hide it once the bill is on screen.
     const bar = document.querySelector('[data-quote-bar]');

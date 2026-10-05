@@ -10,4 +10,9 @@ public sealed record OrderPaidNotification(
     string Method,
     string? CustomerEmail,
     string? ProviderTxnId,
-    DateTimeOffset PaidAt);
+    DateTimeOffset PaidAt,
+    IReadOnlyList<Orders.AppOrderLine>? Lines = null,
+    string? Company = null,
+    string? CustomerName = null,
+    string? CustomerPhone = null,
+    string? Source = null);

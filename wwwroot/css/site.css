@@ -1117,6 +1117,10 @@ html.nav-busy body{cursor:progress}
 .pr-bill__first dt{color:var(--g-text)!important;font-weight:600}
 .pr-bill__first dd{font-family:'Playfair Display',Georgia,serif;font-size:30px;color:var(--g-accent)!important}
 .pr-bill__fine{margin-top:14px;font-size:12px;color:var(--g-muted)}
+.pr-bill__buy-note{margin:0;font-size:12px;color:var(--g-muted);line-height:1.45}
+.pr-bill__msg{margin:0;font-size:13px;color:#ffd27a;min-height:0}
+.pr-bill__msg:empty{display:none}
+.pr-cust label small{color:var(--g-muted);font-size:11px}
 .pr-bill__actions{display:flex;flex-direction:column;gap:10px;margin-top:20px}
 .pr-bill__actions .btn-ghost{color:var(--g-text);border-color:var(--g-line)}
 .pr-bill__actions .btn-ghost:hover{border-color:var(--g-text);color:#fff}

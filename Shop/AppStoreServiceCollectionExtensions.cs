@@ -29,9 +29,11 @@ public static class AppStoreServiceCollectionExtensions
         services.AddSingleton<IAppCatalog>(sp => sp.GetRequiredService<CatalogStore>());
         services.AddSingleton<BlobImageUploader>();
         services.AddSingleton<AppOrderService>();
+        services.AddSingleton<StripeProductSync>();
         services.AddSingleton<StripeCheckoutCreator>();
         services.AddSingleton<VietQrCreator>();
         services.AddSingleton<CheckoutService>();
+        services.AddSingleton<QuoteCheckoutService>();
         services.AddSingleton<IBankConfirmationSource, SepayConfirmationSource>();
 
         services.AddSingleton<IOrderPaidSink, OutboundWebhookNotifier>();

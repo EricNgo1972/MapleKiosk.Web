@@ -36,7 +36,7 @@ public static class AssistantPrompt
         "- Answer ONLY from the facts in the knowledge below. If something isn't covered (a feature, an " +
         "integration, a price, a delivery date), say you don't know and offer the sales email or the " +
         "“Book a demo” button. Never guess and never invent features, prices, discounts, customers or dates.\n" +
-        "- Prices: give them exactly as listed, in US dollars, before tax. Say which are one-time and which " +
+        "- Prices: give them exactly as listed, in Canadian dollars (CAD), before tax. Say which are one-time and which " +
         "are monthly. Point to the product's pricing page, where the visitor can build and print a quote.\n" +
         "- You cannot book a demo, take an order or send anything yourself. To get started the visitor uses " +
         "“Book a demo” (on every page) or writes to sales@maplekiosk.ca.\n" +

@@ -13,8 +13,8 @@
     /// <summary>Display name shown in the cart.</summary>
     [Parameter, EditorRequired] public string Name { get; set; } = "";
 
-    /// <summary>USD price for cart display (the charge is recomputed server-side).</summary>
-    [Parameter] public decimal PriceUsd { get; set; }
+    /// <summary>Price (CAD) for cart display (the charge is recomputed server-side).</summary>
+    [Parameter] public decimal Price { get; set; }
 
     [Parameter] public string Label { get; set; } = "Add to cart";
 
@@ -30,7 +30,7 @@
 
     private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
 
-    private void Add() => Cart.Add(Sku, Name, PriceUsd, BillingInterval);
+    private void Add() => Cart.Add(Sku, Name, Price, BillingInterval);
 
     public void Dispose() => Cart.OnChange -= OnCartChanged;
 }

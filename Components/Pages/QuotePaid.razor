@@ -1,0 +1,62 @@
+@page "/quote/paid"
+@page "/fr/quote/paid"
+@page "/vi/quote/paid"
+@page "/ru/quote/paid"
+@using MapleKiosk.Web.Shop.Orders
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject AppOrderService Orders
+
+@* Where Stripe sends a guest back after paying for a quote (QuoteCheckoutService). The webhook is
+   what marks the order Paid; it usually lands before the redirect, but the page reads well either way. *@
+
+<PageTitle>@L["pq.title"] — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<NavBar ShowCta="false" />
+
+<main class="lp">
+    <section class="section">
+        <div class="container page-msg">
+            <div class="trial__success-icon">✓</div>
+            <h1>@L["pq.title"]</h1>
+            <p>@L["pq.body"]</p>
+            @if (_order is not null)
+            {
+                <p>@L["pq.ref"] <strong>@_order.OrderRef</strong></p>
+            }
+            <p>@L["pq.next"]</p>
+            <div class="lp-cta__actions">
+                <a class="btn btn-primary" href="@L.Path(L.Culture)">@L["ty.cta"]</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<Footer />
+
+@code {
+    [SupplyParameterFromQuery(Name = "ref")] public string? Ref { get; set; }
+
+    private AppOrder? _order;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+
+        // Only quote orders, so the page can't be used to look up app-store orders.
+        // Refs are "MK" + digits + hex; anything else never reaches the table query.
+        if (!string.IsNullOrWhiteSpace(Ref) && Ref.Length <= 32 && Ref.All(char.IsAsciiLetterOrDigit))
+        {
+            try
+            {
+                var order = await Orders.GetAsync(Ref);
+                if (order?.Source?.StartsWith("quote:", StringComparison.Ordinal) == true) _order = order;
+            }
+            catch { /* storage hiccup: the thank-you still stands */ }
+        }
+    }
+}

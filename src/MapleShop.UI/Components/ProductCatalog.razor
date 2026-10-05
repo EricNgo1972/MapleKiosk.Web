@@ -41,11 +41,11 @@
                         </ul>
                     }
                     <div class="mshop-card__price">
-                        $@p.PriceUsd.ToString("0.##") <small>USD@p.PriceSuffix</small>
+                        $@p.Price.ToString("0.##") <small>CAD@p.PriceSuffix</small>
                     </div>
                     <button class="mshop-btn mshop-btn--primary"
                             disabled="@Cart.Contains(p.Sku)"
-                            @onclick="() => Cart.Add(p.Sku, p.Name, p.PriceUsd, p.BillingInterval)">
+                            @onclick="() => Cart.Add(p.Sku, p.Name, p.Price, p.BillingInterval)">
                         @(Cart.Contains(p.Sku) ? "In cart ✓" : p.IsRecurring ? "Subscribe" : "Add to cart")
                     </button>
                 </div>

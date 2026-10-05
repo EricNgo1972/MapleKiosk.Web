@@ -34,6 +34,14 @@ public static class AppStoreEndpoints
             return status is null ? Results.NotFound() : Results.Ok(status);
         });
 
+        // "Buy online" on a /{product}/pricing quote: public (guests), same-origin, no API key.
+        // Prices are re-resolved from the catalog; the browser only sends the SKUs picked.
+        group.MapPost("/quote", async (QuoteCheckoutRequest req, HttpRequest http, QuoteCheckoutService quotes, CancellationToken ct) =>
+        {
+            var result = await quotes.CreateAsync(req, $"{http.Scheme}://{http.Host}{http.PathBase}", ct);
+            return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+        });
+
         var hooks = group.MapGroup("/webhooks");
         hooks.MapPost("/stripe", HandleStripeWebhookAsync);
         hooks.MapPost("/bank", HandleBankWebhookAsync);

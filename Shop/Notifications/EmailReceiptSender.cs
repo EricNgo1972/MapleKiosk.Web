@@ -25,19 +25,19 @@ public sealed class EmailReceiptSender : IOrderPaidSink
     public async Task OnOrderPaidAsync(OrderPaidNotification n, CancellationToken ct = default)
     {
         var inbox = await _config.GetOrderInboxAsync().ConfigureAwait(false);
-        var html = BuildHtml(n);
         var subject = $"Your MapleKiosk order {n.OrderRef}";
 
         if (!string.IsNullOrWhiteSpace(n.CustomerEmail))
-            await _email.SendAsync(n.CustomerEmail!, subject, html).ConfigureAwait(false);
+            await _email.SendAsync(n.CustomerEmail!, subject, BuildHtml(n, forTeam: false)).ConfigureAwait(false);
 
+        // The team's copy also says who bought, so sales can call to schedule the setup.
         if (!string.IsNullOrWhiteSpace(inbox))
-            await _email.SendAsync(inbox!, $"[order] {subject}", html).ConfigureAwait(false);
+            await _email.SendAsync(inbox!, $"[order] {subject}", BuildHtml(n, forTeam: true)).ConfigureAwait(false);
 
         _logger.LogInformation("Order receipt emailed for {OrderRef}.", n.OrderRef);
     }
 
-    private static string BuildHtml(OrderPaidNotification n)
+    private static string BuildHtml(OrderPaidNotification n, bool forTeam)
     {
         var sb = new StringBuilder();
         sb.Append("<div style='font-family:Arial,Helvetica,sans-serif;color:#111'>");
@@ -48,7 +48,29 @@ public sealed class EmailReceiptSender : IOrderPaidSink
         sb.Append(Row("Amount", $"{n.Total:0.##} {n.Currency}"));
         sb.Append(Row("Payment method", n.Method));
         sb.Append(Row("Date", n.PaidAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")));
-        sb.Append("</table><p style='color:#666;margin-top:24px'>MapleKiosk</p></div>");
+        if (forTeam)
+        {
+            foreach (var (label, value) in new[] { ("Source", n.Source), ("Business", n.Company), ("Contact", n.CustomerName),
+                                                   ("Phone", n.CustomerPhone), ("Email", n.CustomerEmail) })
+                if (!string.IsNullOrWhiteSpace(value)) sb.Append(Row(label, value!));
+        }
+        sb.Append("</table>");
+
+        // What was bought: one-time items, then the monthly plans that now renew every month.
+        if (n.Lines is { Count: > 0 })
+        {
+            sb.Append("<table style='border-collapse:collapse;margin-top:16px'>");
+            foreach (var l in n.Lines)
+            {
+                // App-store lines carry no cadence of their own (the order's applies); quote lines do.
+                var cadence = l.Interval switch { null => "", Catalog.BillingIntervals.OneTime => " (one-time)", _ => " / month" };
+                sb.Append(Row(l.Name, $"{l.LineTotal:0.00} {n.Currency}{cadence}"));
+            }
+            sb.Append("</table>");
+            if (n.Lines.Any(l => Catalog.BillingIntervals.IsRecurring(l.Interval ?? "")))
+                sb.Append("<p>Your monthly plans renew automatically each month on the same card. No long-term contract.</p>");
+        }
+        sb.Append("<p style='color:#666;margin-top:24px'>MapleKiosk</p></div>");
         return sb.ToString();
     }
 

@@ -1,5 +1,7 @@
+@using MapleKiosk.Web.Shop.Catalog
 @inject LocalizationService L
 @inject NavigationManager Nav
+@inject CatalogStore Catalog
 
 @* The quote builder behind every /{product}/pricing page: pick setup, software, SMS and marketing,
    and the bill adds up (site.js, data-quote); printing gives a one-page quote. *@
@@ -68,121 +70,93 @@
          (data-period); site.js adds up whatever is ticked into the bill on the right. -->
     <section class="pr-build" id="quote">
         <div class="container pr-build__grid" data-quote data-locale="@Locale"
-             data-per-month="@T("month")" data-empty="@T("bill.empty")">
+             data-per-month="@T("month")" data-per-year="@T("year")" data-empty="@T("bill.empty")">
 
             <div class="pr-options">
 
-                <div class="pr-group" role="group" aria-labelledby="pr-g1">
-                    <h2 class="gp-h2 pr-group__title" id="pr-g1">@T("setup.title")</h2>
-                    <p class="pr-group__sub">@T("setup.sub")</p>
-                    <div class="pr-cards pr-cards--3">
-                        @foreach (var s in _setup)
+                @* One group per quote category of the catalog (/shop/admin), in its order: pick-one categories
+                   are radios with "Not now", the others checkboxes. Wording comes from the translations
+                   (pr.{category}.{key}.*) when the site has it, else from the catalog item itself. *@
+                @foreach (var (cat, items) in _quote)
+                {
+                    var ck = cat.Key;
+                    <div class="pr-group" role="group" aria-labelledby="pr-g-@ck">
+                        <h2 class="gp-h2 pr-group__title" id="pr-g-@ck">@(Tx($"{ck}.title") ?? cat.Name)</h2>
+                        @if (Tx($"{ck}.sub") is { } sub)
                         {
-                            <label class="pr-card">
-                                <input type="checkbox" name="setup" value="@s.Key"
-                                       data-price="@Raw(s.Price)" data-period="once" data-name="@T($"setup.{s.Key}.t")" data-detail="@T($"setup.{s.Key}.d1")" />
-                                <span class="pr-card__head">
-                                    <span class="pr-card__name">@T($"setup.{s.Key}.t")</span>
-                                    <span class="pr-card__price"><span data-money="@Raw(s.Price)">@Money(s.Price)</span> <small>@T("once")</small></span>
-                                </span>
-                                <ul class="pr-card__list">
-                                    @for (var i = 1; i <= s.Points; i++)
+                            <p class="pr-group__sub">@sub</p>
+                        }
+                        <div class="pr-cards @(items.Count == 2 ? "pr-cards--2" : "pr-cards--3")">
+                            @foreach (var i in items)
+                            {
+                                var k = i.CopyKey;
+                                var points = Points(ck, k);
+                                var goal = Tx($"{ck}.{k}.goal") ?? Tx($"{ck}.{k}.d") ?? (points.Count == 0 ? i.Description : null);
+                                <label class="pr-card @(i.Recommended ? "pr-card--rec" : null)">
+                                    <input type="@(cat.PickOne ? "radio" : "checkbox")" name="@ck" value="@i.Sku"
+                                           data-price="@Raw(i.Price)" data-period="@Period(i)" data-name="@ItemName(ck, i)"
+                                           data-detail="@(goal ?? points.FirstOrDefault() ?? i.Description)" />
+                                    @if (i.Recommended)
                                     {
-                                        <li>@T($"setup.{s.Key}.d{i}")</li>
+                                        <span class="pr-card__badge">@T("rec")</span>
                                     }
-                                </ul>
-                            </label>
-                        }
-                    </div>
-                </div>
-
-                <div class="pr-group" role="group" aria-labelledby="pr-g2">
-                    <h2 class="gp-h2 pr-group__title" id="pr-g2">@T("soft.title")</h2>
-                    <p class="pr-group__sub">@T("soft.sub")</p>
-                    <div class="pr-cards pr-cards--2">
-                        @foreach (var p in _software)
-                        {
-                            <label class="pr-card @(p.Recommended ? "pr-card--rec" : null)">
-                                <input type="radio" name="soft" value="@p.Key"
-                                       data-price="@Raw(p.Price)" data-period="month" data-name="@T($"soft.{p.Key}.t")" data-detail="@T($"soft.{p.Key}.goal")" />
-                                @if (p.Recommended)
-                                {
-                                    <span class="pr-card__badge">@T("rec")</span>
-                                }
-                                <span class="pr-card__head">
-                                    <span class="pr-card__name">@T($"soft.{p.Key}.t")</span>
-                                    <span class="pr-card__price"><span data-money="@Raw(p.Price)">@Money(p.Price)</span> <small>@T("month")</small></span>
-                                </span>
-                                <span class="pr-card__goal">@T($"soft.{p.Key}.goal")</span>
-                                <ul class="pr-card__list pr-card__list--check">
-                                    @for (var f = 1; f <= SoftwareFeatures; f++)
+                                    <span class="pr-card__head">
+                                        <span class="pr-card__name">@ItemName(ck, i)</span>
+                                        <span class="pr-card__price"><span data-money="@Raw(i.Price)">@Money(i.Price)</span> <small>@Per(i)</small></span>
+                                    </span>
+                                    @if (goal is not null)
                                     {
-                                        var has = f <= p.Features;
-                                        <li class="@(has ? null : "is-off")">
-                                            <span class="visually-hidden">@T(has ? "inc" : "notinc"):</span>
-                                            @T($"soft.f{f}")
-                                        </li>
+                                        <span class="pr-card__goal">@goal</span>
                                     }
-                                </ul>
-                            </label>
-                        }
-                    </div>
-                    <QuoteNone Group="soft" />
-                </div>
-
-                <div class="pr-group" role="group" aria-labelledby="pr-g3">
-                    <h2 class="gp-h2 pr-group__title" id="pr-g3">@T("sms.title")</h2>
-                    <p class="pr-group__sub">@T("sms.sub")</p>
-                    <div class="pr-cards pr-cards--3">
-                        @foreach (var s in _sms)
-                        {
-                            <label class="pr-card">
-                                <input type="radio" name="sms" value="@s.Key"
-                                       data-price="@Raw(s.Price)" data-period="month" data-name="@T($"sms.{s.Key}.t")" data-detail="@T($"sms.{s.Key}.d")" />
-                                <span class="pr-card__head">
-                                    <span class="pr-card__name">@T($"sms.{s.Key}.t")</span>
-                                    <span class="pr-card__price"><span data-money="@Raw(s.Price)">@Money(s.Price)</span> <small>@T("month")</small></span>
-                                </span>
-                                <span class="pr-card__goal">@T($"sms.{s.Key}.d")</span>
-                            </label>
-                        }
-                    </div>
-                    <p class="pr-group__note">@T("sms.over")</p>
-                    <QuoteNone Group="sms" />
-                </div>
-
-                <div class="pr-group" role="group" aria-labelledby="pr-g4">
-                    <h2 class="gp-h2 pr-group__title" id="pr-g4">@T("mkt.title")</h2>
-                    <p class="pr-group__sub">@T("mkt.sub")</p>
-                    <div class="pr-cards pr-cards--3">
-                        @foreach (var m in _marketing)
-                        {
-                            <label class="pr-card @(m.Recommended ? "pr-card--rec" : null)">
-                                <input type="radio" name="mkt" value="@m.Key"
-                                       data-price="@Raw(m.Price)" data-period="month" data-name="@T($"mkt.{m.Key}.t")" data-detail="@T($"mkt.{m.Key}.goal")" />
-                                @if (m.Recommended)
-                                {
-                                    <span class="pr-card__badge">@T("rec")</span>
-                                }
-                                <span class="pr-card__head">
-                                    <span class="pr-card__name">@T($"mkt.{m.Key}.t")</span>
-                                    <span class="pr-card__price"><span data-money="@Raw(m.Price)">@Money(m.Price)</span> <small>@T("month")</small></span>
-                                </span>
-                                <span class="pr-card__goal">@T($"mkt.{m.Key}.goal")</span>
-                                <dl class="pr-card__facts">
-                                    @foreach (var fact in MarketingFacts)
+                                    @if (points.Count > 0)
                                     {
-                                        <div>
-                                            <dt>@T($"mkt.l.{fact}")</dt>
-                                            <dd>@T($"mkt.{m.Key}.{fact}")</dd>
-                                        </div>
+                                        <ul class="pr-card__list">
+                                            @foreach (var pt in points) { <li>@pt</li> }
+                                        </ul>
                                     }
-                                </dl>
-                            </label>
+                                    else if (Features(ck) is { Count: > 0 } features)
+                                    {
+                                        @* The category's shared feature list (pr.soft.f1..): ticked up to what this item includes. *@
+                                        var n = int.TryParse(Tx($"{ck}.{k}.n"), out var inc) ? inc : features.Count;
+                                        <ul class="pr-card__list pr-card__list--check">
+                                            @for (var f = 0; f < features.Count; f++)
+                                            {
+                                                var has = f < n;
+                                                <li class="@(has ? null : "is-off")">
+                                                    <span class="visually-hidden">@T(has ? "inc" : "notinc"):</span>
+                                                    @features[f]
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else if (i.Features.Count > 0)
+                                    {
+                                        <ul class="pr-card__list">
+                                            @foreach (var f in i.Features) { <li>@f</li> }
+                                        </ul>
+                                    }
+                                    @if (Facts(ck, k) is { Count: > 0 } facts)
+                                    {
+                                        <dl class="pr-card__facts">
+                                            @foreach (var (label, value) in facts)
+                                            {
+                                                <div><dt>@label</dt><dd>@value</dd></div>
+                                            }
+                                        </dl>
+                                    }
+                                </label>
+                            }
+                        </div>
+                        @if (Tx($"{ck}.over") is { } over)
+                        {
+                            <p class="pr-group__note">@over</p>
+                        }
+                        @if (cat.PickOne)
+                        {
+                            <QuoteNone Group="@ck" />
                         }
                     </div>
-                    <QuoteNone Group="mkt" />
-                </div>
+                }
 
                 <section class="pr-group pr-pay" aria-labelledby="pr-pay-title">
                     <h2 class="gp-h2 pr-group__title" id="pr-pay-title">@T("pay.title")</h2>
@@ -221,8 +195,15 @@
                     <label><span>@T("doc.salon")</span><input type="text" data-cust="salon" autocomplete="organization" maxlength="80" /></label>
                     <label><span>@T("doc.contact")</span><input type="text" data-cust="name" autocomplete="name" maxlength="80" /></label>
                     <label><span>@T("doc.phone")</span><input type="tel" data-cust="phone" autocomplete="tel" maxlength="40" /></label>
+                    <label><span>@T("doc.email") <small>@T("cust.email.d")</small></span><input type="email" data-cust="email" autocomplete="email" maxlength="120" /></label>
                 </div>
-                <div class="pr-bill__actions">
+                @* Buy online: the picks go to /api/checkout/quote, which prices them again and opens Stripe
+                   (setup paid once, monthly plans as a subscription). *@
+                <div class="pr-bill__actions" data-quote-buy-wrap data-product="@Slug" data-culture="@L.Culture"
+                     data-need="@T("buy.need")" data-email="@T("buy.email")" data-fail="@T("buy.fail")" data-wait="@T("buy.wait")">
+                    <button type="button" class="btn btn-primary" data-quote-buy>@T("buy.btn")</button>
+                    <p class="pr-bill__buy-note">@T("buy.d")</p>
+                    <p class="pr-bill__msg" data-quote-msg role="status" aria-live="polite">@(Cancelled ? T("buy.cancelled") : null)</p>
                     <button type="button" class="btn btn-ghost" data-quote-print>@T("bill.print")</button>
                 </div>
             </aside>
@@ -281,6 +262,7 @@
                     <div><dt>@T("doc.salon")</dt><dd data-doc="salon"></dd></div>
                     <div><dt>@T("doc.contact")</dt><dd data-doc="name"></dd></div>
                     <div><dt>@T("doc.phone")</dt><dd data-doc="phone"></dd></div>
+                    <div><dt>@T("doc.email")</dt><dd data-doc="email"></dd></div>
                 </dl>
             </div>
             <div>
@@ -337,6 +319,10 @@
     // The product whose quote this is: a SiteProducts slug ("nails", "coffee", ...).
     [Parameter, EditorRequired] public string Slug { get; set; } = "";
 
+    // Back from Stripe without paying (QuoteCheckoutService's cancel URL).
+    [SupplyParameterFromQuery(Name = "checkout")] public string? Checkout { get; set; }
+    private bool Cancelled => Checkout == "cancelled";
+
     private SiteProduct Product => SiteProducts.All.First(p => p.Slug == Slug);
 
     // Copy is pr.{key}, written for salons; a product swaps in its own wording with pr.{product}.{key}.
@@ -363,16 +349,60 @@
         ? new("docs/MapleSPA-salon-quote.pdf", "MapleSPA-salon-quote.pdf", "quote")
         : null;
 
-    // Prices and packages: Services/PriceBook.cs, shared with the website assistant.
-    private static PriceBook.Setup[] _setup => PriceBook.SetupItems;
-    private static PriceBook.Plan[] _software => PriceBook.Software;
-    private static PriceBook.Plan[] _sms => PriceBook.Sms;
-    private static PriceBook.Plan[] _marketing => PriceBook.Marketing;
-    private const int SoftwareFeatures = PriceBook.SoftwareFeatures;
-    private static string[] MarketingFacts => PriceBook.MarketingFacts;
+    // What's for sale, its price and how often it's charged: the catalog (/shop/admin), shared with
+    // checkout, Stripe and the website assistant.
+    private IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)> _quote = [];
+
+    protected override async Task OnInitializedAsync() => _quote = await Catalog.GetQuoteAsync();
+
+    // Copy the site may or may not have: null when neither the product's nor the shared key exists.
+    private string? Tx(string key)
+    {
+        var v = T(key);
+        return v == $"pr.{key}" ? null : v;
+    }
+
+    private string ItemName(string cat, AppProduct i) => Tx($"{cat}.{i.CopyKey}.t") ?? i.Name;
+
+    // The card's bullet points: pr.{cat}.{key}.d1, d2, ... while they exist.
+    private List<string> Points(string cat, string key)
+    {
+        var list = new List<string>();
+        for (var n = 1; Tx($"{cat}.{key}.d{n}") is { } v; n++) list.Add(v);
+        return list;
+    }
+
+    private List<string> Features(string cat)
+    {
+        var list = new List<string>();
+        for (var n = 1; Tx($"{cat}.f{n}") is { } v; n++) list.Add(v);
+        return list;
+    }
+
+    // The marketing plans' facts table (pr.mkt.l.{fact} labels, pr.mkt.{key}.{fact} values).
+    private static readonly string[] FactKeys = { "freq", "format", "maps", "channels", "print", "report" };
+
+    private List<(string, string)> Facts(string cat, string key)
+        => FactKeys.Select(f => (Tx($"{cat}.l.{f}"), Tx($"{cat}.{key}.{f}")))
+                   .Where(x => x.Item1 is not null && x.Item2 is not null)
+                   .Select(x => (x.Item1!, x.Item2!)).ToList();
+
+    private static string Period(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => "month",
+        BillingIntervals.Yearly => "year",
+        _ => "once",
+    };
+
+    private string Per(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => T("month"),
+        BillingIntervals.Yearly => T("year"),
+        _ => T("once"),
+    };
 
     // site.js formats every amount with the same locale (Intl), so the bill and the cards match.
-    private string Locale => L.Culture switch { "fr" => "fr-CA", "vi" => "vi-VN", "ru" => "ru-RU", _ => "en-US" };
+    private string Locale => L.Culture switch { "fr" => "fr-CA", "vi" => "vi-VN", "ru" => "ru-RU", _ => "en-CA" };
 
     private static string Raw(decimal d) => d.ToString(System.Globalization.CultureInfo.InvariantCulture);
 

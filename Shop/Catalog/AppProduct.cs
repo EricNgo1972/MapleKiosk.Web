@@ -29,27 +29,52 @@ public static class BillingIntervals
     };
 }
 
+/// <summary>A group of catalog items, e.g. "Setup" or "Software". <see cref="Placement"/> says where it's
+/// sold: on the trades' pricing pages (the quote builder) or in the app shop.</summary>
+public sealed class CatalogCategory
+{
+    public const string Quote = "quote";
+    public const string Shop = "shop";
+
+    public string Key { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Placement { get; set; } = Quote;
+
+    /// <summary>Buyers pick one item (a plan) rather than any number (add-ons).</summary>
+    public bool PickOne { get; set; }
+    public int Sort { get; set; }
+}
+
 /// <summary>
-/// A purchasable SaaS plan. Supplied from the Azure-Table catalog and managed in
-/// the admin UI. Prices are per settlement currency (USD via Stripe, VND via
-/// VietQR) and per billing interval. Checkout always re-resolves price from here.
+/// Something we sell: a product or a service, at one price (in <see cref="CatalogStore.Currency"/>),
+/// charged once or every month/year. Managed at /shop/admin, synced to Stripe as a Product + Price,
+/// and sold from the pricing pages or the shop. Checkout always re-resolves the price from here.
 /// </summary>
 public sealed class AppProduct
 {
     public string Sku { get; set; } = "";
+    public string Category { get; set; } = "";
     public string Name { get; set; } = "";
     public string? Description { get; set; }
-    public decimal PriceUsd { get; set; }
+    public decimal Price { get; set; }
+
+    /// <summary>VietQR price (shop only); 0 = not sold over VietQR.</summary>
     public decimal PriceVnd { get; set; }
     public string? ImageUrl { get; set; }
     public bool Active { get; set; } = true;
 
-    /// <summary>OneTime / Monthly / Yearly — see <see cref="BillingIntervals"/>.</summary>
+    /// <summary>How often it's charged: OneTime / Monthly / Yearly — see <see cref="BillingIntervals"/>.</summary>
     public string BillingInterval { get; set; } = BillingIntervals.OneTime;
 
-    /// <summary>Free-trial length in days (subscriptions only). 0 = no trial.</summary>
+    /// <summary>Free-trial length in days (shop subscriptions only). 0 = no trial.</summary>
     public int TrialDays { get; set; }
+    public int Sort { get; set; }
+    public bool Recommended { get; set; }
 
-    /// <summary>Selling points shown on the plan card.</summary>
+    /// <summary>Selling points shown on the card when the site has no translated copy for it.</summary>
     public List<string> Features { get; set; } = new();
+
+    /// <summary>The key of the pricing pages' translated copy: the SKU without its category prefix
+    /// ("setup-server" → "server", read as pr.setup.server.*).</summary>
+    public string CopyKey => Sku.StartsWith(Category + "-", StringComparison.Ordinal) ? Sku[(Category.Length + 1)..] : Sku;
 }

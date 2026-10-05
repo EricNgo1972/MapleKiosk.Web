@@ -4,7 +4,7 @@ public sealed class CartLine
 {
     public string Sku { get; init; } = "";
     public string Name { get; init; } = "";
-    public decimal PriceUsd { get; init; }
+    public decimal Price { get; init; }
     public string BillingInterval { get; init; } = "OneTime";
 
     public bool IsRecurring => BillingInterval is "Monthly" or "Yearly";
@@ -26,7 +26,7 @@ public sealed class CartState
     public event Action? OnChange;
 
     public int Count => _lines.Count;
-    public decimal TotalUsd => _lines.Sum(l => l.PriceUsd);
+    public decimal Total => _lines.Sum(l => l.Price);
 
     public bool Contains(string sku) => _lines.Any(l => l.Sku == sku);
 
@@ -34,10 +34,10 @@ public sealed class CartState
     /// restricts to a single plan via Stripe (no VietQR, no mixing).</summary>
     public bool HasSubscription => _lines.Any(l => l.IsRecurring);
 
-    public void Add(string sku, string name, decimal priceUsd, string billingInterval = "OneTime")
+    public void Add(string sku, string name, decimal price, string billingInterval = "OneTime")
     {
         if (string.IsNullOrWhiteSpace(sku) || Contains(sku)) return;
-        _lines.Add(new CartLine { Sku = sku, Name = name, PriceUsd = priceUsd, BillingInterval = billingInterval });
+        _lines.Add(new CartLine { Sku = sku, Name = name, Price = price, BillingInterval = billingInterval });
         OnChange?.Invoke();
     }
 

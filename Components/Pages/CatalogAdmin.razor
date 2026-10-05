@@ -2,171 +2,252 @@
 @attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
 @rendermode InteractiveServer
 @using MapleKiosk.Web.Shop.Catalog
+@using MapleKiosk.Web.Shop.Config
+@using MapleKiosk.Web.Shop.Payments
 @inject CatalogStore Store
 @inject BlobImageUploader Uploader
+@inject StripeProductSync Stripe
+@inject AppStoreConfig Config
 
-<PageTitle>Product catalog — MapleKiosk</PageTitle>
+@* The catalog: everything the site sells, in one place. Categories group the items and say where
+   they're sold (the trades' pricing pages, or the shop); each item has a price and how often it's
+   charged. Saving an item syncs it to Stripe (Product + Price); deleting it archives it there. *@
+
+<PageTitle>Catalog — MapleKiosk</PageTitle>
 
 <section class="section">
-    <div class="container" style="max-width:1000px">
-        <h1 style="font-size:clamp(26px,3vw,40px)">Product catalog</h1>
-        <p style="color:var(--muted)">Add, edit, or remove the SaaS plans sold in the shop. Saved to Azure Storage.</p>
+    <div class="container" style="max-width:1100px">
+        <h1 style="font-size:clamp(26px,3vw,40px)">Catalog</h1>
+        <p style="color:var(--muted)">
+            Products and services, their price (@CatalogStore.Currency) and how often they're charged. The pricing pages, the shop,
+            checkout and the website assistant all read this. Saving an item syncs it to Stripe.
+        </p>
 
+        <div class="cat-actions" style="align-items:center">
+            <span class="stp-mode stp-mode--@_mode.ToLowerInvariant().Replace(' ', '-')">Stripe: @_mode</span>
+            <button class="btn btn-ghost" disabled="@(_busy || _mode == "not configured")" @onclick="SyncAll">Sync all to Stripe</button>
+            @if (_progress is not null) { <span style="color:var(--muted)">@_progress</span> }
+        </div>
         @if (!Store.IsConfigured)
         {
-            <p class="mshop-error">Catalog storage is not configured (STORAGE_CONNECTION_STRING).</p>
+            <p class="mshop-error">Catalog storage is not configured (STORAGE_CONNECTION_STRING): showing the defaults, read-only.</p>
         }
+        @if (_mode == "not configured")
+        {
+            <p class="mshop-error">No Stripe key: set AppStore/StripeSecretKey in the keyvalue table (or APPSTORE_STRIPE_SECRET_KEY). Items save without syncing.</p>
+        }
+        @if (_notice is not null) { <p class="cat-notice">@_notice</p> }
+        @if (_error is not null) { <p class="mshop-error">@_error</p> }
 
-        <!-- Editor -->
+        <!-- Item editor -->
         <div class="cat-card">
-            <h3>@(_isNew ? "Add plan" : $"Edit “{_edit.Sku}”")</h3>
+            <h3>@(_isNew ? "Add item" : $"Edit “{_edit.Sku}”")</h3>
             <div class="cat-grid">
-                <label>SKU
-                    <input @bind="_edit.Sku" disabled="@(!_isNew)" placeholder="starter" />
-                </label>
-                <label>Name
-                    <input @bind="_edit.Name" placeholder="Starter" />
-                </label>
-
-                <label>Billing
-                    <select @bind="_edit.BillingInterval">
-                        <option value="@BillingIntervals.OneTime">One-time</option>
-                        <option value="@BillingIntervals.Monthly">Monthly</option>
-                        <option value="@BillingIntervals.Yearly">Yearly</option>
+                <label>Category
+                    <select @bind="_edit.Category">
+                        <option value="">— pick —</option>
+                        @foreach (var c in _categories) { <option value="@c.Key">@c.Name</option> }
                     </select>
                 </label>
-                <label>Free trial (days)
+                <label>SKU
+                    <input @bind="_edit.Sku" disabled="@(!_isNew)" placeholder="@(_edit.Category is { Length: > 0 } ? _edit.Category + "-name" : "item-name")" />
+                </label>
+                <label style="grid-column:1/-1">Name
+                    <input @bind="_edit.Name" placeholder="What it's called on Stripe, receipts and the shop" />
+                </label>
+                <label>Price (@CatalogStore.Currency)
+                    <input type="number" min="0" step="0.01" @bind="_edit.Price" />
+                </label>
+                <label>Charged
+                    <select @bind="_edit.BillingInterval">
+                        <option value="@BillingIntervals.OneTime">One time</option>
+                        <option value="@BillingIntervals.Monthly">Every month</option>
+                        <option value="@BillingIntervals.Yearly">Every year</option>
+                    </select>
+                </label>
+                <label>Order in its category
+                    <input type="number" step="1" @bind="_edit.Sort" />
+                </label>
+                <label>Free trial (days, shop only)
                     <input type="number" min="0" step="1" @bind="_edit.TrialDays" />
                 </label>
-
-                <label>Price USD
-                    <input type="number" step="0.01" @bind="_edit.PriceUsd" />
-                </label>
-                <label>Price VND
-                    <input type="number" step="1" @bind="_edit.PriceVnd" />
-                </label>
-
                 <label style="grid-column:1/-1">Description
-                    <input @bind="_edit.Description" placeholder="Short description" />
+                    <input @bind="_edit.Description" placeholder="One line" />
                 </label>
-
                 <label style="grid-column:1/-1">Features (one per line)
-                    <textarea rows="4" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
+                    <textarea rows="3" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
                 </label>
-
-                <label style="grid-column:1/-1">Image
+                <label>VND price (VietQR, shop only)
+                    <input type="number" min="0" step="1" @bind="_edit.PriceVnd" />
+                </label>
+                <label>Image
                     <InputFile OnChange="OnImageSelected" accept="image/*" />
-                    @if (_uploading)
-                    {
-                        <span style="color:var(--muted)">Uploading…</span>
-                    }
-                    else if (!string.IsNullOrWhiteSpace(_edit.ImageUrl))
-                    {
-                        <img src="@_edit.ImageUrl" alt="" style="height:64px;border-radius:8px;margin-top:6px" />
-                    }
+                    @if (_uploading) { <span style="color:var(--muted)">Uploading…</span> }
+                    else if (!string.IsNullOrWhiteSpace(_edit.ImageUrl)) { <img src="@_edit.ImageUrl" alt="" style="height:48px;border-radius:8px;margin-top:6px" /> }
                 </label>
-
-                <label class="cat-check">
-                    <input type="checkbox" @bind="_edit.Active" /> Active (visible in shop)
-                </label>
+                <label class="cat-check"><input type="checkbox" @bind="_edit.Active" /> Active (for sale)</label>
+                <label class="cat-check"><input type="checkbox" @bind="_edit.Recommended" /> Recommended</label>
             </div>
-
-            @if (_error is not null)
-            {
-                <p class="mshop-error">@_error</p>
-            }
-
+            <p class="cat-hint">On the pricing pages, the cards keep their translated wording; the catalog sets the price, how often it's charged, the order and what's for sale. A new item uses its own name and description.</p>
             <div class="cat-actions">
-                <button class="btn btn-primary" disabled="@_busy" @onclick="Save">
-                    @(_busy ? "Saving…" : _isNew ? "Add plan" : "Save changes")
+                <button class="btn btn-primary" disabled="@(_busy || !Store.IsConfigured)" @onclick="Save">
+                    @(_busy ? "Saving…" : _isNew ? "Add item" : "Save")
                 </button>
-                @if (!_isNew)
-                {
-                    <button class="btn btn-ghost" @onclick="NewProduct">Cancel</button>
-                }
-                <button class="btn btn-ghost" style="margin-left:auto" @onclick="SeedDefaults">Seed defaults</button>
+                @if (!_isNew) { <button class="btn btn-ghost" @onclick="NewItem">Cancel</button> }
             </div>
         </div>
 
-        <!-- List -->
-        @if (_loading)
+        <!-- Items, by category -->
+        @foreach (var c in _categories)
         {
-            <p style="color:var(--muted)">Loading…</p>
+            var items = _items.Where(i => i.Category == c.Key).ToList();
+            <div class="cat-card">
+                <h3>@c.Name <small class="cat-sub">@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages") · @(c.PickOne ? "pick one" : "pick any")</small></h3>
+                @if (items.Count == 0)
+                {
+                    <p style="color:var(--muted)">No items yet.</p>
+                }
+                else
+                {
+                    <table class="cat-table">
+                        <thead><tr><th>Item</th><th>Price</th><th>Stripe</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var i in items) { @ItemRow(i) }
+                        </tbody>
+                    </table>
+                }
+            </div>
         }
-        else if (_products.Count == 0)
+        @{ var loose = _items.Where(i => _categories.All(c => c.Key != i.Category)).ToList(); }
+        @if (loose.Count > 0)
         {
-            <p style="color:var(--muted)">No plans yet. Add one above or seed defaults.</p>
+            <div class="cat-card">
+                <h3>No category <small class="cat-sub">not sold anywhere until you give them one</small></h3>
+                <table class="cat-table"><tbody>@foreach (var i in loose) { @ItemRow(i) }</tbody></table>
+            </div>
         }
-        else
-        {
+
+        <!-- Categories -->
+        <div class="cat-card">
+            <h3>Categories</h3>
             <table class="cat-table">
-                <thead>
-                    <tr><th>SKU</th><th>Name</th><th>Billing</th><th>USD</th><th>VND</th><th>Active</th><th></th></tr>
-                </thead>
+                <thead><tr><th>Name</th><th>Key</th><th>Sold on</th><th>Buyers</th><th>Order</th><th></th></tr></thead>
                 <tbody>
-                    @foreach (var p in _products)
+                    @foreach (var c in _categories)
                     {
                         <tr>
-                            <td><code>@p.Sku</code></td>
-                            <td>@p.Name</td>
-                            <td>@p.BillingInterval@(p.TrialDays > 0 ? $" · {p.TrialDays}d trial" : "")</td>
-                            <td>$@p.PriceUsd.ToString("0.##")</td>
-                            <td>@p.PriceVnd.ToString("0")</td>
-                            <td>@(p.Active ? "✓" : "—")</td>
+                            <td>@c.Name</td>
+                            <td><code>@c.Key</code></td>
+                            <td>@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages")</td>
+                            <td>@(c.PickOne ? "Pick one" : "Pick any")</td>
+                            <td>@c.Sort</td>
                             <td class="cat-row-actions">
-                                <button class="btn btn-ghost" @onclick="() => Edit(p)">Edit</button>
-                                <button class="btn btn-ghost cat-del" @onclick="() => Delete(p.Sku)">Delete</button>
+                                <button class="btn btn-ghost" @onclick="() => EditCategory(c)">Edit</button>
+                                <button class="btn btn-ghost cat-del" disabled="@(!Store.IsConfigured)" @onclick="() => DeleteCategory(c.Key)">Delete</button>
                             </td>
                         </tr>
                     }
                 </tbody>
             </table>
-        }
+            <div class="cat-grid" style="margin-top:16px">
+                <label>Name <input @bind="_cat.Name" placeholder="Hardware" /></label>
+                <label>Key <input @bind="_cat.Key" disabled="@(!_catIsNew)" placeholder="hardware" /></label>
+                <label>Sold on
+                    <select @bind="_cat.Placement">
+                        <option value="@CatalogCategory.Quote">Pricing pages</option>
+                        <option value="@CatalogCategory.Shop">Shop</option>
+                    </select>
+                </label>
+                <label>Order <input type="number" step="1" @bind="_cat.Sort" /></label>
+                <label class="cat-check"><input type="checkbox" @bind="_cat.PickOne" /> Buyers pick one (plans), not any number (add-ons)</label>
+            </div>
+            <div class="cat-actions">
+                <button class="btn btn-primary" disabled="@(_busy || !Store.IsConfigured)" @onclick="SaveCategory">@(_catIsNew ? "Add category" : "Save category")</button>
+                @if (!_catIsNew) { <button class="btn btn-ghost" @onclick="NewCategory">Cancel</button> }
+            </div>
+        </div>
     </div>
 </section>
 
 @code {
-    // Razor escapes a literal &#10; in attribute markup, so build the two-line
-    // placeholder in C# where "\n" survives to the rendered attribute.
     private const string FeaturesPlaceholder = "Unlimited invoices\nPriority support";
 
-    private List<AppProduct> _products = new();
+    private IReadOnlyList<CatalogCategory> _categories = [];
+    private IReadOnlyList<AppProduct> _items = [];
+    private Dictionary<string, StripeItemStatus> _stripe = new();
+    private string _mode = "…";
+
     private AppProduct _edit = new() { Active = true };
     private string _featuresText = "";
     private bool _isNew = true;
-    private bool _loading = true;
+    private CatalogCategory _cat = new();
+    private bool _catIsNew = true;
+
     private bool _busy;
     private bool _uploading;
+    private string? _progress;
+    private string? _notice;
     private string? _error;
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
+    private RenderFragment ItemRow(AppProduct i) => __builder =>
+    {
+        var st = _stripe.GetValueOrDefault(i.Sku);
+        <tr class="@(i.Active ? null : "cat-off")">
+            <td><strong>@i.Name</strong>@(i.Recommended ? " ★" : "")<br /><small class="cat-sub"><code>@i.Sku</code>@(i.Active ? "" : " · not for sale")</small></td>
+            <td>$@i.Price.ToString("0.00") <small class="cat-sub">@Every(i)@(i.TrialDays > 0 ? $" · {i.TrialDays}-day trial" : "")</small></td>
+            <td>
+                @if (st is not null)
+                {
+                    <span class="stp-state stp-state--@st.State.ToString().ToLowerInvariant()">@Label(st.State)</span>
+                    @if (st.Detail is not null) { <br /><small class="cat-sub">@st.Detail</small> }
+                }
+            </td>
+            <td class="cat-row-actions">
+                <button class="btn btn-ghost" @onclick="() => Edit(i)">Edit</button>
+                @if (st?.ProductId is not null)
+                {
+                    <a class="btn btn-ghost" href="@($"https://dashboard.stripe.com/{(_mode == "test" ? "test/" : "")}products/{st.ProductId}")" target="_blank" rel="noopener">Stripe</a>
+                }
+                <button class="btn btn-ghost cat-del" disabled="@(!Store.IsConfigured)" @onclick="() => Delete(i)">Delete</button>
+            </td>
+        </tr>
+    };
+
     private async Task ReloadAsync()
     {
-        _loading = true;
-        _products = (await Store.GetAllAsync()).ToList();
-        _loading = false;
+        try
+        {
+            _categories = await Store.GetCategoriesAsync();
+            _items = await Store.GetAllAsync();
+            var key = await Config.GetStripeSecretKeyAsync();
+            _mode = string.IsNullOrEmpty(key) ? "not configured" : key.Contains("_live_") ? "live" : "test";
+            _stripe = (await Stripe.GetStatusAsync(_items.Select(StripeItem.From).ToList())).ToDictionary(s => s.Item.Sku);
+        }
+        catch (Exception ex) { _error = ex.Message; }
     }
 
-    private void NewProduct()
+    // --- Items ---
+
+    private void NewItem()
     {
         _edit = new AppProduct { Active = true };
         _featuresText = "";
         _isNew = true;
-        _error = null;
     }
 
     private void Edit(AppProduct p)
     {
         _edit = new AppProduct
         {
-            Sku = p.Sku, Name = p.Name, Description = p.Description,
-            PriceUsd = p.PriceUsd, PriceVnd = p.PriceVnd, ImageUrl = p.ImageUrl, Active = p.Active,
-            BillingInterval = p.BillingInterval, TrialDays = p.TrialDays, Features = new List<string>(p.Features)
+            Sku = p.Sku, Category = p.Category, Name = p.Name, Description = p.Description, Price = p.Price,
+            PriceVnd = p.PriceVnd, ImageUrl = p.ImageUrl, Active = p.Active, BillingInterval = p.BillingInterval,
+            TrialDays = p.TrialDays, Sort = p.Sort, Recommended = p.Recommended, Features = new List<string>(p.Features)
         };
         _featuresText = string.Join("\n", p.Features);
         _isNew = false;
-        _error = null;
+        _notice = _error = null;
     }
 
     private async Task OnImageSelected(InputFileChangeEventArgs e)
@@ -180,89 +261,128 @@
             ms.Position = 0;
             _edit.ImageUrl = await Uploader.UploadAsync(ms, e.File.Name, e.File.ContentType);
         }
-        catch (Exception ex)
-        {
-            _error = $"Image upload failed: {ex.Message}";
-        }
+        catch (Exception ex) { _error = $"Image upload failed: {ex.Message}"; }
         finally { _uploading = false; }
     }
 
     private async Task Save()
     {
-        _error = null;
+        _notice = _error = null;
+        if (string.IsNullOrEmpty(_edit.Category)) { _error = "Pick a category."; return; }
+        if (!CatalogStore.IsValidSku(_edit.Sku)) { _error = "SKU must be 1–64 chars: letters, digits, dash or underscore."; return; }
+        if (_isNew && _items.Any(i => i.Sku == _edit.Sku)) { _error = $"There's already an item “{_edit.Sku}”."; return; }
+        if (string.IsNullOrWhiteSpace(_edit.Name)) { _error = "Name is required."; return; }
+        if (_edit.Price < 0) { _error = "Price can't be negative."; return; }
 
-        if (!CatalogStore.IsValidSku(_edit.Sku))
-        {
-            _error = "SKU must be 1–64 chars: letters, digits, dash or underscore.";
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_edit.Name))
-        {
-            _error = "Name is required.";
-            return;
-        }
-
-        _edit.Features = _featuresText
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
+        _edit.Features = _featuresText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
         _busy = true;
         try
         {
             await Store.UpsertAsync(_edit);
-            await ReloadAsync();
-            NewProduct();
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-        finally { _busy = false; }
-    }
-
-    private async Task Delete(string sku)
-    {
-        await Store.DeleteAsync(sku);
-        if (!_isNew && string.Equals(_edit.Sku, sku, StringComparison.OrdinalIgnoreCase))
-            NewProduct();
-        await ReloadAsync();
-    }
-
-    private async Task SeedDefaults()
-    {
-        _busy = true;
-        try
-        {
-            foreach (var p in DefaultPlans())
-                await Store.UpsertAsync(p);
+            _notice = $"Saved “{_edit.Name}”." + await SyncAsync(_edit);
+            NewItem();
             await ReloadAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
     }
 
-    private static IEnumerable<AppProduct> DefaultPlans() => new[]
+    private async Task Delete(AppProduct p)
     {
-        new AppProduct
+        _notice = _error = null;
+        _busy = true;
+        try
         {
-            Sku = "starter", Name = "Starter", BillingInterval = BillingIntervals.Monthly,
-            PriceUsd = 29, PriceVnd = 700000, TrialDays = 14, Active = true,
-            Description = "Everything to get started.",
-            Features = new() { "1 location", "Up to 3 staff", "Core POS & booking", "Email support" }
-        },
-        new AppProduct
-        {
-            Sku = "pro", Name = "Professional", BillingInterval = BillingIntervals.Monthly,
-            PriceUsd = 69, PriceVnd = 1700000, TrialDays = 14, Active = true,
-            Description = "For growing businesses.",
-            Features = new() { "Up to 5 locations", "Unlimited staff", "Analytics & loyalty", "Priority support" }
-        },
-        new AppProduct
-        {
-            Sku = "enterprise", Name = "Enterprise", BillingInterval = BillingIntervals.Yearly,
-            PriceUsd = 990, PriceVnd = 24000000, TrialDays = 0, Active = true,
-            Description = "Custom scale and support.",
-            Features = new() { "Unlimited locations", "Dedicated success manager", "SSO & custom integrations" }
+            // Archive in Stripe first (Stripe keeps products that have sold; live subscriptions carry on).
+            var archived = new AppProduct { Sku = p.Sku, Name = p.Name, Price = p.Price, BillingInterval = p.BillingInterval, Active = false };
+            var stripe = await SyncAsync(archived);
+            await Store.DeleteAsync(p.Sku);
+            if (!_isNew && _edit.Sku == p.Sku) NewItem();
+            _notice = $"Deleted “{p.Name}”." + stripe;
+            await ReloadAsync();
         }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    // " Synced to Stripe." / a Stripe error / nothing when Stripe isn't set up.
+    private async Task<string> SyncAsync(AppProduct p)
+    {
+        if (!await Stripe.IsConfiguredAsync()) return "";
+        var r = await Stripe.SyncAsync(StripeItem.From(p));
+        return r.Success ? (p.Active ? " Synced to Stripe." : " Archived in Stripe.") : $" Stripe sync failed: {r.Error}";
+    }
+
+    private async Task SyncAll()
+    {
+        _notice = _error = null;
+        _busy = true;
+        var todo = _stripe.Values.Where(s => s.State is StripeSyncState.Missing or StripeSyncState.Outdated).Select(s => s.Item).ToList();
+        var errors = new List<string>();
+        for (var n = 0; n < todo.Count; n++)
+        {
+            _progress = $"Syncing {n + 1} / {todo.Count}…";
+            StateHasChanged();
+            var r = await Stripe.SyncAsync(todo[n]);
+            if (!r.Success) errors.Add($"{todo[n].Name}: {r.Error}");
+        }
+        _progress = null;
+        _notice = todo.Count == 0 ? "Everything is already in sync." : $"Synced {todo.Count - errors.Count} of {todo.Count}.";
+        if (errors.Count > 0) _error = string.Join(" · ", errors);
+        await ReloadAsync();
+        _busy = false;
+    }
+
+    // --- Categories ---
+
+    private void NewCategory() { _cat = new CatalogCategory(); _catIsNew = true; }
+
+    private void EditCategory(CatalogCategory c)
+    {
+        _cat = new CatalogCategory { Key = c.Key, Name = c.Name, Placement = c.Placement, PickOne = c.PickOne, Sort = c.Sort };
+        _catIsNew = false;
+    }
+
+    private async Task SaveCategory()
+    {
+        _notice = _error = null;
+        if (string.IsNullOrWhiteSpace(_cat.Name)) { _error = "Category name is required."; return; }
+        if (_catIsNew && _categories.Any(c => c.Key == _cat.Key)) { _error = $"There's already a category “{_cat.Key}”."; return; }
+        try
+        {
+            await Store.UpsertCategoryAsync(_cat);
+            _notice = $"Saved category “{_cat.Name}”.";
+            NewCategory();
+            await ReloadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task DeleteCategory(string key)
+    {
+        _notice = _error = null;
+        try
+        {
+            await Store.DeleteCategoryAsync(key);
+            await ReloadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private static string Every(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => "/ month",
+        BillingIntervals.Yearly => "/ year",
+        _ => "one time",
+    };
+
+    private static string Label(StripeSyncState s) => s switch
+    {
+        StripeSyncState.InSync => "In sync",
+        StripeSyncState.Missing => "Not in Stripe",
+        StripeSyncState.Outdated => "Out of date",
+        StripeSyncState.Archived => "Archived",
+        _ => "",
     };
 }

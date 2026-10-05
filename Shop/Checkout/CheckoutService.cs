@@ -11,8 +11,6 @@ namespace MapleKiosk.Web.Shop.Checkout;
 /// </summary>
 public sealed class CheckoutService
 {
-    private static readonly HashSet<string> StripeCurrencies = new(StringComparer.OrdinalIgnoreCase) { "USD", "CAD" };
-
     private readonly IAppCatalog _catalog;
     private readonly AppOrderService _orders;
     private readonly StripeCheckoutCreator _stripe;
@@ -33,10 +31,7 @@ public sealed class CheckoutService
 
         var isVietQr = string.Equals(request.Method, AppPaymentMethods.VietQr, StringComparison.OrdinalIgnoreCase);
         var method = isVietQr ? AppPaymentMethods.VietQr : AppPaymentMethods.Stripe;
-        var currency = isVietQr
-            ? "VND"
-            : (request.Currency is not null && StripeCurrencies.Contains(request.Currency)
-                ? request.Currency.ToUpperInvariant() : "USD");
+        var currency = isVietQr ? "VND" : CatalogStore.Currency;
 
         // Resolve every product (price + billing authority).
         var products = new List<Catalog.AppProduct>();
@@ -61,7 +56,7 @@ public sealed class CheckoutService
         var lines = new List<AppOrderLine>();
         foreach (var product in products)
         {
-            var unit = isVietQr ? product.PriceVnd : product.PriceUsd;
+            var unit = isVietQr ? product.PriceVnd : product.Price;
             if (unit <= 0) return Fail(method, $"Product {product.Sku} is not sold via {method}.");
             // SaaS catalog: one licence per plan — quantity is always 1.
             lines.Add(new AppOrderLine { Sku = product.Sku, Name = product.Name, UnitPrice = unit, Quantity = 1 });

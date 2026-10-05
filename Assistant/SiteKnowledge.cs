@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text;
 using MapleKiosk.Web.Services;
+using MapleKiosk.Web.Shop.Catalog;
+using Quote = System.Collections.Generic.IReadOnlyList<(MapleKiosk.Web.Shop.Catalog.CatalogCategory Category, System.Collections.Generic.IReadOnlyList<MapleKiosk.Web.Shop.Catalog.AppProduct> Items)>;
 
 namespace MapleKiosk.Web.Assistant;
 
@@ -9,7 +11,7 @@ namespace MapleKiosk.Web.Assistant;
 /// grounding, and the text to give the phone agent (served at /assistant/knowledge.md).
 ///
 /// <para>Built from what the site itself says — the English copy of the pages people can open (home, the
-/// four trades, the AI voice agent), the price book, the pricing pages' wording — so the assistant and the
+/// four trades, the AI voice agent), the catalog's prices (/shop/admin), the pricing pages' wording — so the assistant and the
 /// website cannot disagree. Copy no page shows any more (the old SaaS/on-premise price table, the old FAQ)
 /// is left out on purpose. Facts the site doesn't carry yet (a phone number, hours) are added by the team in
 /// the keyvalue row Assistant/Knowledge (/chats → Settings; or env ASSISTANT_KNOWLEDGE), read every few minutes.</para>
@@ -30,22 +32,27 @@ public sealed class SiteKnowledge : IAssistantGrounding
         ["coffee"] = "https://coffee.maplekiosk.ca", ["nails"] = "https://nails.maplekiosk.ca",
     };
 
-    private static readonly Lazy<string> Site = new(Build);
+    private readonly CatalogStore _catalog;
 
+    private string? _site;
     private string? _extra;
     private DateTime _extraAtUtc;
 
+    public SiteKnowledge(CatalogStore catalog) => _catalog = catalog;
+
     public async Task<string?> ForCustomerAsync(ConversationChannel channel, CancellationToken ct = default)
     {
-        if (_extra is null || DateTime.UtcNow - _extraAtUtc > ExtraTtl)
+        // Rebuilt with the extra facts, so a price changed in the catalog reaches the assistant within minutes.
+        if (_site is null || _extra is null || DateTime.UtcNow - _extraAtUtc > ExtraTtl)
         {
+            _site = Build(await _catalog.GetQuoteAsync(ct));
             _extra = await KeyValueTable.ResolveAsync("ASSISTANT_KNOWLEDGE", "Assistant", "Knowledge");
             _extraAtUtc = DateTime.UtcNow;
         }
 
         return string.IsNullOrWhiteSpace(_extra)
-            ? Site.Value
-            : Site.Value + "\n\n## More facts from the MapleKiosk team (these win over anything above)\n\n" + _extra.Trim();
+            ? _site
+            : _site + "\n\n## More facts from the MapleKiosk team (these win over anything above)\n\n" + _extra.Trim();
     }
 
     /// <summary>Re-read the team's extra facts on the next message (after an admin saves them).</summary>
@@ -59,9 +66,9 @@ public sealed class SiteKnowledge : IAssistantGrounding
     private static string Pr(string product, string key) =>
         En.TryGetValue($"pr.{product}.{key}", out var own) ? own : Tr($"pr.{key}");
 
-    private static string Usd(decimal d) => "$" + d.ToString(d == decimal.Truncate(d) ? "#,0" : "#,0.00", CultureInfo.InvariantCulture);
+    private static string Money(decimal d) => "$" + d.ToString(d == decimal.Truncate(d) ? "#,0" : "#,0.00", CultureInfo.InvariantCulture);
 
-    private static string Build()
+    private static string Build(Quote quote)
     {
         var sb = new StringBuilder();
         sb.AppendLine("# MapleKiosk — knowledge for the assistant");
@@ -97,7 +104,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
         }
         sb.AppendLine();
 
-        AppendPricing(sb);
+        AppendPricing(sb, quote);
         return sb.ToString().TrimEnd();
     }
 
@@ -121,44 +128,48 @@ public sealed class SiteKnowledge : IAssistantGrounding
     // The marketing plans are the same for every trade, but their copy was written for salons.
     private static string Neutral(string text) => text.Replace("salon", "business").Replace("clients", "customers");
 
-    private static void AppendPricing(StringBuilder sb)
+    // The catalog's quote: each pricing-page category with its items (CatalogStore.GetQuoteAsync).
+    private static string Every(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => "/month",
+        BillingIntervals.Yearly => "/year",
+        _ => " one time",
+    };
+
+    private static void AppendPricing(StringBuilder sb, Quote quote)
     {
         sb.AppendLine("## Pricing");
         sb.AppendLine("- Every trade (MapleSPA, MapleCoffee, MaplePOS, MapleGarage) has the same packages and the same prices; only the names and features are worded for the trade.");
-        sb.AppendLine("- " + Tr("pr.doc.t1") + " " + Tr("pr.doc.t2") + " The visitor picks what they need on the pricing page; the bill adds up (one-time setup, the monthly total, and the first payment = setup + first month), and they can print it as a quote. A printed quote is valid 30 days.");
+        sb.AppendLine("- " + Tr("pr.doc.t1") + " " + Tr("pr.doc.t2") + " The visitor picks what they need on the pricing page; the bill adds up (one-time setup, the monthly total, and the first payment = setup + first month). They can print it as a quote (valid 30 days) or buy it online by card right there: the first payment now, monthly plans renewing automatically.");
         sb.AppendLine("- MapleSPA's pricing page also offers the full 4-page salon quote brochure as a PDF (in Vietnamese): /docs/MapleSPA-salon-quote.pdf.");
-        sb.AppendLine("- The AI Voice Agent has no price list of its own on the site: the AI plans below ($49.99/month) include the AI phone assistant; for the agent on its own, ask sales.");
+        sb.AppendLine("- The AI Voice Agent has no price list of its own on the site: the AI plans below include the AI phone assistant; for the agent on its own, ask sales.");
 
         foreach (var p in SiteProducts.In(ProductGroup.Trade))
         {
             var k = p.Key;
+            // Shared copy was written for salons: reword it for the other trades.
+            string Neutral(string text) => k == "nails" ? text : SiteKnowledge.Neutral(text);
             sb.AppendLine();
             sb.AppendLine($"### {p.Name} pricing (/{p.Slug}/pricing)");
-            sb.AppendLine("One-time setup (pick any):");
-            foreach (var s in PriceBook.SetupItems)
+            foreach (var (cat, items) in quote)
             {
-                var d = string.Join(" ", Enumerable.Range(1, s.Points).Select(i => Pr(k, $"setup.{s.Key}.d{i}")));
-                sb.AppendLine($"- {Pr(k, $"setup.{s.Key}.t")}: {Usd(s.Price)} one time. {d}");
+                var title = Pr(k, $"{cat.Key}.title") is { Length: > 0 } t ? t : cat.Name;
+                var sub = Pr(k, $"{cat.Key}.sub");
+                sb.AppendLine($"{title} ({(cat.PickOne ? "pick one" : "pick any")}){(sub.Length > 0 ? ": " + Neutral(sub) : ":")}");
+                foreach (var i in items)
+                {
+                    var key = $"{cat.Key}.{i.CopyKey}";
+                    var name = Pr(k, $"{key}.t") is { Length: > 0 } n ? n : i.Name;
+                    var points = Enumerable.Range(1, 9).Select(x => Pr(k, $"{key}.d{x}")).TakeWhile(x => x.Length > 0).ToList();
+                    var about = new[] { Pr(k, $"{key}.goal"), Pr(k, $"{key}.d") }.FirstOrDefault(x => x.Length > 0)
+                                ?? (points.Count > 0 ? string.Join(" ", points) : i.Description ?? string.Join("; ", i.Features));
+                    var facts = string.Join("; ", new[] { "freq", "format", "maps", "channels", "print", "report" }
+                        .Where(f => Pr(k, $"{key}.{f}").Length > 0)
+                        .Select(f => $"{Pr(k, $"{cat.Key}.l.{f}")}: {Neutral(Pr(k, $"{key}.{f}"))}"));
+                    sb.AppendLine($"- {name}: {Money(i.Price)}{Every(i)}{(i.Recommended ? " (recommended)" : "")}. {Neutral(about)}{(facts.Length > 0 ? " " + facts + "." : "")}");
+                }
+                if (Pr(k, $"{cat.Key}.over") is { Length: > 0 } over) sb.AppendLine("- " + over);
             }
-            sb.AppendLine($"Monthly software (pick one; {Pr(k, "soft.sub")}):");
-            foreach (var plan in PriceBook.Software)
-            {
-                var has = string.Join("; ", Enumerable.Range(1, plan.Features).Select(i => Pr(k, $"soft.f{i}")));
-                sb.AppendLine($"- {Pr(k, $"soft.{plan.Key}.t")}: {Usd(plan.Price)}/month{(plan.Recommended ? " (recommended)" : "")}. {Pr(k, $"soft.{plan.Key}.goal")} Includes: {has}.");
-            }
-            sb.AppendLine($"Text messages (SMS add-on, pick one): {Pr(k, "sms.sub")}");
-            foreach (var plan in PriceBook.Sms)
-                sb.AppendLine($"- {Pr(k, $"sms.{plan.Key}.t")}: {Usd(plan.Price)}/month — {Pr(k, $"sms.{plan.Key}.d")}");
-            sb.AppendLine("- " + Pr(k, "sms.over"));
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("### Online marketing (every trade, pick one)");
-        sb.AppendLine(Neutral(Tr("pr.mkt.sub")));
-        foreach (var plan in PriceBook.Marketing)
-        {
-            var facts = string.Join("; ", PriceBook.MarketingFacts.Select(f => $"{Tr($"pr.mkt.l.{f}")}: {Neutral(Tr($"pr.mkt.{plan.Key}.{f}"))}"));
-            sb.AppendLine($"- {Tr($"pr.mkt.{plan.Key}.t")}: {Usd(plan.Price)}/month{(plan.Recommended ? " (recommended)" : "")}. {Neutral(Tr($"pr.mkt.{plan.Key}.goal"))} {facts}.");
         }
 
         sb.AppendLine();

@@ -22,6 +22,10 @@ public sealed class AppOrderEntity : ITableEntity
     public int TrialDays { get; set; }
     public string Status { get; set; } = nameof(AppOrderStatus.Pending);
     public string? CustomerEmail { get; set; }
+    public string? Company { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
+    public string? Source { get; set; }
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
@@ -42,6 +46,10 @@ public sealed class AppOrderEntity : ITableEntity
         TrialDays = o.TrialDays,
         Status = o.Status.ToString(),
         CustomerEmail = o.CustomerEmail,
+        Company = o.Company,
+        CustomerName = o.CustomerName,
+        CustomerPhone = o.CustomerPhone,
+        Source = o.Source,
         ProviderTxnId = o.ProviderTxnId,
         ProviderRef = o.ProviderRef,
         CreatedAt = o.CreatedAt,
@@ -60,6 +68,10 @@ public sealed class AppOrderEntity : ITableEntity
         TrialDays = TrialDays,
         Status = Enum.TryParse<AppOrderStatus>(Status, out var s) ? s : AppOrderStatus.Pending,
         CustomerEmail = CustomerEmail,
+        Company = Company,
+        CustomerName = CustomerName,
+        CustomerPhone = CustomerPhone,
+        Source = Source,
         ProviderTxnId = ProviderTxnId,
         ProviderRef = ProviderRef,
         CreatedAt = CreatedAt,

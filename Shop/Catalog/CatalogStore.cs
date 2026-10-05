@@ -5,17 +5,28 @@ using Azure.Data.Tables;
 namespace MapleKiosk.Web.Shop.Catalog;
 
 /// <summary>
-/// Azure-Table-backed product catalog. Serves the checkout read path
-/// (<see cref="IAppCatalog"/>) and the admin write path (Get all / Upsert /
-/// Delete). One row per product in table <c>appstorecatalog</c>, via the site's
-/// <c>STORAGE_CONNECTION_STRING</c>.
+/// The one catalog of everything the site sells: categories and items (product or service, price,
+/// one-time/monthly/yearly), in table <c>appstorecatalog</c> via the site's <c>STORAGE_CONNECTION_STRING</c>.
+/// Managed at /shop/admin (which also syncs each item to Stripe), read by the pricing pages, the shop,
+/// both checkouts and the assistant. A fresh table is seeded with <see cref="CatalogDefaults"/>; without
+/// storage the defaults are served read-only. Reads are cached briefly; every write clears the cache.
 /// </summary>
 public sealed partial class CatalogStore : IAppCatalog
 {
     public const string TableName = "appstorecatalog";
 
+    /// <summary>Every catalog price is in this currency (Stripe checkout and the pricing pages).</summary>
+    public const string Currency = "CAD";
+
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
+
     private readonly ILogger<CatalogStore> _logger;
     private readonly TableClient? _table;
+    private readonly SemaphoreSlim _lock = new(1, 1);
+    private Snapshot? _cache;
+    private DateTime _cachedAtUtc;
+
+    private sealed record Snapshot(IReadOnlyList<CatalogCategory> Categories, IReadOnlyList<AppProduct> Products);
 
     public CatalogStore(ILogger<CatalogStore> logger)
     {
@@ -24,7 +35,7 @@ public sealed partial class CatalogStore : IAppCatalog
         var conn = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING");
         if (string.IsNullOrWhiteSpace(conn))
         {
-            _logger.LogWarning("STORAGE_CONNECTION_STRING not set — product catalog is unavailable.");
+            _logger.LogWarning("STORAGE_CONNECTION_STRING not set — serving the default catalog read-only.");
             return;
         }
 
@@ -35,56 +46,158 @@ public sealed partial class CatalogStore : IAppCatalog
 
     public bool IsConfigured => _table is not null;
 
-    // --- Admin (all products, incl. inactive) ---
+    // --- Reads ---
 
+    public async Task<IReadOnlyList<CatalogCategory>> GetCategoriesAsync(CancellationToken ct = default)
+        => (await LoadAsync(ct).ConfigureAwait(false)).Categories;
+
+    /// <summary>Every item, inactive too, in category order then their own.</summary>
     public async Task<IReadOnlyList<AppProduct>> GetAllAsync(CancellationToken ct = default)
+        => (await LoadAsync(ct).ConfigureAwait(false)).Products;
+
+    /// <summary>The shop's catalog (IAppCatalog): active items in shop categories.</summary>
+    public async Task<IReadOnlyList<AppProduct>> GetActiveAsync(CancellationToken ct = default)
     {
-        if (_table is null) return Array.Empty<AppProduct>();
-        var list = new List<AppProduct>();
-        await foreach (var e in _table.QueryAsync<CatalogProductEntity>(
-            filter: $"PartitionKey eq '{CatalogProductEntity.Partition}'", cancellationToken: ct).ConfigureAwait(false))
-        {
-            list.Add(e.ToProduct());
-        }
-        return list.OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        var s = await LoadAsync(ct).ConfigureAwait(false);
+        var shop = s.Categories.Where(c => c.Placement == CatalogCategory.Shop).Select(c => c.Key).ToHashSet();
+        return s.Products.Where(p => p.Active && shop.Contains(p.Category)).ToList();
     }
+
+    /// <summary>The pricing pages' quote: each quote category with its active items, in order.</summary>
+    public async Task<IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)>> GetQuoteAsync(CancellationToken ct = default)
+    {
+        var s = await LoadAsync(ct).ConfigureAwait(false);
+        return s.Categories.Where(c => c.Placement == CatalogCategory.Quote)
+            .Select(c => (c, (IReadOnlyList<AppProduct>)s.Products.Where(p => p.Active && p.Category == c.Key).ToList()))
+            .Where(g => g.Item2.Count > 0)
+            .ToList();
+    }
+
+    /// <summary>An active item by SKU (checkout).</summary>
+    public async Task<AppProduct?> FindAsync(string sku, CancellationToken ct = default)
+        => (await LoadAsync(ct).ConfigureAwait(false)).Products.FirstOrDefault(p => p.Active && p.Sku == sku);
+
+    // --- Writes (admin) ---
 
     public async Task UpsertAsync(AppProduct product, CancellationToken ct = default)
     {
-        if (_table is null) throw new InvalidOperationException("Catalog storage is not configured.");
+        var table = Writable();
         if (!IsValidSku(product.Sku)) throw new ArgumentException("SKU must be 1–64 chars: letters, digits, dash or underscore.");
-
-        await _table.UpsertEntityAsync(CatalogProductEntity.FromProduct(product), TableUpdateMode.Replace, ct)
-            .ConfigureAwait(false);
-        _logger.LogInformation("Catalog product upserted: {Sku}", product.Sku);
+        await table.UpsertEntityAsync(CatalogProductEntity.FromProduct(product), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+        _cache = null;
+        _logger.LogInformation("Catalog item saved: {Sku}", product.Sku);
     }
 
     public async Task DeleteAsync(string sku, CancellationToken ct = default)
     {
-        if (_table is null || string.IsNullOrWhiteSpace(sku)) return;
-        await _table.DeleteEntityAsync(CatalogProductEntity.Partition, sku, ETag.All, ct).ConfigureAwait(false);
-        _logger.LogInformation("Catalog product deleted: {Sku}", sku);
+        var table = Writable();
+        await table.DeleteEntityAsync(CatalogProductEntity.Partition, sku, ETag.All, ct).ConfigureAwait(false);
+        _cache = null;
+        _logger.LogInformation("Catalog item deleted: {Sku}", sku);
     }
 
-    // --- IAppCatalog (checkout read path; active only) ---
-
-    public async Task<IReadOnlyList<AppProduct>> GetActiveAsync(CancellationToken ct = default)
+    public async Task UpsertCategoryAsync(CatalogCategory category, CancellationToken ct = default)
     {
-        var all = await GetAllAsync(ct).ConfigureAwait(false);
-        return all.Where(p => p.Active).ToList();
+        var table = Writable();
+        if (!IsValidSku(category.Key)) throw new ArgumentException("Category key must be 1–64 chars: letters, digits, dash or underscore.");
+        await table.UpsertEntityAsync(CatalogCategoryEntity.From(category), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+        _cache = null;
     }
 
-    public async Task<AppProduct?> FindAsync(string sku, CancellationToken ct = default)
+    public async Task DeleteCategoryAsync(string key, CancellationToken ct = default)
     {
-        if (_table is null || string.IsNullOrWhiteSpace(sku)) return null;
-        var res = await _table.GetEntityIfExistsAsync<CatalogProductEntity>(
-            CatalogProductEntity.Partition, sku, cancellationToken: ct).ConfigureAwait(false);
-        var product = res.HasValue ? res.Value!.ToProduct() : null;
-        return product is { Active: true } ? product : null;
+        var table = Writable();
+        if ((await GetAllAsync(ct).ConfigureAwait(false)).Any(p => p.Category == key))
+            throw new InvalidOperationException("Move or delete this category's items first.");
+        await table.DeleteEntityAsync(CatalogCategoryEntity.Partition, key, ETag.All, ct).ConfigureAwait(false);
+        _cache = null;
     }
+
+    private TableClient Writable() => _table ?? throw new InvalidOperationException("Catalog storage is not configured (STORAGE_CONNECTION_STRING).");
 
     public static bool IsValidSku(string sku) => !string.IsNullOrWhiteSpace(sku) && SkuRegex().IsMatch(sku);
 
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$")]
     private static partial Regex SkuRegex();
+
+    // --- Loading ---
+
+    private async Task<Snapshot> LoadAsync(CancellationToken ct)
+    {
+        if (_cache is { } hit && DateTime.UtcNow - _cachedAtUtc < CacheTtl) return hit;
+
+        await _lock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (_cache is { } again && DateTime.UtcNow - _cachedAtUtc < CacheTtl) return again;
+
+            Snapshot snap;
+            if (_table is null)
+            {
+                snap = Order(CatalogDefaults.Categories, CatalogDefaults.Products);
+            }
+            else
+            {
+                try { snap = await ReadAsync(_table, ct).ConfigureAwait(false); }
+                catch (Exception ex) when (_cache is not null)
+                {
+                    _logger.LogWarning(ex, "Catalog read failed; serving the last one.");
+                    return _cache;
+                }
+            }
+
+            _cache = snap;
+            _cachedAtUtc = DateTime.UtcNow;
+            return snap;
+        }
+        finally { _lock.Release(); }
+    }
+
+    private async Task<Snapshot> ReadAsync(TableClient table, CancellationToken ct)
+    {
+        var categories = new List<CatalogCategory>();
+        await foreach (var e in table.QueryAsync<CatalogCategoryEntity>(
+            filter: $"PartitionKey eq '{CatalogCategoryEntity.Partition}'", cancellationToken: ct).ConfigureAwait(false))
+            categories.Add(e.ToCategory());
+
+        var products = new List<AppProduct>();
+        await foreach (var e in table.QueryAsync<CatalogProductEntity>(
+            filter: $"PartitionKey eq '{CatalogProductEntity.Partition}'", cancellationToken: ct).ConfigureAwait(false))
+            products.Add(e.ToProduct());
+
+        // First run on this table: seed the default categories and items. Items saved before the
+        // catalog had categories (the shop's plans) go into the shop category.
+        if (categories.Count == 0)
+        {
+            foreach (var c in CatalogDefaults.Categories)
+            {
+                await table.UpsertEntityAsync(CatalogCategoryEntity.From(c), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+                categories.Add(c);
+            }
+            foreach (var p in products.Where(p => string.IsNullOrEmpty(p.Category)))
+            {
+                p.Category = "apps";
+                await table.UpsertEntityAsync(CatalogProductEntity.FromProduct(p), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+            }
+            foreach (var p in CatalogDefaults.Products.Where(d => products.All(p => p.Sku != d.Sku)))
+            {
+                await table.UpsertEntityAsync(CatalogProductEntity.FromProduct(p), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+                products.Add(p);
+            }
+            _logger.LogInformation("Catalog seeded with the default categories and items.");
+        }
+
+        return Order(categories, products);
+    }
+
+    private static Snapshot Order(IEnumerable<CatalogCategory> categories, IEnumerable<AppProduct> products)
+    {
+        var cats = categories.OrderBy(c => c.Sort).ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        var rank = cats.Select((c, i) => (c.Key, i)).ToDictionary(x => x.Key, x => x.i);
+        var items = products
+            .OrderBy(p => rank.TryGetValue(p.Category, out var r) ? r : int.MaxValue)
+            .ThenBy(p => p.Sort).ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return new Snapshot(cats, items);
+    }
 }

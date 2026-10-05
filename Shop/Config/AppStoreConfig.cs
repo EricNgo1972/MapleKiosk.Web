@@ -23,6 +23,7 @@ public sealed class AppStoreConfig
     public Task<string> GetApiKeyAsync() => GetAsync("APPSTORE_API_KEY", "ApiKey");
     public Task<string> GetCatalogJsonAsync() => GetAsync("APPSTORE_CATALOG", "Catalog");
     public Task<string> GetStripeSecretKeyAsync() => GetAsync("APPSTORE_STRIPE_SECRET_KEY", "StripeSecretKey");
+    public Task<string> GetStripeAutomaticTaxAsync() => GetAsync("APPSTORE_STRIPE_AUTOMATIC_TAX", "StripeAutomaticTax");
     public Task<string> GetStripeWebhookSecretAsync() => GetAsync("APPSTORE_STRIPE_WEBHOOK_SECRET", "StripeWebhookSecret");
     public Task<string> GetVietQrBankCodeAsync() => GetAsync("APPSTORE_VIETQR_BANK_CODE", "VietQrBankCode");
     public Task<string> GetVietQrAccountNumberAsync() => GetAsync("APPSTORE_VIETQR_ACCOUNT_NUMBER", "VietQrAccountNumber");

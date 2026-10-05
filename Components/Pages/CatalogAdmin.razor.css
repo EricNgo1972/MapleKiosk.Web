@@ -77,3 +77,16 @@
 
 .cat-row-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .cat-del { color: var(--red, #c0392b); }
+
+.cat-sub { color: var(--muted, #6b645c); font-weight: 400; font-size: 13px; }
+.cat-hint { color: var(--muted, #6b645c); font-size: 13px; margin: 12px 0 0; }
+.cat-notice { color: #16723a; font-weight: 600; }
+.cat-off td { opacity: .55; }
+.cat-actions { align-items: center; flex-wrap: wrap; }
+.stp-mode { padding: 4px 10px; border-radius: 99px; font-size: 13px; font-weight: 600; background: #eee; color: #555; }
+.stp-mode--live { background: #e3f7e8; color: #16723a; }
+.stp-mode--test { background: #fff4d6; color: #8a5a00; }
+.stp-state { font-size: 13px; font-weight: 600; }
+.stp-state--insync { color: #16723a; }
+.stp-state--missing, .stp-state--outdated { color: #b4471f; }
+.stp-state--archived { color: #777; }

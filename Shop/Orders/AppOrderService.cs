@@ -119,7 +119,8 @@ public sealed class AppOrderService
     {
         var note = new OrderPaidNotification(
             order.OrderRef, order.Total, order.Currency, order.Method,
-            order.CustomerEmail, order.ProviderTxnId, order.PaidAt ?? DateTimeOffset.UtcNow);
+            order.CustomerEmail, order.ProviderTxnId, order.PaidAt ?? DateTimeOffset.UtcNow,
+            order.Lines, order.Company, order.CustomerName, order.CustomerPhone, order.Source);
 
         try { OrderPaid?.Invoke(note); }
         catch (Exception ex) { _logger.LogError(ex, "OrderPaid handler threw for {OrderRef}", note.OrderRef); }
@@ -133,7 +134,8 @@ public sealed class AppOrderService
 
     private async Task<AppOrderEntity?> LoadAsync(string orderRef, CancellationToken ct)
     {
-        if (_table is null) return null;
+        // Refs are alphanumeric; anything else (a quote, say) must never reach the OData filter below.
+        if (_table is null || string.IsNullOrEmpty(orderRef) || !orderRef.All(char.IsAsciiLetterOrDigit)) return null;
 
         var partition = PartitionFromRef(orderRef);
         if (partition is not null)

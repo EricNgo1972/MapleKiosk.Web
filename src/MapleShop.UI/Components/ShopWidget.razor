@@ -36,7 +36,7 @@
                             <li class="mshop-line">
                                 <div class="mshop-line__main">
                                     <span class="mshop-line__name">@line.Name</span>
-                                    <span class="mshop-line__price">$@line.PriceUsd.ToString("0.##")</span>
+                                    <span class="mshop-line__price">$@line.Price.ToString("0.##")</span>
                                 </div>
                                 <button class="mshop-remove" @onclick="() => Cart.Remove(line.Sku)">Remove</button>
                             </li>
@@ -44,7 +44,7 @@
                     </ul>
                     <div class="mshop-total">
                         <span>Total</span>
-                        <strong>$@Cart.TotalUsd.ToString("0.##") USD</strong>
+                        <strong>$@Cart.Total.ToString("0.##") CAD</strong>
                     </div>
                     <button class="mshop-btn mshop-btn--primary" @onclick="GoCheckout">Checkout</button>
                 }

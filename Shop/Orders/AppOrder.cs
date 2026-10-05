@@ -16,6 +16,11 @@ public sealed class AppOrderLine
     public string Name { get; set; } = "";
     public decimal UnitPrice { get; set; }
     public int Quantity { get; set; } = 1;
+
+    /// <summary>This line's own cadence when an order mixes one-time and monthly items (a quote:
+    /// setup paid once plus monthly plans). Null = the order's <see cref="AppOrder.Interval"/>.</summary>
+    public string? Interval { get; set; }
+
     public decimal LineTotal => UnitPrice * Quantity;
 }
 
@@ -40,6 +45,14 @@ public sealed class AppOrder
     public int TrialDays { get; set; }
     public AppOrderStatus Status { get; set; } = AppOrderStatus.Pending;
     public string? CustomerEmail { get; set; }
+
+    /// <summary>Who bought, as typed on a quote (business, contact, phone), and where the order
+    /// came from ("quote:nails", or null for the app store), so sales can follow up.</summary>
+    public string? Company { get; set; }
+    public string? CustomerName { get; set; }
+    public string? CustomerPhone { get; set; }
+    public string? Source { get; set; }
+
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
