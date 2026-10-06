@@ -12,6 +12,7 @@
     <meta property="og:description" content="@L["ag.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
     <meta property="og:image" content="@(Nav.BaseUri)img/agent/book.jpg" />
+    <VideoSchema Ids="SchemaVideos" />
 </HeadContent>
 
 <NavBar />
@@ -137,6 +138,9 @@
 <MobileCta />
 
 @code {
+    // The film as search engines see it (VideoSchema).
+    private IEnumerable<string?> SchemaVideos => [VideoId];
+
     // "Maple Kiosk AI Voice Agent" — a vertical short (9:16) on the Maple Kiosk channel. Each scene
     // deep-links to the second its caption starts.
     private const string VideoId = "aC6QGrsEQ9c";

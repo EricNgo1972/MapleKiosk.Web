@@ -13,6 +13,7 @@
     <meta property="og:description" content="@L["spa.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
     <meta property="og:image" content="@(Nav.BaseUri)img/nails/hero.jpg" />
+    <VideoSchema Ids="SchemaVideos" />
 </HeadContent>
 
 <NavBar />
@@ -103,6 +104,10 @@
 <MobileCta Href="@TestDrive" Label="@L["spa.cta.trial"]" />
 
 @code {
+    // The films as search engines see them (VideoSchema): the cut each one starts in on this page.
+    private IEnumerable<string?> SchemaVideos =>
+        new[] { Overview }.Concat(_films).Select(f => Default == "ru" || f.Vi is null ? f.Ru : f.Vi);
+
     private const string TestDrive = "https://nails.maplekiosk.ca";
 
     // The "MapleSPA" films on the Maple Kiosk YouTube channel, one playlist per language:

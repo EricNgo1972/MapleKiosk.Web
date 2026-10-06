@@ -83,8 +83,9 @@
 
     // Base paths that have localized routes (/, /fr/<path>, ...). The language
     // switch keeps you on the current page for these; anything else falls back to
-    // the localized home so we never link to a non-existent localized route.
-    private static readonly HashSet<string> LocalizedPaths =
+    // the localized home so we never link to a non-existent localized route. App.razor lists these
+    // pages' four languages for search engines (hreflang).
+    internal static readonly HashSet<string> LocalizedPaths =
         new(new[] { "", "privacy", "terms", "tos", "shop" }
             .Concat(SiteProducts.All.Select(p => p.Slug))
             .Concat(SiteProducts.In(ProductGroup.Trade).Select(p => $"{p.Slug}/pricing")));

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="@_culture">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,6 +9,15 @@
     {
         @* The dev box (web.maplekiosk.ca) and localhost stay out of search engines and AI indexes. *@
         <meta name="robots" content="noindex, nofollow" />
+    }
+    @if (NavBar.LocalizedPaths.Contains(_page))
+    {
+        @* The page in each language, so search engines show the right one and don't count them as copies. *@
+        foreach (var lang in Languages)
+        {
+            <link rel="alternate" hreflang="@lang" href="@(SiteHost.Root + PathIn(lang))" />
+        }
+        <link rel="alternate" hreflang="x-default" href="@(SiteHost.Root + PathIn("en"))" />
     }
 
     @* Title and description come from each page (<PageTitle>, <HeadContent>) — a fixed one here
@@ -48,9 +57,26 @@
     [Inject] private IConfiguration Config { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
 
-    private string? _gaId;
+    private static readonly string[] Languages = ["en", "fr", "vi", "ru"];
 
-    protected override void OnInitialized() => _gaId = Config["Analytics:GaMeasurementId"];
+    private string? _gaId;
+    private string _culture = "en";  // the page's language, from its /fr, /vi or /ru prefix
+    private string _page = "";       // the page without that prefix: "/fr/garage" -> "garage"
+
+    protected override void OnInitialized()
+    {
+        _gaId = Config["Analytics:GaMeasurementId"];
+        var segs = Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0]
+            .Split('/', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (segs.Count > 0 && segs[0] is "fr" or "vi" or "ru")
+        {
+            _culture = segs[0];
+            segs.RemoveAt(0);
+        }
+        _page = string.Join('/', segs);
+    }
+
+    private string PathIn(string lang) => lang == "en" ? _page : _page == "" ? lang : $"{lang}/{_page}";
 
     private string OrgJson() => System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object>
     {

@@ -12,6 +12,7 @@
     <meta property="og:description" content="@L["rp.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
     <meta property="og:image" content="@(Nav.BaseUri)img/restaurant/hero.jpg" />
+    <VideoSchema Ids="SchemaVideos" />
 </HeadContent>
 
 <NavBar />
@@ -97,6 +98,10 @@
 <MobileCta />
 
 @code {
+    // The films as search engines see them (VideoSchema): the cut each one starts in on this page.
+    private IEnumerable<string?> SchemaVideos =>
+        new[] { Overview }.Concat(_films).Select(f => Default == "fr" ? f.Fr : f.En);
+
     // The "Meet MaplePOS" films on the Maple Kiosk YouTube channel, one playlist per language:
     // English "MaplePOS: your whole restaurant, one floor" (PLSRbUy6KcG6U) and French
     // "Découvrez MaplePOS" (PLDtkmLGiaJb0). The visitor picks the language (site.js remembers it);

@@ -1,0 +1,33 @@
+@* The page's films as schema.org VideoObjects, so search engines can list the page in video results.
+   Ids = the cuts the page plays first in its language; unknown ids (not in SiteVideos) are skipped. *@
+
+@if (_json is not null)
+{
+    <script type="application/ld+json">@((MarkupString)_json)</script>
+}
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<string?> Ids { get; set; } = [];
+
+    private string? _json;
+
+    protected override void OnParametersSet()
+    {
+        var videos = Ids.Distinct().Select(SiteVideos.Find).OfType<SiteVideos.Video>().Select(v => new Dictionary<string, object>
+        {
+            ["@type"] = "VideoObject",
+            ["name"] = v.Title,
+            ["description"] = v.Description,
+            ["thumbnailUrl"] = $"https://i.ytimg.com/vi/{v.Id}/hqdefault.jpg",
+            ["uploadDate"] = v.Uploaded,
+            ["duration"] = $"PT{v.Seconds / 60}M{v.Seconds % 60}S",
+            ["embedUrl"] = $"https://www.youtube.com/embed/{v.Id}",
+            ["url"] = $"https://www.youtube.com/watch?v={v.Id}"
+        }).ToList();
+
+        // Escaped so a "</script>" in a description can't end the block early.
+        _json = videos.Count == 0 ? null : System.Text.Json.JsonSerializer.Serialize(
+            new Dictionary<string, object> { ["@context"] = "https://schema.org", ["@graph"] = videos },
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Default });
+    }
+}

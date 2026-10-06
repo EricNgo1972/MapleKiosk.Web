@@ -12,6 +12,7 @@
     <meta property="og:description" content="@L["gar.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
     <meta property="og:image" content="@(Nav.BaseUri)img/garage/board.jpg" />
+    <VideoSchema Ids="SchemaVideos" />
 </HeadContent>
 
 <NavBar />
@@ -138,6 +139,9 @@
 <MobileCta />
 
 @code {
+    // The films as search engines see them (VideoSchema).
+    private IEnumerable<string?> SchemaVideos => [VideoId, .. _scenes.Select(s => s.Video)];
+
     // "MapleGarage Overview" on the Maple Kiosk channel; each scene deep-links
     // to the second its caption appears.
     private const string VideoId = "t1_a_Nac8wA";
