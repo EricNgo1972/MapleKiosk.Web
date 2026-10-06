@@ -36,17 +36,39 @@
                             <li class="mshop-line">
                                 <div class="mshop-line__main">
                                     <span class="mshop-line__name">@line.Name</span>
-                                    <span class="mshop-line__price">$@line.Price.ToString("0.##")</span>
+                                    <span class="mshop-line__price">$@line.LineTotal.ToString("0.00")@line.PriceSuffix</span>
                                 </div>
-                                <button class="mshop-remove" @onclick="() => Cart.Remove(line.Sku)">Remove</button>
+                                <div class="mshop-qty">
+                                    <button @onclick="() => Cart.SetQuantity(line.Sku, line.Quantity - 1)" aria-label="One less">−</button>
+                                    <span>@line.Quantity</span>
+                                    <button disabled="@(line.Quantity >= CartState.MaxQuantity)"
+                                            @onclick="() => Cart.SetQuantity(line.Sku, line.Quantity + 1)" aria-label="One more">+</button>
+                                    @if (line.Quantity > 1)
+                                    {
+                                        <small class="mshop-qty__each">$@line.Price.ToString("0.00") each</small>
+                                    }
+                                    <button class="mshop-remove" @onclick="() => Cart.Remove(line.Sku)">Remove</button>
+                                </div>
                             </li>
                         }
                     </ul>
                     <div class="mshop-total">
-                        <span>Total</span>
-                        <strong>$@Cart.Total.ToString("0.##") CAD</strong>
+                        <span>Due today</span>
+                        <strong>$@Cart.DueToday.ToString("0.00") CAD</strong>
                     </div>
-                    <button class="mshop-btn mshop-btn--primary" @onclick="GoCheckout">Checkout</button>
+                    @if (Cart.HasSubscription)
+                    {
+                        <div class="mshop-total mshop-total--then">
+                            <span>@(Cart.TrialDays > 0 ? $"After {Cart.TrialDays}-day free trial" : "Then")</span>
+                            <strong>$@Cart.Recurring.ToString("0.00")@Cart.RecurringSuffix</strong>
+                        </div>
+                        <p class="mshop-vqr__hint">Plans renew automatically by card. Cancel any time.</p>
+                    }
+                    @if (Cart.MixesCycles)
+                    {
+                        <p class="mshop-error">Monthly and yearly plans can't be bought together — please check them out separately.</p>
+                    }
+                    <button class="mshop-btn mshop-btn--primary" disabled="@Cart.MixesCycles" @onclick="GoCheckout">Checkout</button>
                 }
             }
             else if (_view == View.Checkout)
@@ -85,7 +107,7 @@
                 }
 
                 <button class="mshop-btn mshop-btn--primary" disabled="@_busy" @onclick="Pay">
-                    @(_busy ? "Processing…" : "Pay now")
+                    @(_busy ? "Processing…" : Cart.HasSubscription ? "Subscribe" : "Pay now")
                 </button>
                 <button class="mshop-btn mshop-btn--ghost" @onclick="() => _view = View.Cart">Back</button>
             }
@@ -132,6 +154,11 @@
 
     protected override void OnInitialized() => Cart.OnChange += OnCartChanged;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await Cart.RestoreAsync();
+    }
+
     private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
 
     private void Open() { _open = true; _view = View.Cart; }
@@ -165,7 +192,7 @@
             Email = _email,
             SuccessUrl = Nav.BaseUri + "shop/success",
             CancelUrl = Nav.BaseUri + "shop/cancel",
-            Items = Cart.Lines.Select(l => new CheckoutItem { Sku = l.Sku, Quantity = 1 }).ToList()
+            Items = Cart.Lines.Select(l => new CheckoutItem { Sku = l.Sku, Quantity = l.Quantity }).ToList()
         };
 
         var result = await Client.CreateOrderAsync(request);

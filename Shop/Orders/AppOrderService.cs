@@ -57,8 +57,10 @@ public sealed class AppOrderService
     }
 
     /// <summary>THE choke-point. Idempotently flips the order to Paid and fires
-    /// the three signals. Returns true only for the single winning transition.</summary>
-    public async Task<bool> MarkPaidAsync(string orderRef, string? providerTxnId, CancellationToken ct = default)
+    /// the three signals. Returns true only for the single winning transition.
+    /// A subscription order also records the Stripe customer and subscription it created.</summary>
+    public async Task<bool> MarkPaidAsync(string orderRef, string? providerTxnId, CancellationToken ct = default,
+        string? stripeCustomerId = null, string? stripeSubscriptionId = null)
     {
         if (_table is null) return false;
 
@@ -80,6 +82,8 @@ public sealed class AppOrderService
             entity.Status = nameof(AppOrderStatus.Paid);
             entity.PaidAt = DateTimeOffset.UtcNow;
             entity.ProviderTxnId = providerTxnId;
+            entity.StripeCustomerId ??= stripeCustomerId;
+            entity.StripeSubscriptionId ??= stripeSubscriptionId;
 
             try
             {
@@ -97,6 +101,32 @@ public sealed class AppOrderService
         }
 
         return false;
+    }
+
+    /// <summary>Mirrors a Stripe subscription change (renewed, card failing, cancelled...) onto its order.
+    /// Stripe does the billing; this only keeps the order's view current. Last write wins.</summary>
+    public async Task UpdateSubscriptionAsync(string orderRef, string subscriptionId, string? customerId, string status,
+        DateTimeOffset? currentPeriodEnd, CancellationToken ct = default)
+    {
+        if (_table is null) return;
+        var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
+        if (entity is null)
+        {
+            _logger.LogWarning("Subscription {SubscriptionId}: order {OrderRef} not found.", subscriptionId, orderRef);
+            return;
+        }
+
+        // Merge only the subscription columns, so this never races the Pending→Paid write
+        // (Stripe sends subscription.created alongside checkout.session.completed).
+        var patch = new TableEntity(entity.PartitionKey, entity.RowKey)
+        {
+            [nameof(AppOrderEntity.StripeSubscriptionId)] = subscriptionId,
+            [nameof(AppOrderEntity.SubscriptionStatus)] = status
+        };
+        if (customerId is not null) patch[nameof(AppOrderEntity.StripeCustomerId)] = customerId;
+        if (currentPeriodEnd is not null) patch[nameof(AppOrderEntity.CurrentPeriodEnd)] = currentPeriodEnd;
+        await _table.UpdateEntityAsync(patch, ETag.All, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+        _logger.LogInformation("App Store order {OrderRef} subscription {SubscriptionId} is {Status}.", orderRef, subscriptionId, status);
     }
 
     public async Task MarkFailedAsync(string orderRef, string reason, CancellationToken ct = default)

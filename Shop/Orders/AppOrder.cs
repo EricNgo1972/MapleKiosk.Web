@@ -55,6 +55,15 @@ public sealed class AppOrder
 
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
+
+    /// <summary>Set once a recurring order is paid: Stripe owns the subscription from then on (renewals,
+    /// card retries, cancellation via the customer portal) and the webhook mirrors its state here.</summary>
+    public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
+
+    /// <summary>Stripe's subscription status (trialing, active, past_due, canceled...), null for one-time orders.</summary>
+    public string? SubscriptionStatus { get; set; }
+    public DateTimeOffset? CurrentPeriodEnd { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.UtcNow.AddMinutes(30);

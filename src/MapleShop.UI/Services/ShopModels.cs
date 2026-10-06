@@ -42,6 +42,7 @@ public sealed class CreateOrderRequest
     public string? SuccessUrl { get; set; }
     public string? CancelUrl { get; set; }
     public string? Currency { get; set; }
+    public string? Culture { get; set; }
 }
 
 public sealed class CheckoutResult
@@ -63,4 +64,11 @@ public sealed class OrderStatus
     public string Status { get; set; } = "";
     public decimal Total { get; set; }
     public string Currency { get; set; } = "";
+    public string Interval { get; set; } = "OneTime";
+    public int TrialDays { get; set; }
+
+    /// <summary>The Stripe customer portal, for subscription orders, when configured.</summary>
+    public string? ManageUrl { get; set; }
+
+    public bool IsSubscription => Interval is "Monthly" or "Yearly";
 }

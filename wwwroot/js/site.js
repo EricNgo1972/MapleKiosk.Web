@@ -136,6 +136,9 @@
     // A click anywhere outside the open popup closes it (clicks inside it pass through).
     if (!ev.target.closest('[data-user-pop]')) closeUserMenu();
 
+    const shToggle = ev.target.closest('[data-sh-toggle]');
+    if (shToggle) { toggleShopItem(shToggle); return; }
+
     if (ev.target.closest('[data-open-trial]'))  { ev.preventDefault(); ev.stopPropagation(); openTrialModal();  return; }
     if (ev.target.closest('[data-close-trial]')) { ev.preventDefault(); ev.stopPropagation(); closeTrialModal(); return; }
 
@@ -361,6 +364,25 @@
   }
   wireQuote();
   onEnhancedLoad(wireQuote);
+
+  // ===== Shop (/shop): a row opens in place to show what's included =====
+  function toggleShopItem(btn, open) {
+    const more = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!more) return;
+    const show = open ?? btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', String(show));
+    more.hidden = !show;
+  }
+  function openShopItemFromHash() {
+    if (!location.hash.startsWith('#item-')) return;
+    const row = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    const btn = row && row.querySelector('[data-sh-toggle]');
+    if (!btn) return;
+    toggleShopItem(btn, true);
+    row.scrollIntoView({ block: 'center' });
+  }
+  openShopItemFromHash();
+  onEnhancedLoad(openShopItemFromHash);
 
   // Blazor raises 'enhancedload' through Blazor.addEventListener (not as a DOM event).
   function onEnhancedLoad(fn) {

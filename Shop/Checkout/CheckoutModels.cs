@@ -14,6 +14,9 @@ public sealed class CreateCheckoutRequest
     public string? SuccessUrl { get; set; }
     public string? CancelUrl { get; set; }
     public string? Currency { get; set; }
+
+    /// <summary>en / fr / vi / ru: the Stripe checkout page's language.</summary>
+    public string? Culture { get; set; }
 }
 
 public sealed class CheckoutResult
@@ -35,4 +38,11 @@ public sealed class OrderStatusResult
     public string Status { get; set; } = "";
     public decimal Total { get; set; }
     public string Currency { get; set; } = "";
+
+    /// <summary>OneTime / Monthly / Yearly; a recurring order is a Stripe subscription.</summary>
+    public string Interval { get; set; } = "OneTime";
+    public int TrialDays { get; set; }
+
+    /// <summary>Where a subscriber cancels or changes card (the Stripe customer portal), when configured.</summary>
+    public string? ManageUrl { get; set; }
 }

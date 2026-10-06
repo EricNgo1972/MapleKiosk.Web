@@ -55,19 +55,16 @@ public sealed partial class CatalogStore : IAppCatalog
     public async Task<IReadOnlyList<AppProduct>> GetAllAsync(CancellationToken ct = default)
         => (await LoadAsync(ct).ConfigureAwait(false)).Products;
 
-    /// <summary>The shop's catalog (IAppCatalog): active items in shop categories.</summary>
+    /// <summary>The shop's catalog (IAppCatalog): every active item — the shop sells the whole catalog.</summary>
     public async Task<IReadOnlyList<AppProduct>> GetActiveAsync(CancellationToken ct = default)
-    {
-        var s = await LoadAsync(ct).ConfigureAwait(false);
-        var shop = s.Categories.Where(c => c.Placement == CatalogCategory.Shop).Select(c => c.Key).ToHashSet();
-        return s.Products.Where(p => p.Active && shop.Contains(p.Category)).ToList();
-    }
+        => (await LoadAsync(ct).ConfigureAwait(false)).Products.Where(p => p.Active).ToList();
 
-    /// <summary>The pricing pages' quote: each quote category with its active items, in order.</summary>
-    public async Task<IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)>> GetQuoteAsync(CancellationToken ct = default)
+    /// <summary>Every category with its active items, in order: the pricing pages' quote builder and the shop
+    /// both sell all of them.</summary>
+    public async Task<IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)>> GetGroupsAsync(CancellationToken ct = default)
     {
         var s = await LoadAsync(ct).ConfigureAwait(false);
-        return s.Categories.Where(c => c.Placement == CatalogCategory.Quote)
+        return s.Categories
             .Select(c => (c, (IReadOnlyList<AppProduct>)s.Products.Where(p => p.Active && p.Category == c.Key).ToList()))
             .Where(g => g.Item2.Count > 0)
             .ToList();
@@ -165,19 +162,13 @@ public sealed partial class CatalogStore : IAppCatalog
             filter: $"PartitionKey eq '{CatalogProductEntity.Partition}'", cancellationToken: ct).ConfigureAwait(false))
             products.Add(e.ToProduct());
 
-        // First run on this table: seed the default categories and items. Items saved before the
-        // catalog had categories (the shop's plans) go into the shop category.
+        // First run on this table: seed the default categories and items.
         if (categories.Count == 0)
         {
             foreach (var c in CatalogDefaults.Categories)
             {
                 await table.UpsertEntityAsync(CatalogCategoryEntity.From(c), TableUpdateMode.Replace, ct).ConfigureAwait(false);
                 categories.Add(c);
-            }
-            foreach (var p in products.Where(p => string.IsNullOrEmpty(p.Category)))
-            {
-                p.Category = "apps";
-                await table.UpsertEntityAsync(CatalogProductEntity.FromProduct(p), TableUpdateMode.Replace, ct).ConfigureAwait(false);
             }
             foreach (var p in CatalogDefaults.Products.Where(d => products.All(p => p.Sku != d.Sku)))
             {

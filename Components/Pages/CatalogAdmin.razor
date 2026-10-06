@@ -46,7 +46,7 @@
             var items = _items.Where(i => i.Category == c.Key).ToList();
             <div class="cat-card">
                 <div class="cat-head">
-                    <h3>@c.Name <small class="cat-sub">@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages") · @(c.PickOne ? "pick one" : "pick any")</small></h3>
+                    <h3>@c.Name <small class="cat-sub">@(c.PickOne ? "pick one" : "pick any")</small></h3>
                     <button class="btn btn-ghost cat-add" disabled="@(!Store.IsConfigured)" @onclick="() => NewItem(c.Key)">+ Add</button>
                 </div>
                 @if (items.Count == 0)
@@ -80,14 +80,13 @@
                 <button class="btn btn-ghost cat-add" disabled="@(!Store.IsConfigured)" @onclick="NewCategory">+ Add</button>
             </div>
             <table class="cat-table">
-                <thead><tr><th>Name</th><th>Key</th><th>Sold on</th><th>Buyers</th><th>Order</th></tr></thead>
+                <thead><tr><th>Name</th><th>Key</th><th>Buyers</th><th>Order</th></tr></thead>
                 <tbody>
                     @foreach (var c in _categories)
                     {
                         <tr class="cat-click" @onclick="() => EditCategory(c)">
                             <td>@c.Name</td>
                             <td><code>@c.Key</code></td>
-                            <td>@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages")</td>
                             <td>@(c.PickOne ? "Pick one" : "Pick any")</td>
                             <td>@c.Sort</td>
                         </tr>
@@ -136,6 +135,9 @@
             </label>
             <label style="grid-column:1/-1">Description
                 <input @bind="_edit.Description" placeholder="One line" />
+            </label>
+            <label style="grid-column:1/-1">Details <small class="cat-sub">what's included, one point per line · shown on the shop's product page</small>
+                <textarea rows="5" @bind="_edit.Details" placeholder="@DetailsPlaceholder"></textarea>
             </label>
             <label style="grid-column:1/-1">Features (one per line)
                 <textarea rows="3" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
@@ -199,12 +201,6 @@
         <div class="cat-grid">
             <label>Name <input @bind="_cat.Name" placeholder="Hardware" /></label>
             <label>Key <input @bind="_cat.Key" disabled="@(!_catIsNew)" placeholder="hardware" /></label>
-            <label>Sold on
-                <select @bind="_cat.Placement">
-                    <option value="@CatalogCategory.Quote">Pricing pages</option>
-                    <option value="@CatalogCategory.Shop">Shop</option>
-                </select>
-            </label>
             <label>Order <input type="number" step="1" @bind="_cat.Sort" /></label>
             <label class="cat-check" style="grid-column:1/-1"><input type="checkbox" @bind="_cat.PickOne" /> Buyers pick one (plans), not any number (add-ons)</label>
         </div>
@@ -223,6 +219,7 @@
 }
 
 @code {
+    private const string DetailsPlaceholder = "Installed and set up by our team\nWorks offline when the internet drops";
     private const string FeaturesPlaceholder = "Unlimited invoices\nPriority support";
 
     private IReadOnlyList<CatalogCategory> _categories = [];
@@ -303,7 +300,7 @@
     {
         _edit = new AppProduct
         {
-            Sku = p.Sku, Category = p.Category, Name = p.Name, Description = p.Description, Price = p.Price,
+            Sku = p.Sku, Category = p.Category, Name = p.Name, Description = p.Description, Details = p.Details, Price = p.Price,
             PriceVnd = p.PriceVnd, ImageUrl = p.ImageUrl, Active = p.Active, BillingInterval = p.BillingInterval,
             TrialDays = p.TrialDays, Sort = p.Sort, Recommended = p.Recommended, Features = new List<string>(p.Features)
         };
@@ -422,7 +419,7 @@
 
     private void EditCategory(CatalogCategory c)
     {
-        _cat = new CatalogCategory { Key = c.Key, Name = c.Name, Placement = c.Placement, PickOne = c.PickOne, Sort = c.Sort };
+        _cat = new CatalogCategory { Key = c.Key, Name = c.Name, PickOne = c.PickOne, Sort = c.Sort };
         _catIsNew = false;
         OpenCategory();
     }

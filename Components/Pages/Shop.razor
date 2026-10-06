@@ -1,0 +1,140 @@
+@page "/shop"
+@page "/fr/shop"
+@page "/vi/shop"
+@page "/ru/shop"
+@using MapleKiosk.Web.Shop.Catalog
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject CatalogStore Catalog
+
+@* The public storefront: anyone can browse, fill the cart and check out (no sign-in; only /shop/admin
+   is gated). It sells the whole catalog (/shop/admin) as a compact list, one block per category; a row
+   opens in place to show what's included (site.js, data-sh-toggle). The cart sits beside it: one-time items are charged once, plans become a Stripe subscription (ShopCart). *@
+
+<PageTitle>@L["shop.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["shop.meta.desc"]" />
+    <meta property="og:title" content="@L["shop.meta.title"]" />
+    <meta property="og:description" content="@L["shop.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+</HeadContent>
+
+<NavBar />
+
+<main class="sh">
+    <div class="container sh__grid">
+
+        <div class="sh__main">
+            <header class="sh__head">
+                <h1 class="sh__title">@L["shop.crumb"]</h1>
+                <p class="sh__note">@L["shop.note"]</p>
+            </header>
+
+            @if (_shop.Count == 0)
+            {
+                <p class="sh__empty">@L["shop.empty"]</p>
+            }
+            @foreach (var (cat, items) in _shop)
+            {
+                <section class="sh-cat" id="cat-@cat.Key" aria-labelledby="sh-g-@cat.Key">
+                    <h2 class="sh-cat__title" id="sh-g-@cat.Key">
+                        @cat.Name
+                        @if (cat.PickOne)
+                        {
+                            <small>@L["shop.pickone"]</small>
+                        }
+                    </h2>
+                    <ul class="sh-list">
+                        @foreach (var i in items)
+                        {
+                            var points = Points(i);
+                            <li class="sh-item" id="item-@i.Sku">
+                                @* Items with details open and close in place; the rest are a plain row. *@
+                                @if (points.Count > 0)
+                                {
+                                    <button type="button" class="sh-item__info" data-sh-toggle aria-expanded="false" aria-controls="item-@i.Sku-more">
+                                        @ItemHead(i)
+                                    </button>
+                                }
+                                else
+                                {
+                                    <div class="sh-item__info">@ItemHead(i)</div>
+                                }
+                                <p class="sh-item__price">@Money(i.Price)<small>@Per(i)</small></p>
+                                <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.Name" Price="@i.Price"
+                                         BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
+                                         Group="@cat.Key" PickOne="@cat.PickOne" />
+                                @if (points.Count > 0)
+                                {
+                                    <div class="sh-item__more" id="item-@i.Sku-more" hidden>
+                                        <ul class="sh-checks">
+                                            @foreach (var pt in points) { <li>@pt</li> }
+                                        </ul>
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
+        </div>
+
+        <ShopCart Culture="@L.Culture" />
+    </div>
+</main>
+
+<TrialForm Culture="@L.Culture" />
+<Footer />
+
+@code {
+    private IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)> _shop = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Localized routes: /shop (en), /fr/shop, /vi/shop, /ru/shop.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+        _shop = await Catalog.GetGroupsAsync();
+    }
+
+    private static string? Blurb(AppProduct i) => string.IsNullOrWhiteSpace(i.Description) ? null : i.Description;
+
+    private string Per(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => " " + L["pr.month"],
+        BillingIntervals.Yearly => " " + L["pr.year"],
+        _ => "",
+    };
+
+    // The row's name, tags and one-line description (inside the toggle button, so only phrasing content).
+    private RenderFragment ItemHead(AppProduct i) => @<text>
+        <span class="sh-item__name">
+            @i.Name
+            @if (i.Recommended)
+            {
+                <span class="sh-tag">@L["pr.rec"]</span>
+            }
+            @if (i.TrialDays > 0 && BillingIntervals.IsRecurring(i.BillingInterval))
+            {
+                <span class="sh-tag sh-tag--trial">@string.Format(L["shop.trial"], i.TrialDays)</span>
+            }
+            @if (Points(i).Count > 0)
+            {
+                <span class="sh-item__chev" aria-hidden="true"></span>
+            }
+        </span>
+        @if (Blurb(i) is { } blurb)
+        {
+            <span class="sh-item__desc">@blurb</span>
+        }
+    </text>;
+
+    // What's included: the item's Details lines (/shop/admin), else its features.
+    private static List<string> Points(AppProduct i)
+    {
+        var lines = (i.Details ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        return lines.Count > 0 ? lines : i.Features;
+    }
+
+    private string Money(decimal d) => ShopMoney.Format(d, L.Culture);
+}

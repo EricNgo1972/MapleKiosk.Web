@@ -1,0 +1,49 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@using MapleShop.UI.Services
+@inject CartState Cart
+@inject LocalizationService L
+
+@* A shop card's button: adds the item, or, once it's in the cart, says so and takes it out again.
+   In a pick-one category (one software plan) choosing an item swaps out the other. *@
+
+@if (Cart.Contains(Sku))
+{
+    <button type="button" class="sh-add sh-add--in" @onclick="() => Cart.Remove(Sku)" aria-pressed="true"
+            title="@L["shop.remove"]">
+        <span class="sh-add__label">✓ @L["shop.added"]</span>
+        <span class="sh-add__undo">@L["shop.remove"]</span>
+    </button>
+}
+else
+{
+    <button type="button" class="sh-add" @onclick="Add">@(PickOne && BillingInterval is "Monthly" or "Yearly" ? L["shop.choose"] : L["shop.add"])</button>
+}
+
+@code {
+    [Parameter] public string Culture { get; set; } = "en";
+    [Parameter, EditorRequired] public string Sku { get; set; } = "";
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public decimal Price { get; set; }
+    [Parameter] public string BillingInterval { get; set; } = "OneTime";
+    [Parameter] public int TrialDays { get; set; }
+    [Parameter] public string? Group { get; set; }
+    [Parameter] public bool PickOne { get; set; }
+
+    protected override void OnInitialized()
+    {
+        L.SetCulture(Culture);
+        Cart.OnChange += OnCartChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await Cart.RestoreAsync();
+    }
+
+    private void Add() => Cart.Add(Sku, Name, Price, BillingInterval, TrialDays, Group, PickOne);
+
+    private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Cart.OnChange -= OnCartChanged;
+}

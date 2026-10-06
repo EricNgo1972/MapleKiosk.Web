@@ -101,9 +101,9 @@
     // English "MaplePOS: your whole restaurant, one floor" (PLSRbUy6KcG6U) and French
     // "Découvrez MaplePOS" (PLDtkmLGiaJb0). The visitor picks the language (site.js remembers it);
     // the French page starts in French, every other page in English.
-    private record FilmInfo(string Key, string En, string EnLength, string Fr, string FrLength);
+    internal record FilmInfo(string Key, string En, string EnLength, string Fr, string FrLength);
 
-    private static readonly FilmInfo Overview = new("hero", "yNZny11acfk", "0:52", "dvio2Pc7DQQ", "0:56");
+    internal static readonly FilmInfo Overview = new("hero", "yNZny11acfk", "0:52", "dvio2Pc7DQQ", "0:56");
 
     // Ordered as one night of service: the book fills, the floor runs, the bill closes, the week after.
     private readonly FilmInfo[] _films =

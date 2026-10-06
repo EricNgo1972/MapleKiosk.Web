@@ -29,16 +29,13 @@ public static class BillingIntervals
     };
 }
 
-/// <summary>A group of catalog items, e.g. "Setup" or "Software". <see cref="Placement"/> says where it's
-/// sold: on the trades' pricing pages (the quote builder) or in the app shop.</summary>
+/// <summary>A group of catalog items, e.g. "Setup" or "Software". Every category is sold both on the trades'
+/// pricing pages (the quote builder) and in the shop (/shop).</summary>
 public sealed class CatalogCategory
 {
-    public const string Quote = "quote";
-    public const string Shop = "shop";
 
     public string Key { get; set; } = "";
     public string Name { get; set; } = "";
-    public string Placement { get; set; } = Quote;
 
     /// <summary>Buyers pick one item (a plan) rather than any number (add-ons).</summary>
     public bool PickOne { get; set; }
@@ -70,6 +67,9 @@ public sealed class AppProduct
     public int TrialDays { get; set; }
     public int Sort { get; set; }
     public bool Recommended { get; set; }
+
+    /// <summary>What's included, one point per line: the shop's product page (/shop/{sku}) only.</summary>
+    public string? Details { get; set; }
 
     /// <summary>Selling points shown on the card when the site has no translated copy for it.</summary>
     public List<string> Features { get; set; } = new();

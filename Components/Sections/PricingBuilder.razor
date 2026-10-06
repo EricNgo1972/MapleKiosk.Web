@@ -353,7 +353,7 @@
     // checkout, Stripe and the website assistant.
     private IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)> _quote = [];
 
-    protected override async Task OnInitializedAsync() => _quote = await Catalog.GetQuoteAsync();
+    protected override async Task OnInitializedAsync() => _quote = await Catalog.GetGroupsAsync();
 
     // Copy the site may or may not have: null when neither the product's nor the shared key exists.
     private string? Tx(string key)

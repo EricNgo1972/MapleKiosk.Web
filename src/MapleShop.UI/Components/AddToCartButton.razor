@@ -21,6 +21,9 @@
     /// <summary>OneTime / Monthly / Yearly — must match the catalog for this SKU.</summary>
     [Parameter] public string BillingInterval { get; set; } = "OneTime";
 
+    /// <summary>Free-trial days for a plan — must match the catalog for this SKU.</summary>
+    [Parameter] public int TrialDays { get; set; }
+
     /// <summary>Extra CSS classes so the button can match the host's button styles.</summary>
     [Parameter] public string CssClass { get; set; } = "btn btn-primary";
 
@@ -30,7 +33,7 @@
 
     private async void OnCartChanged() => await InvokeAsync(StateHasChanged);
 
-    private void Add() => Cart.Add(Sku, Name, Price, BillingInterval);
+    private void Add() => Cart.Add(Sku, Name, Price, BillingInterval, TrialDays);
 
     public void Dispose() => Cart.OnChange -= OnCartChanged;
 }
