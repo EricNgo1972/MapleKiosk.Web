@@ -1006,8 +1006,11 @@ html.nav-busy body{cursor:progress}
 
 /* ============ NAV: PRODUCTS MENU ============ */
 /* One menu for every product page (Services/SiteProducts.cs), so the bar doesn't grow with the list. */
-.nav-prod{margin-left:auto;margin-right:20px}
-.nav-prod__btn{display:inline-flex;align-items:center;gap:6px;padding:8px 4px;border:0;background:transparent;color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;opacity:.85;transition:opacity .2s,color .2s}
+.nav-prod{margin-left:auto;margin-right:18px}
+.nav-shop{flex:none;margin-right:20px;padding:8px 4px;white-space:nowrap;font-size:14px;color:var(--text);opacity:.85;transition:opacity .2s,color .2s}
+.nav-shop:hover{opacity:1;color:var(--red)}
+.nav-shop.active{opacity:1;color:var(--red);font-weight:600}
+.nav-prod__btn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:8px 4px;border:0;background:transparent;color:var(--text);font-family:inherit;font-size:14px;cursor:pointer;opacity:.85;transition:opacity .2s,color .2s}
 .nav-prod__btn:hover,.nav-prod__btn[aria-expanded="true"]{opacity:1;color:var(--red)}
 .nav-prod__btn.active{opacity:1;color:var(--red);font-weight:600}
 .nav-prod__btn[aria-expanded="true"] .user-badge__chev{transform:rotate(180deg)}
@@ -1022,7 +1025,8 @@ html.nav-busy body{cursor:progress}
 .nav-prod__item:hover strong,.nav-prod__item.active strong{color:var(--red)}
 .nav-prod__item.active{background:var(--surface-2)}
 @media (max-width:900px){
-  .nav-prod{margin-right:10px}
+  .nav-prod{margin-right:6px}
+  .nav-shop{margin-right:10px}
   .nav-prod__pop{position:fixed;top:72px;left:16px;right:16px;width:auto;transform:none}
 }
 @media (max-width:560px){
@@ -1030,6 +1034,11 @@ html.nav-busy body{cursor:progress}
   .nav__logo img{height:32px}
   .lang-switch{margin-right:0}
   .lang-switch a{padding:4px 7px}
+}
+.nav-prod__shop{display:none}
+@media (max-width:480px){
+  .nav-shop{display:none}
+  .nav-prod__shop{display:flex;grid-column:1/-1;border-top:1px solid var(--border);border-radius:0 0 8px 8px}
 }
 
 /* ============ AI VOICE AGENT PAGE (/ai-agent) ============ */
@@ -1214,6 +1223,8 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
 .sh-cart__email input{font:inherit;font-size:15px;padding:9px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text)}
 .sh-cart__email input:focus{outline:2px solid var(--red);outline-offset:0;border-color:transparent}
 .sh-cart__actions{margin-top:12px}
+.sh-cart__demo{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+.sh-cart__demo a{color:var(--red);font-weight:600;text-decoration:underline;text-underline-offset:3px}
 .sh-cart__actions .btn{width:100%;padding:12px 20px}
 .sh-cart__actions .btn:disabled{opacity:.6;cursor:wait;transform:none}
 .sh-bar{display:none}

@@ -86,6 +86,9 @@
     {
         <p class="sh-cart__msg" role="status">@_msg</p>
     }
+
+    @* For visitors still deciding: the demo form opens in place (TrialForm on the page). *@
+    <p class="sh-cart__demo">@L["cart.demo"] <a href="javascript:void(0)" data-open-trial>@L["cart.demo.link"]</a></p>
 </aside>
 
 @if (Cart.Count > 0)

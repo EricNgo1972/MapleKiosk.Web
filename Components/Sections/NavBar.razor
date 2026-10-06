@@ -26,8 +26,12 @@
                         }
                     </div>
                 }
+                @* Small phones have no room for the Shop link in the bar, so it lives here instead. *@
+                <a class="nav-prod__item nav-prod__shop @Active("shop")" href="@CulturePath("shop")"><strong>@L["nav.shop"] →</strong></a>
             </div>
         </div>
+        @* The shop, for visitors who already know what they want; "Book a demo" stays the main button. *@
+        <a class="nav-shop @Active("shop")" href="@CulturePath("shop")" aria-current="@Current("shop")">@L["nav.shop"]</a>
         <div class="lang-switch">
             <a href="@LangHref("en")" class="@(L.Culture == "en" ? "active" : "")">EN</a>
             <a href="@LangHref("fr")" class="@(L.Culture == "fr" ? "active" : "")">FR</a>
@@ -81,7 +85,7 @@
     // switch keeps you on the current page for these; anything else falls back to
     // the localized home so we never link to a non-existent localized route.
     private static readonly HashSet<string> LocalizedPaths =
-        new(new[] { "", "privacy", "terms", "tos" }
+        new(new[] { "", "privacy", "terms", "tos", "shop" }
             .Concat(SiteProducts.All.Select(p => p.Slug))
             .Concat(SiteProducts.In(ProductGroup.Trade).Select(p => $"{p.Slug}/pricing")));
 
