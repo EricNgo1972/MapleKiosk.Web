@@ -109,6 +109,16 @@ public sealed class CartState
         Changed();
     }
 
+    /// <summary>Shows saved lines under the names the page uses (e.g. after the visitor switched language).</summary>
+    public void Rename(IReadOnlyDictionary<string, string> names)
+    {
+        var changed = false;
+        foreach (var line in _lines)
+            if (names.TryGetValue(line.Sku, out var name) && !string.IsNullOrWhiteSpace(name) && line.Name != name)
+                (line.Name, changed) = (name, true);
+        if (changed) Changed();
+    }
+
     /// <summary>Brings saved lines up to date with the live catalog: new names/prices/cadence, and
     /// anything no longer sold dropped.</summary>
     public void Reprice(IReadOnlyCollection<CatalogProduct> catalog)

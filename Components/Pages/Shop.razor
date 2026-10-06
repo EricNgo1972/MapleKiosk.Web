@@ -38,7 +38,7 @@
             {
                 <section class="sh-cat" id="cat-@cat.Key" aria-labelledby="sh-g-@cat.Key">
                     <h2 class="sh-cat__title" id="sh-g-@cat.Key">
-                        @cat.Name
+                        @cat.NameIn(L.Culture)
                         @if (cat.PickOne)
                         {
                             <small>@L["shop.pickone"]</small>
@@ -61,7 +61,7 @@
                                     <div class="sh-item__info">@ItemHead(i)</div>
                                 }
                                 <p class="sh-item__price">@Money(i.Price)<small>@Per(i)</small></p>
-                                <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.Name" Price="@i.Price"
+                                <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.NameIn(L.Culture)" Price="@i.Price"
                                          BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
                                          Group="@cat.Key" PickOne="@cat.PickOne" />
                                 @if (points.Count > 0)
@@ -79,7 +79,7 @@
             }
         </div>
 
-        <ShopCart Culture="@L.Culture" />
+        <ShopCart Culture="@L.Culture" Names="@Names" />
     </div>
 </main>
 
@@ -97,7 +97,11 @@
         _shop = await Catalog.GetGroupsAsync();
     }
 
-    private static string? Blurb(AppProduct i) => string.IsNullOrWhiteSpace(i.Description) ? null : i.Description;
+    // Everything the visitor reads is in their language where the catalog has it (/shop/admin), else English.
+    private string? Blurb(AppProduct i) => i.DescriptionIn(L.Culture) is { Length: > 0 } d && !string.IsNullOrWhiteSpace(d) ? d : null;
+
+    // SKU → name in this language, so a cart saved in another language shows in this one.
+    private Dictionary<string, string> Names => _shop.SelectMany(g => g.Items).ToDictionary(i => i.Sku, i => i.NameIn(L.Culture));
 
     private string Per(AppProduct i) => i.BillingInterval switch
     {
@@ -109,7 +113,7 @@
     // The row's name, tags and one-line description (inside the toggle button, so only phrasing content).
     private RenderFragment ItemHead(AppProduct i) => @<text>
         <span class="sh-item__name">
-            @i.Name
+            @i.NameIn(L.Culture)
             @if (i.Recommended)
             {
                 <span class="sh-tag">@L["pr.rec"]</span>
@@ -130,9 +134,9 @@
     </text>;
 
     // What's included: the item's Details lines (/shop/admin), else its features.
-    private static List<string> Points(AppProduct i)
+    private List<string> Points(AppProduct i)
     {
-        var lines = (i.Details ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        var lines = (i.DetailsIn(L.Culture) ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         return lines.Count > 0 ? lines : i.Features;
     }
 

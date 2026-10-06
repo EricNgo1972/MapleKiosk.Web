@@ -86,7 +86,8 @@ public sealed class CheckoutService
             Total = dueToday,
             Interval = cycles.FirstOrDefault() ?? Catalog.BillingIntervals.OneTime,
             TrialDays = trialDays,
-            CustomerEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim()
+            CustomerEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
+            Culture = request.Culture is "fr" or "vi" or "ru" ? request.Culture : "en"
         };
 
         if (isVietQr)

@@ -111,3 +111,18 @@
 
 .cat-item { display: flex; align-items: center; gap: 12px; }
 .cat-thumb { width: 40px; height: 40px; flex: none; border-radius: 8px; object-fit: cover; background: var(--surface-2, #f3ede4); }
+
+/* Wording in each language: tabs over name, description and details. */
+.cat-words { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border: 1px solid var(--border, rgba(29,26,23,.12)); border-radius: 10px; }
+.cat-words label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--muted, #6b645c); }
+.cat-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.cat-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid transparent; border-radius: 999px; background: none; color: var(--muted, #6b645c); font: inherit; font-size: 14px; cursor: pointer; }
+.cat-tab:hover { color: var(--text, #1d1a17); }
+.cat-tab.is-on { border-color: var(--border, rgba(29,26,23,.12)); background: var(--surface-2, #f3ede4); color: var(--text, #1d1a17); font-weight: 600; }
+.cat-tab__state { width: 7px; height: 7px; border-radius: 50%; background: var(--border, rgba(29,26,23,.25)); }
+.cat-tab__state--ok { background: #2e8b57; }
+.cat-tab__state--stale { background: #d68a1f; }
+.cat-translate { margin-left: auto; padding: 6px 12px; font-size: 13px; }
+.cat-words .cat-hint { margin: 0; }
+.cat-warn { margin: 0; padding: 8px 10px; border-radius: 8px; background: rgba(214,138,31,.12); color: #8a5a12; font-size: 13px; }
+.cat-checked { align-self: flex-start; padding: 6px 12px; font-size: 13px; }

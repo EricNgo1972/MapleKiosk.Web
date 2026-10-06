@@ -103,6 +103,9 @@
 @code {
     [Parameter] public string Culture { get; set; } = "en";
 
+    /// <summary>SKU → item name in this page's language: lines saved in another language are renamed.</summary>
+    [Parameter] public Dictionary<string, string>? Names { get; set; }
+
     private string? _email;
     private bool _busy;
     private string? _msg;
@@ -120,7 +123,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender) await Cart.RestoreAsync();
+        if (!firstRender) return;
+        await Cart.RestoreAsync();
+        if (Names is not null) Cart.Rename(Names);
     }
 
     private async Task Checkout()

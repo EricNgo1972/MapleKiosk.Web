@@ -36,6 +36,9 @@ public sealed class CatalogProductEntity : ITableEntity
     public bool Recommended { get; set; }
     public string FeaturesJson { get; set; } = "[]";
 
+    /// <summary>{ "fr": { Name, Description, Details, Source }, "vi": …, "ru": … }</summary>
+    public string? TextsJson { get; set; }
+
     public static CatalogProductEntity FromProduct(AppProduct p) => new()
     {
         PartitionKey = Partition,
@@ -52,7 +55,8 @@ public sealed class CatalogProductEntity : ITableEntity
         TrialDays = p.TrialDays,
         Sort = p.Sort,
         Recommended = p.Recommended,
-        FeaturesJson = JsonSerializer.Serialize(p.Features)
+        FeaturesJson = JsonSerializer.Serialize(p.Features),
+        TextsJson = p.Texts.Count == 0 ? null : JsonSerializer.Serialize(p.Texts.Where(t => !t.Value.IsEmpty).ToDictionary())
     };
 
     public AppProduct ToProduct() => new()
@@ -72,8 +76,16 @@ public sealed class CatalogProductEntity : ITableEntity
         Recommended = Recommended,
         Features = string.IsNullOrWhiteSpace(FeaturesJson)
             ? new List<string>()
-            : (JsonSerializer.Deserialize<List<string>>(FeaturesJson) ?? new List<string>())
+            : (JsonSerializer.Deserialize<List<string>>(FeaturesJson) ?? new List<string>()),
+        Texts = ReadJson<Dictionary<string, CatalogText>>(TextsJson) ?? new()
     };
+
+    internal static T? ReadJson<T>(string? json) where T : class
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try { return JsonSerializer.Deserialize<T>(json); }
+        catch (JsonException) { return null; } // a hand-edited row shouldn't take the catalog down
+    }
 }
 
 /// <summary>Azure Table row for a <see cref="CatalogCategory"/>, in the same table; RowKey is the key.</summary>
@@ -90,13 +102,19 @@ public sealed class CatalogCategoryEntity : ITableEntity
     public bool PickOne { get; set; }
     public int Sort { get; set; }
 
+    /// <summary>{ "fr": "…", "vi": "…", "ru": "…" }</summary>
+    public string? NamesJson { get; set; }
+
     public static CatalogCategoryEntity From(CatalogCategory c) => new()
     {
-        RowKey = c.Key, Name = c.Name, PickOne = c.PickOne, Sort = c.Sort
+        RowKey = c.Key, Name = c.Name, PickOne = c.PickOne, Sort = c.Sort,
+        NamesJson = c.Names.Count == 0 ? null
+            : JsonSerializer.Serialize(c.Names.Where(n => !string.IsNullOrWhiteSpace(n.Value)).ToDictionary())
     };
 
     public CatalogCategory ToCategory() => new()
     {
-        Key = RowKey, Name = Name, PickOne = PickOne, Sort = Sort
+        Key = RowKey, Name = Name, PickOne = PickOne, Sort = Sort,
+        Names = CatalogProductEntity.ReadJson<Dictionary<string, string>>(NamesJson) ?? new()
     };
 }

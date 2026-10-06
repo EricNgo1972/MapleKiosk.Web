@@ -87,7 +87,8 @@ public sealed class QuoteCheckoutService
             Company = Clip(req.Company, 80),
             CustomerName = Clip(req.Name, 80),
             CustomerPhone = Clip(req.Phone, 40),
-            Source = $"quote:{trade.Slug}"
+            Source = $"quote:{trade.Slug}",
+            Culture = culture
         };
 
         var prefix = culture == "en" ? "" : culture + "/";

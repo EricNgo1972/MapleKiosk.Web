@@ -28,6 +28,7 @@ public static class AppStoreServiceCollectionExtensions
         services.AddSingleton<CatalogStore>();
         services.AddSingleton<IAppCatalog>(sp => sp.GetRequiredService<CatalogStore>());
         services.AddSingleton<BlobImageUploader>();
+        services.AddSingleton<CatalogTranslator>();
         services.AddSingleton<AppOrderService>();
         services.AddSingleton<StripeProductSync>();
         services.AddSingleton<StripeCheckoutCreator>();

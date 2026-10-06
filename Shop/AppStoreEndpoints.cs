@@ -92,6 +92,11 @@ public static class AppStoreEndpoints
             {
                 await orders.MarkPaidAsync(session.ClientReferenceId, session.PaymentIntentId ?? session.SubscriptionId ?? session.Id,
                     ct, session.CustomerId, session.SubscriptionId);
+
+                // Stripe's own invoices, renewal emails and portal then speak the buyer's language around the
+                // (English) item names. Best effort: the order is already confirmed.
+                if (!string.IsNullOrEmpty(session.CustomerId) && session.Metadata?.GetValueOrDefault("lang") is "fr" or "vi" or "ru" or "en")
+                    await SetCustomerLanguageAsync(config, session.CustomerId, session.Metadata["lang"], log, ct);
             }
         }
         else if (stripeEvent.Type is EventTypes.CustomerSubscriptionCreated or EventTypes.CustomerSubscriptionUpdated
@@ -110,6 +115,19 @@ public static class AppStoreEndpoints
         }
 
         return Results.Ok();
+    }
+
+    private static async Task SetCustomerLanguageAsync(AppStoreConfig config, string customerId, string lang, ILogger log, CancellationToken ct)
+    {
+        try
+        {
+            var client = new StripeClient(await config.GetStripeSecretKeyAsync());
+            await new CustomerService(client).UpdateAsync(customerId, new CustomerUpdateOptions { PreferredLocales = [lang] }, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            log.LogWarning(ex, "Couldn't set Stripe customer {CustomerId}'s language to {Lang}.", customerId, lang);
+        }
     }
 
     private static async Task<IResult> HandleBankWebhookAsync(
