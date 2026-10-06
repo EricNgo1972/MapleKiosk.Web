@@ -45,7 +45,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
         // Rebuilt with the extra facts, so a price changed in the catalog reaches the assistant within minutes.
         if (_site is null || _extra is null || DateTime.UtcNow - _extraAtUtc > ExtraTtl)
         {
-            _site = Build(await _catalog.GetQuoteAsync(ct));
+            _site = Build(await _catalog.GetGroupsAsync(ct));
             _extra = await KeyValueTable.ResolveAsync("ASSISTANT_KNOWLEDGE", "Assistant", "Knowledge");
             _extraAtUtc = DateTime.UtcNow;
         }
@@ -128,7 +128,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
     // The marketing plans are the same for every trade, but their copy was written for salons.
     private static string Neutral(string text) => text.Replace("salon", "business").Replace("clients", "customers");
 
-    // The catalog's quote: each pricing-page category with its items (CatalogStore.GetQuoteAsync).
+    // The catalog: each category with its items, as the pricing pages and the shop sell them (CatalogStore.GetGroupsAsync).
     private static string Every(AppProduct i) => i.BillingInterval switch
     {
         BillingIntervals.Monthly => "/month",

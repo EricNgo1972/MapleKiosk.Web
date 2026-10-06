@@ -50,7 +50,7 @@ public sealed class QuoteCheckoutService
         var culture = req.Culture is "fr" or "vi" or "ru" ? req.Culture : "en";
 
         // Every SKU must be an active item of a quote category, and a pick-one category gives one item.
-        var quote = await _catalog.GetQuoteAsync(ct).ConfigureAwait(false);
+        var quote = await _catalog.GetGroupsAsync(ct).ConfigureAwait(false);
         var lines = new List<AppOrderLine>();
         var picked = new HashSet<string>(); // pick-one categories already used
         foreach (var sku in req.Items.Distinct())

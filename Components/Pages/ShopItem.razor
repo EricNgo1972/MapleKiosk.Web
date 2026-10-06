@@ -130,7 +130,7 @@
         L.SetCulture(seg);
 
         _item = null; _category = null; _siblings = [];
-        foreach (var (cat, items) in await Catalog.GetShopAsync())
+        foreach (var (cat, items) in await Catalog.GetGroupsAsync())
         {
             if (items.FirstOrDefault(i => string.Equals(i.Sku, Sku, StringComparison.OrdinalIgnoreCase)) is not { } hit) continue;
             (_item, _category) = (hit, cat);

@@ -29,16 +29,13 @@ public static class BillingIntervals
     };
 }
 
-/// <summary>A group of catalog items, e.g. "Setup" or "Software". Everything is sold in the shop (/shop);
-/// <see cref="Placement"/> says whether the trades' pricing pages (the quote builder) list it too.</summary>
+/// <summary>A group of catalog items, e.g. "Setup" or "Software". Every category is sold both on the trades'
+/// pricing pages (the quote builder) and in the shop (/shop).</summary>
 public sealed class CatalogCategory
 {
-    public const string Quote = "quote";
-    public const string Shop = "shop";
 
     public string Key { get; set; } = "";
     public string Name { get; set; } = "";
-    public string Placement { get; set; } = Quote;
 
     /// <summary>Buyers pick one item (a plan) rather than any number (add-ons).</summary>
     public bool PickOne { get; set; }

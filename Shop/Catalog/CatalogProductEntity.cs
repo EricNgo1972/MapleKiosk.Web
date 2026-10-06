@@ -87,18 +87,16 @@ public sealed class CatalogCategoryEntity : ITableEntity
     public ETag ETag { get; set; }
 
     public string Name { get; set; } = "";
-    public string Placement { get; set; } = CatalogCategory.Quote;
     public bool PickOne { get; set; }
     public int Sort { get; set; }
 
     public static CatalogCategoryEntity From(CatalogCategory c) => new()
     {
-        RowKey = c.Key, Name = c.Name, Placement = c.Placement, PickOne = c.PickOne, Sort = c.Sort
+        RowKey = c.Key, Name = c.Name, PickOne = c.PickOne, Sort = c.Sort
     };
 
     public CatalogCategory ToCategory() => new()
     {
-        Key = RowKey, Name = Name, Placement = Placement == CatalogCategory.Shop ? CatalogCategory.Shop : CatalogCategory.Quote,
-        PickOne = PickOne, Sort = Sort
+        Key = RowKey, Name = Name, PickOne = PickOne, Sort = Sort
     };
 }

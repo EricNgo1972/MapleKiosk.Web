@@ -91,7 +91,7 @@
         // Localized routes: /shop (en), /fr/shop, /vi/shop, /ru/shop.
         var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
         L.SetCulture(seg);
-        _shop = await Catalog.GetShopAsync();
+        _shop = await Catalog.GetGroupsAsync();
     }
 
     // One short line per item: its description, else its selling points run together.
