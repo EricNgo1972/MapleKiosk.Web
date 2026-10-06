@@ -53,6 +53,10 @@ public sealed class AppOrder
     public string? CustomerPhone { get; set; }
     public string? Source { get; set; }
 
+    /// <summary>The buyer's site language (en / fr / vi / ru): their receipt and Stripe's emails use it.
+    /// Item names stay in English on the order, as Stripe has them.</summary>
+    public string Culture { get; set; } = "en";
+
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
 

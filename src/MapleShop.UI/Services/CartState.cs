@@ -27,6 +27,8 @@ public sealed class CartLine
 /// the cart button, drawer and add buttons re-render together. Scoped, so all interactive islands on a
 /// page share one instance; saved to the browser's localStorage so it survives a reload or a cancelled
 /// Stripe page. Prices here are for display only — checkout re-reads them from the catalog.
+/// The site's /shop page keeps its cart in the browser (site.js) under the same key and format, so
+/// /shop/success empties that one too.
 /// </summary>
 public sealed class CartState
 {

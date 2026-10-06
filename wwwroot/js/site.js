@@ -365,6 +365,201 @@
   wireQuote();
   onEnhancedLoad(wireQuote);
 
+  // ===== Shop (/shop): the cart lives in the browser =====
+  // Adding, quantities and totals answer at once; only Checkout goes to the server (/api/checkout/shop),
+  // which prices the SKUs again and opens Stripe. Saved under the same key and format as MapleShop.UI's
+  // CartState, so /shop/success empties it. The page itself is the catalog: each [data-shop-add] button
+  // carries its item (name in the page's language, price, cadence, category, pick-one).
+  const CART_KEY = 'mapleshop.cart', CART_MAX = 99;
+  const shop = { msg: null, busy: false };
+  function loadCart() {
+    try { const v = JSON.parse(localStorage.getItem(CART_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+  }
+  function saveCart(lines) {
+    try { if (lines.length) localStorage.setItem(CART_KEY, JSON.stringify(lines)); else localStorage.removeItem(CART_KEY); } catch (e) { }
+  }
+  function shopItem(b) {
+    return { Sku: b.dataset.shopAdd, Name: b.dataset.name, Price: +b.dataset.price, BillingInterval: b.dataset.interval,
+             TrialDays: +b.dataset.trial || 0, Quantity: 1, Group: b.dataset.group };
+  }
+  const isPlan = (l) => l.BillingInterval === 'Monthly' || l.BillingInterval === 'Yearly';
+
+  function wireShop() {
+    const root = document.querySelector('[data-shop]');
+    if (!root || root.dataset.shopWired) return;
+    root.dataset.shopWired = '1';
+    // Saved lines take today's names, prices and cadence from the page; anything no longer sold drops out.
+    const buttons = {};
+    document.querySelectorAll('[data-shop-add]').forEach((b) => { buttons[b.dataset.shopAdd] = b; });
+    const lines = loadCart().filter((l) => l && buttons[l.Sku])
+      .map((l) => Object.assign(shopItem(buttons[l.Sku]), { Quantity: Math.min(CART_MAX, Math.max(1, l.Quantity | 0)) }));
+    saveCart(lines);
+
+    // The checkout form is built once, so typing in it survives every re-render of the lines.
+    const t = root.dataset;
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const body = root.querySelector('[data-shop-body]');
+    const form = el('div', 'sh-cart__form');
+    const label = el('label');
+    const email = el('input');
+    Object.assign(email, { type: 'email', autocomplete: 'email', maxLength: 120, placeholder: 'you@example.com' });
+    email.setAttribute('data-shop-email', '');
+    try { email.value = (JSON.parse(localStorage.getItem('mk.quoteCustomer') || '{}') || {}).email || ''; } catch (e) { }
+    label.append(el('span', null, t.tEmail), email);
+    const emailBox = el('div', 'sh-cart__email'); emailBox.append(label);
+    const go = el('button', 'btn btn-primary', t.tCheckout);
+    go.type = 'button'; go.setAttribute('data-shop-checkout', '');
+    const actions = el('div', 'sh-cart__actions'); actions.append(go, el('p', 'sh-cart__fine', '🔒 ' + t.tSecure));
+    form.append(emailBox, actions);
+    body.replaceChildren(el('div', null), form, el('p', 'sh-cart__msg'));
+    shop.msg = /[?&]checkout=cancelled/.test(location.search) ? t.tCancelled : null;
+    shop.busy = false;
+    renderShop(lines);
+  }
+
+  function renderShop(lines) {
+    const root = document.querySelector('[data-shop]');
+    if (!root) return;
+    const t = root.dataset;
+    const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const money = (n) => new Intl.NumberFormat(t.locale, { style: 'currency', currency: 'CAD', currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 }).format(Math.round(n * 100) / 100);
+    const per = (l) => l.BillingInterval === 'Monthly' ? ' ' + t.tMonth : l.BillingInterval === 'Yearly' ? ' ' + t.tYear : '';
+    const fill = (s, v) => s.replace('{0}', v);
+
+    // The item buttons: "Added" (hover: "Remove") when in the cart.
+    const inCart = new Set(lines.map((l) => l.Sku));
+    document.querySelectorAll('[data-shop-add]').forEach((b) => {
+      const on = inCart.has(b.dataset.shopAdd);
+      if (b.classList.contains('sh-add--in') === on && b.dataset.drawn) return;
+      b.dataset.drawn = '1';
+      b.classList.toggle('sh-add--in', on);
+      b.setAttribute('aria-pressed', String(on));
+      if (on) b.replaceChildren(el('span', 'sh-add__label', '✓ ' + t.tAdded), el('span', 'sh-add__undo', t.tRemove));
+      else b.textContent = b.dataset.pickone && b.dataset.recurring ? t.tChoose : t.tAdd;
+    });
+
+    const plans = lines.filter(isPlan);
+    const trial = plans.length && plans.every((l) => l.TrialDays > 0) ? Math.min(...plans.map((l) => l.TrialDays)) : 0;
+    const due = lines.filter((l) => !isPlan(l) || !trial).reduce((s, l) => s + l.Price * l.Quantity, 0);
+    const renews = plans.reduce((s, l) => s + l.Price * l.Quantity, 0);
+    const mixed = new Set(plans.map((l) => l.BillingInterval)).size > 1;
+    const count = lines.reduce((s, l) => s + l.Quantity, 0);
+
+    const body = root.querySelector('[data-shop-body]');
+    const [list, form, msg] = body.children;
+    list.replaceChildren();
+    if (!lines.length) list.append(el('p', 'shop-cart__empty', t.tEmpty));
+    else {
+      const ul = el('ul', 'shop-cart__lines');
+      lines.forEach((l) => {
+        const li = el('li', 'shop-cart__line');
+        const row = el('div', 'shop-cart__row');
+        const amt = el('span', 'shop-cart__amt', money(l.Price * l.Quantity)); amt.append(el('small', null, per(l)));
+        row.append(el('span', 'shop-cart__name', l.Name), amt);
+        const tools = el('div', 'shop-cart__row shop-cart__row--tools');
+        const qty = el('span', 'shop-qty');
+        const less = el('button', null, '−'), more = el('button', null, '+');
+        [[less, -1, t.tLess], [more, 1, t.tMore]].forEach(([b, d, name]) => {
+          b.type = 'button'; b.setAttribute('aria-label', name); b.dataset.shopQty = l.Sku; b.dataset.d = d;
+        });
+        more.disabled = l.Quantity >= CART_MAX;
+        qty.append(less, el('span', null, String(l.Quantity)), more);
+        tools.append(qty);
+        if (l.Quantity > 1) tools.append(el('small', 'shop-cart__each', fill(t.tEach, money(l.Price))));
+        const rm = el('button', 'shop-cart__remove', t.tRemove); rm.type = 'button'; rm.dataset.shopRemove = l.Sku;
+        tools.append(rm);
+        li.append(row, tools);
+        ul.append(li);
+      });
+      const dl = el('dl', 'sh-cart__totals');
+      const pair = (cls, dt, dd, small) => { const d = el('div', cls); const v = el('dd', null, dd); if (small) v.append(el('small', null, small)); d.append(el('dt', null, dt), v); dl.append(d); };
+      if (plans.length) pair(null, trial ? fill(t.tAftertrial, trial) : t.tThen, money(renews), per(plans[0]));
+      pair('sh-cart__due', t.tToday, money(due));
+      list.append(ul, dl);
+      if (plans.length) list.append(el('p', 'sh-cart__fine', t.tRenew));
+      if (mixed) list.append(el('p', 'sh-cart__msg', t.tMixed));
+    }
+    form.hidden = !lines.length;
+    const go = form.querySelector('[data-shop-checkout]');
+    go.disabled = shop.busy || mixed;
+    go.textContent = shop.busy ? t.tWait : t.tCheckout;
+    msg.textContent = shop.msg || '';
+    msg.hidden = !shop.msg;
+
+    // Phones: a bar at the bottom keeps the cart in reach.
+    const bar = document.querySelector('[data-shop-bar]');
+    if (bar) {
+      bar.hidden = !lines.length;
+      const go2 = el('span', 'sh-bar__go', t.tView + ' '); go2.append(el('span', null, '↓'));
+      const today = el('span', null, t.tToday + ' '); today.append(el('strong', null, money(due)));
+      bar.replaceChildren(el('span', null, fill(t.tItems, count)), today, go2);
+    }
+  }
+
+  function changeCart(fn) {
+    const lines = loadCart();
+    fn(lines);
+    saveCart(lines);
+    shop.msg = null;
+    renderShop(lines);
+  }
+
+  async function shopCheckout() {
+    const root = document.querySelector('[data-shop]');
+    const lines = loadCart();
+    if (!root || !lines.length || shop.busy) return;
+    const input = root.querySelector('[data-shop-email]');
+    const email = (input ? input.value : '').trim();
+    if (!email || email.indexOf('@') < 1 || /\s/.test(email) || email.length > 120) {
+      shop.msg = root.dataset.tNeedemail; renderShop(lines); if (input) input.focus(); return;
+    }
+    shop.busy = true; shop.msg = null; renderShop(lines);
+    try {
+      const r = await fetch(new URL('api/checkout/shop', document.baseURI), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: lines.map((l) => ({ sku: l.Sku, quantity: l.Quantity })), email: email, culture: root.dataset.culture })
+      });
+      const res = await r.json().catch(() => null);
+      if (r.ok && res && res.stripeUrl) { location.href = res.stripeUrl; return; }
+      shop.msg = (res && res.error) || root.dataset.tFail;
+    } catch (e) { shop.msg = root.dataset.tFail; }
+    shop.busy = false;
+    renderShop(loadCart());
+  }
+
+  document.addEventListener('click', (ev) => {
+    if (!document.querySelector('[data-shop]')) return;
+    const add = ev.target.closest('[data-shop-add]');
+    if (add) {
+      const item = shopItem(add);
+      changeCart((lines) => {
+        const at = lines.findIndex((l) => l.Sku === item.Sku);
+        if (at >= 0) { lines.splice(at, 1); return; }           // pressing "Added" takes it out again
+        if (add.dataset.pickone) for (let i = lines.length - 1; i >= 0; i--) if (lines[i].Group === item.Group) lines.splice(i, 1);
+        lines.push(item);
+      });
+      return;
+    }
+    const q = ev.target.closest('[data-shop-qty]');
+    if (q) {
+      changeCart((lines) => {
+        const at = lines.findIndex((l) => l.Sku === q.dataset.shopQty);
+        if (at < 0) return;
+        const n = lines[at].Quantity + (+q.dataset.d);
+        if (n <= 0) lines.splice(at, 1); else lines[at].Quantity = Math.min(CART_MAX, n);
+      });
+      return;
+    }
+    const rm = ev.target.closest('[data-shop-remove]');
+    if (rm) { changeCart((lines) => { const at = lines.findIndex((l) => l.Sku === rm.dataset.shopRemove); if (at >= 0) lines.splice(at, 1); }); return; }
+    if (ev.target.closest('[data-shop-checkout]')) shopCheckout();
+  });
+  // Another tab changed the cart: show it here too.
+  window.addEventListener('storage', (ev) => { if (ev.key === CART_KEY && document.querySelector('[data-shop]')) renderShop(loadCart()); });
+  wireShop();
+  onEnhancedLoad(wireShop);
+
   // ===== Shop (/shop): a row opens in place to show what's included =====
   function toggleShopItem(btn, open) {
     const more = document.getElementById(btn.getAttribute('aria-controls'));

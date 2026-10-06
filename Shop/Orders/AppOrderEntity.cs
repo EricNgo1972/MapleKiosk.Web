@@ -26,6 +26,7 @@ public sealed class AppOrderEntity : ITableEntity
     public string? CustomerName { get; set; }
     public string? CustomerPhone { get; set; }
     public string? Source { get; set; }
+    public string? Culture { get; set; }
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
     public string? StripeCustomerId { get; set; }
@@ -54,6 +55,7 @@ public sealed class AppOrderEntity : ITableEntity
         CustomerName = o.CustomerName,
         CustomerPhone = o.CustomerPhone,
         Source = o.Source,
+        Culture = o.Culture,
         ProviderTxnId = o.ProviderTxnId,
         ProviderRef = o.ProviderRef,
         StripeCustomerId = o.StripeCustomerId,
@@ -80,6 +82,7 @@ public sealed class AppOrderEntity : ITableEntity
         CustomerName = CustomerName,
         CustomerPhone = CustomerPhone,
         Source = Source,
+        Culture = string.IsNullOrWhiteSpace(Culture) ? "en" : Culture,
         ProviderTxnId = ProviderTxnId,
         ProviderRef = ProviderRef,
         StripeCustomerId = StripeCustomerId,

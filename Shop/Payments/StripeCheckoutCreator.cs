@@ -66,6 +66,7 @@ public sealed class StripeCheckoutCreator
         Meta("company", order.Company);
         Meta("contact", order.CustomerName);
         Meta("phone", order.CustomerPhone);
+        Meta("lang", order.Culture);
 
         var options = new SessionCreateOptions
         {

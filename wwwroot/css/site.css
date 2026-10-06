@@ -1228,6 +1228,7 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
 .sh-cart__actions .btn{width:100%;padding:12px 20px}
 .sh-cart__actions .btn:disabled{opacity:.6;cursor:wait;transform:none}
 .sh-bar{display:none}
+.sh-bar[hidden],.sh-cart [hidden]{display:none!important}
 @media (max-width:900px){
   .sh{padding-top:96px}
   .sh__grid{grid-template-columns:1fr;gap:32px}

@@ -1,6 +1,7 @@
 @page "/shop/admin"
 @attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
-@rendermode InteractiveServer
+@* Not prerendered: an admin page has nothing to show search engines, and it loads once instead of twice. *@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using MapleKiosk.Web.Shop.Catalog
 @using MapleKiosk.Web.Shop.Config
 @using MapleKiosk.Web.Shop.Payments
@@ -9,10 +10,12 @@
 @inject StripeProductSync Stripe
 @inject AppStoreConfig Config
 @inject NavigationManager Nav
+@inject CatalogTranslator Translator
 
-@* The catalog: everything the site sells, in one place. Categories group the items and say where
-   they're sold (the trades' pricing pages, or the shop); each item has a price and how often it's
-   charged. Saving an item syncs it to Stripe (Product + Price); deleting it archives it there. *@
+@* The catalog: everything the site sells, in one place, sold on the trades' pricing pages and in the
+   shop. Categories group the items; each item has a price and how often it's charged. Saving an item
+   syncs it to Stripe (Product + Price, in English); deleting it archives it there. Names and wording
+   can also be kept in French, Vietnamese and Russian, for the website only. *@
 
 <PageTitle>Catalog — MapleKiosk</PageTitle>
 
@@ -114,9 +117,53 @@
             <label>SKU
                 <input @bind="_edit.Sku" disabled="@(!_isNew)" placeholder="@(_edit.Category is { Length: > 0 } ? _edit.Category + "-name" : "item-name")" />
             </label>
-            <label style="grid-column:1/-1">Name
-                <input @bind="_edit.Name" placeholder="What it's called on Stripe, receipts and the shop" />
-            </label>
+            <div class="cat-words" style="grid-column:1/-1">
+                <div class="cat-tabs" role="tablist">
+                    @foreach (var lang in Langs)
+                    {
+                        <button type="button" role="tab" class="cat-tab @(_lang == lang ? "is-on" : null)" aria-selected="@(_lang == lang)"
+                                @onclick="() => _lang = lang">
+                            @CatalogLanguages.NameOf(lang)
+                            @if (lang != "en") { <span class="cat-tab__state cat-tab__state--@TextState(_edit, lang)" title="@TextStateLabel(_edit, lang)"></span> }
+                        </button>
+                    }
+                    <button type="button" class="btn btn-ghost cat-translate" disabled="@(_translating || string.IsNullOrWhiteSpace(_edit.Name))" @onclick="TranslateItem">
+                        @(_translating ? "Translating…" : "Translate from English")
+                    </button>
+                </div>
+                @if (_lang == "en")
+                {
+                    <label>Name
+                        <input @bind="_edit.Name" placeholder="What it's called on Stripe, receipts and the shop" />
+                    </label>
+                    <label>Description
+                        <input @bind="_edit.Description" placeholder="One line" />
+                    </label>
+                    <label>Details <small class="cat-sub">what's included, one point per line · shown when a shop item is opened</small>
+                        <textarea rows="5" @bind="_edit.Details" placeholder="@DetailsPlaceholder"></textarea>
+                    </label>
+                }
+                else
+                {
+                    var t = TextFor(_edit, _lang);
+                    <p class="cat-hint">Shown on the website only — Stripe, invoices and the customer portal use the English name. Empty fields show the English.</p>
+                    @if (TextState(_edit, _lang) == "stale")
+                    {
+                        <p class="cat-warn">The English has changed since this was translated. Check it, or press “Translate from English”.</p>
+                    }
+                    <label>Name
+                        <input @bind="t.Name" placeholder="@_edit.Name" />
+                    </label>
+                    <label>Description
+                        <input @bind="t.Description" placeholder="@_edit.Description" />
+                    </label>
+                    <label>Details <small class="cat-sub">same points as the English, one per line</small>
+                        <textarea rows="5" @bind="t.Details" placeholder="@_edit.Details"></textarea>
+                    </label>
+                    <button type="button" class="btn btn-ghost cat-checked" @onclick="() => t.Source = CatalogText.SourceOf(_edit)"
+                            hidden="@(TextState(_edit, _lang) != "stale")">Mark as checked</button>
+                }
+            </div>
             <label>Price (@CatalogStore.Currency)
                 <input type="number" min="0" step="0.01" @bind="_edit.Price" />
             </label>
@@ -132,12 +179,6 @@
             </label>
             <label>Free trial (days, shop only)
                 <input type="number" min="0" step="1" @bind="_edit.TrialDays" />
-            </label>
-            <label style="grid-column:1/-1">Description
-                <input @bind="_edit.Description" placeholder="One line" />
-            </label>
-            <label style="grid-column:1/-1">Details <small class="cat-sub">what's included, one point per line · shown on the shop's product page</small>
-                <textarea rows="5" @bind="_edit.Details" placeholder="@DetailsPlaceholder"></textarea>
             </label>
             <label style="grid-column:1/-1">Features (one per line)
                 <textarea rows="3" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
@@ -202,6 +243,19 @@
             <label>Name <input @bind="_cat.Name" placeholder="Hardware" /></label>
             <label>Key <input @bind="_cat.Key" disabled="@(!_catIsNew)" placeholder="hardware" /></label>
             <label>Order <input type="number" step="1" @bind="_cat.Sort" /></label>
+            @foreach (var lang in CatalogLanguages.Translated)
+            {
+                var l = lang;
+                <label>@CatalogLanguages.NameOf(l)
+                    <input value="@_cat.Names.GetValueOrDefault(l)" @onchange="e => _cat.Names[l] = e.Value?.ToString()?.Trim() ?? string.Empty" placeholder="@_cat.Name" />
+                </label>
+            }
+            <div style="grid-column:1/-1">
+                <button type="button" class="btn btn-ghost cat-translate" disabled="@(_translating || string.IsNullOrWhiteSpace(_cat.Name))" @onclick="TranslateCategory">
+                    @(_translating ? "Translating…" : "Translate from English")
+                </button>
+                <small class="cat-sub">Translated names show on the website only.</small>
+            </div>
             <label class="cat-check" style="grid-column:1/-1"><input type="checkbox" @bind="_cat.PickOne" /> Buyers pick one (plans), not any number (add-ons)</label>
         </div>
         @if (_error is not null) { <p class="mshop-error">@_error</p> }
@@ -227,7 +281,11 @@
     private Dictionary<string, StripeItemStatus> _stripe = new();
     private string _mode = "…";
 
+    private static readonly string[] Langs = ["en", .. CatalogLanguages.Translated];
+
     private AppProduct _edit = new() { Active = true };
+    private string _lang = "en";
+    private bool _translating;
     private string _featuresText = "";
     private bool _isNew = true;
     private bool _itemOpen;
@@ -242,7 +300,17 @@
     private string? _notice;
     private string? _error;
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    private bool _stripeLoading;
+
+    // The catalog first (from memory, instant), then where each item stands in Stripe (a few API calls).
+    protected override async Task OnInitializedAsync() => await ReloadCatalogAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await ReloadStripeAsync();
+        StateHasChanged();
+    }
 
     private RenderFragment ItemRow(AppProduct i) => __builder =>
     {
@@ -251,11 +319,15 @@
             <td class="cat-item">
                 @if (!string.IsNullOrWhiteSpace(i.ImageUrl)) { <img class="cat-thumb" src="@i.ImageUrl" alt="" loading="lazy" /> }
                 else { <span class="cat-thumb cat-thumb--none"></span> }
-                <span><strong>@i.Name</strong>@(i.Recommended ? " ★" : "")<br /><small class="cat-sub"><code>@i.Sku</code>@(i.Active ? "" : " · not for sale")</small></span>
+                <span><strong>@i.Name</strong>@(i.Recommended ? " ★" : "")<br /><small class="cat-sub"><code>@i.Sku</code>@(i.Active ? "" : " · not for sale")@TranslationNote(i)</small></span>
             </td>
             <td>$@i.Price.ToString("0.00") <small class="cat-sub">@Every(i)@(i.TrialDays > 0 ? $" · {i.TrialDays}-day trial" : "")</small></td>
             <td>
-                @if (st is not null)
+                @if (st is null && _stripeLoading)
+                {
+                    <small class="cat-sub">checking…</small>
+                }
+                else if (st is not null)
                 {
                     <span class="stp-state stp-state--@st.State.ToString().ToLowerInvariant()">@Label(st.State)</span>
                     @if (st.Detail is not null) { <br /><small class="cat-sub">@st.Detail</small> }
@@ -266,15 +338,31 @@
 
     private async Task ReloadAsync()
     {
+        await ReloadCatalogAsync();
+        await ReloadStripeAsync();
+    }
+
+    private async Task ReloadCatalogAsync()
+    {
         try
         {
             _categories = await Store.GetCategoriesAsync();
             _items = await Store.GetAllAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task ReloadStripeAsync()
+    {
+        _stripeLoading = true;
+        try
+        {
             var key = await Config.GetStripeSecretKeyAsync();
             _mode = string.IsNullOrEmpty(key) ? "not configured" : key.Contains("_live_") ? "live" : "test";
             _stripe = (await Stripe.GetStatusAsync(_items.Select(i => StripeItem.From(i, Nav.BaseUri)).ToList())).ToDictionary(s => s.Item.Sku);
         }
         catch (Exception ex) { _error = ex.Message; }
+        finally { _stripeLoading = false; }
     }
 
     // --- Items ---
@@ -289,6 +377,7 @@
 
     private void OpenItem()
     {
+        _lang = "en";
         _notice = _error = null;
         _confirmDelete = false;
         _itemOpen = true;
@@ -302,7 +391,9 @@
         {
             Sku = p.Sku, Category = p.Category, Name = p.Name, Description = p.Description, Details = p.Details, Price = p.Price,
             PriceVnd = p.PriceVnd, ImageUrl = p.ImageUrl, Active = p.Active, BillingInterval = p.BillingInterval,
-            TrialDays = p.TrialDays, Sort = p.Sort, Recommended = p.Recommended, Features = new List<string>(p.Features)
+            TrialDays = p.TrialDays, Sort = p.Sort, Recommended = p.Recommended, Features = new List<string>(p.Features),
+            Texts = p.Texts.ToDictionary(t => t.Key, t => new CatalogText
+                { Name = t.Value.Name, Description = t.Value.Description, Details = t.Value.Details, Source = t.Value.Source })
         };
         _featuresText = string.Join("\n", p.Features);
         _isNew = false;
@@ -419,7 +510,7 @@
 
     private void EditCategory(CatalogCategory c)
     {
-        _cat = new CatalogCategory { Key = c.Key, Name = c.Name, PickOne = c.PickOne, Sort = c.Sort };
+        _cat = new CatalogCategory { Key = c.Key, Name = c.Name, PickOne = c.PickOne, Sort = c.Sort, Names = new(c.Names) };
         _catIsNew = false;
         OpenCategory();
     }
@@ -451,6 +542,65 @@
             await ReloadAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
+    }
+
+    // --- Translations (website only; Stripe keeps the English) ---
+
+    // The dialog's working copy of one language, created on first use; empty ones aren't saved.
+    private static CatalogText TextFor(AppProduct p, string lang)
+    {
+        if (!p.Texts.TryGetValue(lang, out var t)) p.Texts[lang] = t = new CatalogText { Source = CatalogText.SourceOf(p) };
+        return t;
+    }
+
+    // "none" (not translated), "stale" (the English changed since), or "ok".
+    private static string TextState(AppProduct p, string lang)
+    {
+        if (!p.Texts.TryGetValue(lang, out var t) || t.IsEmpty) return "none";
+        return t.Source == CatalogText.SourceOf(p) ? "ok" : "stale";
+    }
+
+    private static string TextStateLabel(AppProduct p, string lang) => TextState(p, lang) switch
+    {
+        "none" => "Not translated (shows the English)",
+        "stale" => "The English changed since this was translated",
+        _ => "Translated",
+    };
+
+    private static string TranslationNote(AppProduct i)
+    {
+        var states = CatalogLanguages.Translated.Select(l => TextState(i, l)).ToList();
+        if (states.All(s => s == "ok")) return "";
+        if (states.All(s => s == "none")) return " · not translated";
+        return states.Contains("stale") ? " · translation out of date" : " · partly translated";
+    }
+
+    private async Task TranslateItem()
+    {
+        _error = null;
+        _translating = true;
+        try
+        {
+            var r = await Translator.TranslateAsync(_edit);
+            if (r.Texts is null) { _error = r.Error; return; }
+            foreach (var (lang, text) in r.Texts) _edit.Texts[lang] = text;
+            if (_lang == "en") _lang = CatalogLanguages.Translated[0];
+            _notice = "Translations drafted. Check them, then Save.";
+        }
+        finally { _translating = false; }
+    }
+
+    private async Task TranslateCategory()
+    {
+        _error = null;
+        _translating = true;
+        try
+        {
+            var (names, error) = await Translator.TranslateNameAsync(_cat.Name);
+            if (names is null) { _error = error; return; }
+            _cat.Names = names;
+        }
+        finally { _translating = false; }
     }
 
     private static string Every(AppProduct i) => i.BillingInterval switch

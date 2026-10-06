@@ -150,7 +150,7 @@ public sealed class AppOrderService
         var note = new OrderPaidNotification(
             order.OrderRef, order.Total, order.Currency, order.Method,
             order.CustomerEmail, order.ProviderTxnId, order.PaidAt ?? DateTimeOffset.UtcNow,
-            order.Lines, order.Company, order.CustomerName, order.CustomerPhone, order.Source);
+            order.Lines, order.Company, order.CustomerName, order.CustomerPhone, order.Source, order.Culture);
 
         try { OrderPaid?.Invoke(note); }
         catch (Exception ex) { _logger.LogError(ex, "OrderPaid handler threw for {OrderRef}", note.OrderRef); }

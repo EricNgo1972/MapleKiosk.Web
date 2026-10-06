@@ -42,6 +42,28 @@ public static class AppStoreEndpoints
             return result.Success ? Results.Ok(result) : Results.BadRequest(result);
         });
 
+        // The /shop page's cart (site.js) checking out: public and same-origin like /quote. Card only; the
+        // server prices the SKUs and picks where Stripe returns to, so the browser can't redirect anywhere.
+        group.MapPost("/shop", async (ShopCheckoutRequest req, HttpRequest http, CheckoutService checkout, CancellationToken ct) =>
+        {
+            var email = req.Email?.Trim();
+            if (string.IsNullOrEmpty(email) || email.Length > 120 || !email.Contains('@') || email.Contains(' '))
+                return Results.BadRequest(new CheckoutResult { Method = AppPaymentMethods.Stripe, Error = "A valid email is required." });
+
+            var culture = req.Culture is "fr" or "vi" or "ru" ? req.Culture : "en";
+            var root = $"{http.Scheme}://{http.Host}{http.PathBase}/";
+            var result = await checkout.CreateAsync(new CreateCheckoutRequest
+            {
+                Items = req.Items ?? new(),
+                Method = AppPaymentMethods.Stripe,
+                Email = email,
+                Culture = culture,
+                SuccessUrl = $"{root}shop/success",
+                CancelUrl = $"{root}{(culture == "en" ? "" : culture + "/")}shop?checkout=cancelled"
+            }, ct);
+            return result.Success ? Results.Ok(result) : Results.BadRequest(result);
+        });
+
         var hooks = group.MapGroup("/webhooks");
         hooks.MapPost("/stripe", HandleStripeWebhookAsync);
         hooks.MapPost("/bank", HandleBankWebhookAsync);
@@ -92,6 +114,11 @@ public static class AppStoreEndpoints
             {
                 await orders.MarkPaidAsync(session.ClientReferenceId, session.PaymentIntentId ?? session.SubscriptionId ?? session.Id,
                     ct, session.CustomerId, session.SubscriptionId);
+
+                // Stripe's own invoices, renewal emails and portal then speak the buyer's language around the
+                // (English) item names. Best effort: the order is already confirmed.
+                if (!string.IsNullOrEmpty(session.CustomerId) && session.Metadata?.GetValueOrDefault("lang") is "fr" or "vi" or "ru" or "en")
+                    await SetCustomerLanguageAsync(config, session.CustomerId, session.Metadata["lang"], log, ct);
             }
         }
         else if (stripeEvent.Type is EventTypes.CustomerSubscriptionCreated or EventTypes.CustomerSubscriptionUpdated
@@ -110,6 +137,19 @@ public static class AppStoreEndpoints
         }
 
         return Results.Ok();
+    }
+
+    private static async Task SetCustomerLanguageAsync(AppStoreConfig config, string customerId, string lang, ILogger log, CancellationToken ct)
+    {
+        try
+        {
+            var client = new StripeClient(await config.GetStripeSecretKeyAsync());
+            await new CustomerService(client).UpdateAsync(customerId, new CustomerUpdateOptions { PreferredLocales = [lang] }, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            log.LogWarning(ex, "Couldn't set Stripe customer {CustomerId}'s language to {Lang}.", customerId, lang);
+        }
     }
 
     private static async Task<IResult> HandleBankWebhookAsync(
