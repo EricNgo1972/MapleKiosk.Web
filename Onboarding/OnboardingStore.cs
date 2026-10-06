@@ -161,6 +161,25 @@ public sealed class OnboardingStore
         await _table.UpsertEntityAsync(OnboardingEntity.FromRecord(record), TableUpdateMode.Replace, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Changes only a record's login email and/or access, merging just those columns into
+    /// the stored row: the customer's answers (FormJson, files) are never read back or rewritten.</summary>
+    public async Task SetLoginAsync(string token, string? contactEmail, OnboardingAccess? access, CancellationToken ct = default)
+    {
+        if (_table is null) throw new InvalidOperationException("Onboarding storage is not configured.");
+        if (!OnboardingRecord.IsValidToken(token)) throw new ArgumentException("Invalid record.");
+        var patch = new TableEntity(OnboardingEntity.Partition, token);
+        if (contactEmail is not null) patch[nameof(OnboardingEntity.ContactEmail)] = OnboardingRecord.CanonicalEmail(contactEmail);
+        if (access is { } a)
+        {
+            patch[nameof(OnboardingEntity.Access)] = a.ToString();
+            patch[nameof(OnboardingEntity.AccessChangedAt)] = DateTimeOffset.UtcNow;
+        }
+        // Update (not upsert): fails rather than create a half row if the record is gone.
+        await _table.UpdateEntityAsync(patch, ETag.All, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+        _logger.LogInformation("Onboarding login changed for {Token}: email {EmailChanged}, access {Access}.",
+            token, contactEmail is not null, access?.ToString() ?? "unchanged");
+    }
+
     // --- Website brief: its own row so the brief and the setup form never overwrite each other ---
 
     public async Task<WebsiteBrief> GetBriefAsync(string token, CancellationToken ct = default)

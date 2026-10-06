@@ -90,3 +90,9 @@
 .stp-state--insync { color: #16723a; }
 .stp-state--missing, .stp-state--outdated { color: #b4471f; }
 .stp-state--archived { color: #777; }
+
+.cat-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.cat-head h3 { margin: 0; }
+.cat-add { flex: none; }
+.cat-click { cursor: pointer; }
+.cat-click:hover td { background: var(--bg, #faf7f2); }

@@ -7,8 +7,9 @@ namespace MapleKiosk.Web.Services;
 /// Allowlist for the central-OAuth login (oauth.maplekiosk.ca). Two kinds of
 /// account get in:
 /// <list type="bullet">
-/// <item>Team — <c>@spc-technology.com</c> addresses plus the named accounts in <c>AllowedEmails</c>
-/// (the owner, MagSoft) → role <see cref="AdminRole"/>.</item>
+/// <item>Team — <c>@spc-technology.com</c> addresses, the built-in accounts in <c>TeamEmails</c>
+/// (the owner, MagSoft; can't be removed, so nobody locks the team out) and the team members
+/// added on /admin/users (<see cref="UserDirectory"/>) → role <see cref="AdminRole"/>.</item>
 /// <item>Customers — any email on the onboarding list (added by staff after the
 /// deposit) → role <see cref="CustomerRole"/>, which only reaches their own setup page.</item>
 /// </list>
@@ -21,20 +22,26 @@ public static class AppAuthValidator
     public const string AdminRole = "Admin";
     public const string CustomerRole = "Customer";
 
-    private const string AllowedDomain = "@spc-technology.com";
-    private static readonly string[] AllowedEmails = { "ericngo0305@gmail.com", "magsoft@magsoft.us" };
+    /// <summary>Every address on this domain is team (shown on /admin/users).</summary>
+    public const string TeamDomain = "@spc-technology.com";
 
-    public static bool IsStaff(string canonicalEmail) =>
-        canonicalEmail.EndsWith(AllowedDomain, StringComparison.Ordinal)
-        || AllowedEmails.Contains(canonicalEmail, StringComparer.Ordinal);
+    /// <summary>Built-in team accounts outside the domain; always admin, can't be removed on /admin/users.</summary>
+    public static readonly IReadOnlyList<string> TeamEmails = ["ericngo0305@gmail.com", "magsoft@magsoft.us"];
 
-    public static async Task<IReadOnlyList<Claim>?> ValidateAsync(string email, OnboardingStore onboarding)
+    public static bool IsBuiltInStaff(string canonicalEmail) =>
+        canonicalEmail.EndsWith(TeamDomain, StringComparison.Ordinal)
+        || TeamEmails.Contains(canonicalEmail, StringComparer.Ordinal);
+
+    public static async Task<bool> IsStaffAsync(string canonicalEmail, UserDirectory users) =>
+        IsBuiltInStaff(canonicalEmail) || await users.IsTeamAsync(canonicalEmail);
+
+    public static async Task<IReadOnlyList<Claim>?> ValidateAsync(string email, OnboardingStore onboarding, UserDirectory users)
     {
         if (string.IsNullOrWhiteSpace(email)) return null;
 
         var canonical = OnboardingRecord.CanonicalEmail(email);
 
-        if (IsStaff(canonical))
+        if (await IsStaffAsync(canonical, users))
             return new List<Claim> { new(ClaimTypes.Role, AdminRole) };
 
         // Archived-only customers no longer sign in; suspended ones do, and see the "paused" page.

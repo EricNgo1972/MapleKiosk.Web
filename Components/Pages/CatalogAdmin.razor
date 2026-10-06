@@ -39,70 +39,15 @@
         @if (_notice is not null) { <p class="cat-notice">@_notice</p> }
         @if (_error is not null) { <p class="mshop-error">@_error</p> }
 
-        <!-- Item editor -->
-        <div class="cat-card">
-            <h3>@(_isNew ? "Add item" : $"Edit “{_edit.Sku}”")</h3>
-            <div class="cat-grid">
-                <label>Category
-                    <select @bind="_edit.Category">
-                        <option value="">— pick —</option>
-                        @foreach (var c in _categories) { <option value="@c.Key">@c.Name</option> }
-                    </select>
-                </label>
-                <label>SKU
-                    <input @bind="_edit.Sku" disabled="@(!_isNew)" placeholder="@(_edit.Category is { Length: > 0 } ? _edit.Category + "-name" : "item-name")" />
-                </label>
-                <label style="grid-column:1/-1">Name
-                    <input @bind="_edit.Name" placeholder="What it's called on Stripe, receipts and the shop" />
-                </label>
-                <label>Price (@CatalogStore.Currency)
-                    <input type="number" min="0" step="0.01" @bind="_edit.Price" />
-                </label>
-                <label>Charged
-                    <select @bind="_edit.BillingInterval">
-                        <option value="@BillingIntervals.OneTime">One time</option>
-                        <option value="@BillingIntervals.Monthly">Every month</option>
-                        <option value="@BillingIntervals.Yearly">Every year</option>
-                    </select>
-                </label>
-                <label>Order in its category
-                    <input type="number" step="1" @bind="_edit.Sort" />
-                </label>
-                <label>Free trial (days, shop only)
-                    <input type="number" min="0" step="1" @bind="_edit.TrialDays" />
-                </label>
-                <label style="grid-column:1/-1">Description
-                    <input @bind="_edit.Description" placeholder="One line" />
-                </label>
-                <label style="grid-column:1/-1">Features (one per line)
-                    <textarea rows="3" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
-                </label>
-                <label>VND price (VietQR, shop only)
-                    <input type="number" min="0" step="1" @bind="_edit.PriceVnd" />
-                </label>
-                <label>Image
-                    <InputFile OnChange="OnImageSelected" accept="image/*" />
-                    @if (_uploading) { <span style="color:var(--muted)">Uploading…</span> }
-                    else if (!string.IsNullOrWhiteSpace(_edit.ImageUrl)) { <img src="@_edit.ImageUrl" alt="" style="height:48px;border-radius:8px;margin-top:6px" /> }
-                </label>
-                <label class="cat-check"><input type="checkbox" @bind="_edit.Active" /> Active (for sale)</label>
-                <label class="cat-check"><input type="checkbox" @bind="_edit.Recommended" /> Recommended</label>
-            </div>
-            <p class="cat-hint">On the pricing pages, the cards keep their translated wording; the catalog sets the price, how often it's charged, the order and what's for sale. A new item uses its own name and description.</p>
-            <div class="cat-actions">
-                <button class="btn btn-primary" disabled="@(_busy || !Store.IsConfigured)" @onclick="Save">
-                    @(_busy ? "Saving…" : _isNew ? "Add item" : "Save")
-                </button>
-                @if (!_isNew) { <button class="btn btn-ghost" @onclick="NewItem">Cancel</button> }
-            </div>
-        </div>
-
-        <!-- Items, by category -->
+        <!-- Items, by category: tap a row to edit; + Add in the title -->
         @foreach (var c in _categories)
         {
             var items = _items.Where(i => i.Category == c.Key).ToList();
             <div class="cat-card">
-                <h3>@c.Name <small class="cat-sub">@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages") · @(c.PickOne ? "pick one" : "pick any")</small></h3>
+                <div class="cat-head">
+                    <h3>@c.Name <small class="cat-sub">@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages") · @(c.PickOne ? "pick one" : "pick any")</small></h3>
+                    <button class="btn btn-ghost cat-add" disabled="@(!Store.IsConfigured)" @onclick="() => NewItem(c.Key)">+ Add</button>
+                </div>
                 @if (items.Count == 0)
                 {
                     <p style="color:var(--muted)">No items yet.</p>
@@ -110,7 +55,7 @@
                 else
                 {
                     <table class="cat-table">
-                        <thead><tr><th>Item</th><th>Price</th><th>Stripe</th><th></th></tr></thead>
+                        <thead><tr><th>Item</th><th>Price</th><th>Stripe</th></tr></thead>
                         <tbody>
                             @foreach (var i in items) { @ItemRow(i) }
                         </tbody>
@@ -129,45 +74,134 @@
 
         <!-- Categories -->
         <div class="cat-card">
-            <h3>Categories</h3>
+            <div class="cat-head">
+                <h3>Categories</h3>
+                <button class="btn btn-ghost cat-add" disabled="@(!Store.IsConfigured)" @onclick="NewCategory">+ Add</button>
+            </div>
             <table class="cat-table">
-                <thead><tr><th>Name</th><th>Key</th><th>Sold on</th><th>Buyers</th><th>Order</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Key</th><th>Sold on</th><th>Buyers</th><th>Order</th></tr></thead>
                 <tbody>
                     @foreach (var c in _categories)
                     {
-                        <tr>
+                        <tr class="cat-click" @onclick="() => EditCategory(c)">
                             <td>@c.Name</td>
                             <td><code>@c.Key</code></td>
                             <td>@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages")</td>
                             <td>@(c.PickOne ? "Pick one" : "Pick any")</td>
                             <td>@c.Sort</td>
-                            <td class="cat-row-actions">
-                                <button class="btn btn-ghost" @onclick="() => EditCategory(c)">Edit</button>
-                                <button class="btn btn-ghost cat-del" disabled="@(!Store.IsConfigured)" @onclick="() => DeleteCategory(c.Key)">Delete</button>
-                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
-            <div class="cat-grid" style="margin-top:16px">
-                <label>Name <input @bind="_cat.Name" placeholder="Hardware" /></label>
-                <label>Key <input @bind="_cat.Key" disabled="@(!_catIsNew)" placeholder="hardware" /></label>
-                <label>Sold on
-                    <select @bind="_cat.Placement">
-                        <option value="@CatalogCategory.Quote">Pricing pages</option>
-                        <option value="@CatalogCategory.Shop">Shop</option>
-                    </select>
-                </label>
-                <label>Order <input type="number" step="1" @bind="_cat.Sort" /></label>
-                <label class="cat-check"><input type="checkbox" @bind="_cat.PickOne" /> Buyers pick one (plans), not any number (add-ons)</label>
-            </div>
-            <div class="cat-actions">
-                <button class="btn btn-primary" disabled="@(_busy || !Store.IsConfigured)" @onclick="SaveCategory">@(_catIsNew ? "Add category" : "Save category")</button>
-                @if (!_catIsNew) { <button class="btn btn-ghost" @onclick="NewCategory">Cancel</button> }
-            </div>
         </div>
     </div>
 </section>
+
+@* ---- Item dialog ---- *@
+@if (_itemOpen)
+{
+    var st = _isNew ? null : _stripe.GetValueOrDefault(_edit.Sku);
+    <div class="adm-scrim" @onclick="CloseItem"></div>
+    <div class="adm-sheet adm-sheet--wide" role="dialog" aria-label="Item">
+        <h2>@(_isNew ? "Add item" : _edit.Name)</h2>
+        <div class="cat-grid">
+            <label>Category
+                <select @bind="_edit.Category">
+                    <option value="">— pick —</option>
+                    @foreach (var c in _categories) { <option value="@c.Key">@c.Name</option> }
+                </select>
+            </label>
+            <label>SKU
+                <input @bind="_edit.Sku" disabled="@(!_isNew)" placeholder="@(_edit.Category is { Length: > 0 } ? _edit.Category + "-name" : "item-name")" />
+            </label>
+            <label style="grid-column:1/-1">Name
+                <input @bind="_edit.Name" placeholder="What it's called on Stripe, receipts and the shop" />
+            </label>
+            <label>Price (@CatalogStore.Currency)
+                <input type="number" min="0" step="0.01" @bind="_edit.Price" />
+            </label>
+            <label>Charged
+                <select @bind="_edit.BillingInterval">
+                    <option value="@BillingIntervals.OneTime">One time</option>
+                    <option value="@BillingIntervals.Monthly">Every month</option>
+                    <option value="@BillingIntervals.Yearly">Every year</option>
+                </select>
+            </label>
+            <label>Order in its category
+                <input type="number" step="1" @bind="_edit.Sort" />
+            </label>
+            <label>Free trial (days, shop only)
+                <input type="number" min="0" step="1" @bind="_edit.TrialDays" />
+            </label>
+            <label style="grid-column:1/-1">Description
+                <input @bind="_edit.Description" placeholder="One line" />
+            </label>
+            <label style="grid-column:1/-1">Features (one per line)
+                <textarea rows="3" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
+            </label>
+            <label>VND price (VietQR, shop only)
+                <input type="number" min="0" step="1" @bind="_edit.PriceVnd" />
+            </label>
+            <label>Image
+                <InputFile OnChange="OnImageSelected" accept="image/*" />
+                @if (_uploading) { <span style="color:var(--muted)">Uploading…</span> }
+                else if (!string.IsNullOrWhiteSpace(_edit.ImageUrl)) { <img src="@_edit.ImageUrl" alt="" style="height:48px;border-radius:8px;margin-top:6px" /> }
+            </label>
+            <label class="cat-check"><input type="checkbox" @bind="_edit.Active" /> Active (for sale)</label>
+            <label class="cat-check"><input type="checkbox" @bind="_edit.Recommended" /> Recommended</label>
+        </div>
+        @if (st?.ProductId is not null)
+        {
+            <p class="cat-hint">
+                Stripe: <span class="stp-state stp-state--@st.State.ToString().ToLowerInvariant()">@Label(st.State)</span>
+                <a href="@($"https://dashboard.stripe.com/{(_mode == "test" ? "test/" : "")}products/{st.ProductId}")" target="_blank" rel="noopener">open in Stripe ↗</a>
+            </p>
+        }
+        @if (_error is not null) { <p class="mshop-error">@_error</p> }
+        <div class="adm-sheet__actions">
+            @if (!_isNew)
+            {
+                <button class="btn btn-ghost cat-del" style="margin-right:auto" disabled="@(_busy || !Store.IsConfigured)" @onclick="() => DeleteItem()">
+                    @(_confirmDelete ? "Delete — sure?" : "Delete")
+                </button>
+            }
+            <button class="btn btn-ghost" @onclick="CloseItem">Cancel</button>
+            <button class="btn btn-primary" disabled="@(_busy || _uploading || !Store.IsConfigured)" @onclick="Save">@(_busy ? "Saving…" : _isNew ? "Add" : "Save")</button>
+        </div>
+    </div>
+}
+
+@* ---- Category dialog ---- *@
+@if (_catOpen)
+{
+    <div class="adm-scrim" @onclick="CloseCategory"></div>
+    <div class="adm-sheet" role="dialog" aria-label="Category">
+        <h2>@(_catIsNew ? "Add category" : _cat.Name)</h2>
+        <div class="cat-grid">
+            <label>Name <input @bind="_cat.Name" placeholder="Hardware" /></label>
+            <label>Key <input @bind="_cat.Key" disabled="@(!_catIsNew)" placeholder="hardware" /></label>
+            <label>Sold on
+                <select @bind="_cat.Placement">
+                    <option value="@CatalogCategory.Quote">Pricing pages</option>
+                    <option value="@CatalogCategory.Shop">Shop</option>
+                </select>
+            </label>
+            <label>Order <input type="number" step="1" @bind="_cat.Sort" /></label>
+            <label class="cat-check" style="grid-column:1/-1"><input type="checkbox" @bind="_cat.PickOne" /> Buyers pick one (plans), not any number (add-ons)</label>
+        </div>
+        @if (_error is not null) { <p class="mshop-error">@_error</p> }
+        <div class="adm-sheet__actions">
+            @if (!_catIsNew)
+            {
+                <button class="btn btn-ghost cat-del" style="margin-right:auto" disabled="@(_busy || !Store.IsConfigured)" @onclick="DeleteCategory">
+                    @(_confirmDelete ? "Delete — sure?" : "Delete")
+                </button>
+            }
+            <button class="btn btn-ghost" @onclick="CloseCategory">Cancel</button>
+            <button class="btn btn-primary" disabled="@(_busy || !Store.IsConfigured)" @onclick="SaveCategory">@(_catIsNew ? "Add" : "Save")</button>
+        </div>
+    </div>
+}
 
 @code {
     private const string FeaturesPlaceholder = "Unlimited invoices\nPriority support";
@@ -180,8 +214,11 @@
     private AppProduct _edit = new() { Active = true };
     private string _featuresText = "";
     private bool _isNew = true;
+    private bool _itemOpen;
     private CatalogCategory _cat = new();
     private bool _catIsNew = true;
+    private bool _catOpen;
+    private bool _confirmDelete;
 
     private bool _busy;
     private bool _uploading;
@@ -194,7 +231,7 @@
     private RenderFragment ItemRow(AppProduct i) => __builder =>
     {
         var st = _stripe.GetValueOrDefault(i.Sku);
-        <tr class="@(i.Active ? null : "cat-off")">
+        <tr class="cat-click @(i.Active ? null : "cat-off")" @onclick="() => Edit(i)">
             <td><strong>@i.Name</strong>@(i.Recommended ? " ★" : "")<br /><small class="cat-sub"><code>@i.Sku</code>@(i.Active ? "" : " · not for sale")</small></td>
             <td>$@i.Price.ToString("0.00") <small class="cat-sub">@Every(i)@(i.TrialDays > 0 ? $" · {i.TrialDays}-day trial" : "")</small></td>
             <td>
@@ -203,14 +240,6 @@
                     <span class="stp-state stp-state--@st.State.ToString().ToLowerInvariant()">@Label(st.State)</span>
                     @if (st.Detail is not null) { <br /><small class="cat-sub">@st.Detail</small> }
                 }
-            </td>
-            <td class="cat-row-actions">
-                <button class="btn btn-ghost" @onclick="() => Edit(i)">Edit</button>
-                @if (st?.ProductId is not null)
-                {
-                    <a class="btn btn-ghost" href="@($"https://dashboard.stripe.com/{(_mode == "test" ? "test/" : "")}products/{st.ProductId}")" target="_blank" rel="noopener">Stripe</a>
-                }
-                <button class="btn btn-ghost cat-del" disabled="@(!Store.IsConfigured)" @onclick="() => Delete(i)">Delete</button>
             </td>
         </tr>
     };
@@ -230,12 +259,22 @@
 
     // --- Items ---
 
-    private void NewItem()
+    private void NewItem(string category)
     {
-        _edit = new AppProduct { Active = true };
+        _edit = new AppProduct { Active = true, Category = category, BillingInterval = BillingIntervals.Monthly };
         _featuresText = "";
         _isNew = true;
+        OpenItem();
     }
+
+    private void OpenItem()
+    {
+        _notice = _error = null;
+        _confirmDelete = false;
+        _itemOpen = true;
+    }
+
+    private void CloseItem() { _itemOpen = false; _error = null; }
 
     private void Edit(AppProduct p)
     {
@@ -247,7 +286,7 @@
         };
         _featuresText = string.Join("\n", p.Features);
         _isNew = false;
-        _notice = _error = null;
+        OpenItem();
     }
 
     private async Task OnImageSelected(InputFileChangeEventArgs e)
@@ -281,15 +320,19 @@
         {
             await Store.UpsertAsync(_edit);
             _notice = $"Saved “{_edit.Name}”." + await SyncAsync(_edit);
-            NewItem();
+            _itemOpen = false;
             await ReloadAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
     }
 
-    private async Task Delete(AppProduct p)
+    // First tap asks, second deletes.
+    private async Task DeleteItem()
     {
+        if (!_confirmDelete) { _confirmDelete = true; return; }
+        var p = _items.FirstOrDefault(i => i.Sku == _edit.Sku);
+        if (p is null) { _itemOpen = false; return; }
         _notice = _error = null;
         _busy = true;
         try
@@ -298,7 +341,7 @@
             var archived = new AppProduct { Sku = p.Sku, Name = p.Name, Price = p.Price, BillingInterval = p.BillingInterval, Active = false };
             var stripe = await SyncAsync(archived);
             await Store.DeleteAsync(p.Sku);
-            if (!_isNew && _edit.Sku == p.Sku) NewItem();
+            _itemOpen = false;
             _notice = $"Deleted “{p.Name}”." + stripe;
             await ReloadAsync();
         }
@@ -336,12 +379,27 @@
 
     // --- Categories ---
 
-    private void NewCategory() { _cat = new CatalogCategory(); _catIsNew = true; }
+    private void NewCategory()
+    {
+        _cat = new CatalogCategory();
+        _catIsNew = true;
+        OpenCategory();
+    }
+
+    private void OpenCategory()
+    {
+        _notice = _error = null;
+        _confirmDelete = false;
+        _catOpen = true;
+    }
+
+    private void CloseCategory() { _catOpen = false; _error = null; }
 
     private void EditCategory(CatalogCategory c)
     {
         _cat = new CatalogCategory { Key = c.Key, Name = c.Name, Placement = c.Placement, PickOne = c.PickOne, Sort = c.Sort };
         _catIsNew = false;
+        OpenCategory();
     }
 
     private async Task SaveCategory()
@@ -353,18 +411,21 @@
         {
             await Store.UpsertCategoryAsync(_cat);
             _notice = $"Saved category “{_cat.Name}”.";
-            NewCategory();
+            _catOpen = false;
             await ReloadAsync();
         }
         catch (Exception ex) { _error = ex.Message; }
     }
 
-    private async Task DeleteCategory(string key)
+    private async Task DeleteCategory()
     {
+        if (!_confirmDelete) { _confirmDelete = true; return; }
         _notice = _error = null;
         try
         {
-            await Store.DeleteCategoryAsync(key);
+            await Store.DeleteCategoryAsync(_cat.Key);
+            _notice = $"Deleted category “{_cat.Name}”.";
+            _catOpen = false;
             await ReloadAsync();
         }
         catch (Exception ex) { _error = ex.Message; }

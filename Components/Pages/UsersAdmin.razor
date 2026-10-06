@@ -1,0 +1,321 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+@rendermode InteractiveServer
+@using MapleKiosk.Web.Onboarding
+@inject OnboardingStore Onboarding
+@inject OnboardingService OnboardingService
+@inject UserDirectory Users
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Nav
+
+@* Who can sign in: the team (rule in AppAuthValidator) and customers (their onboarding record).
+   The list shows names only; tapping a row opens a dialog to edit the name and, for a customer,
+   the login email and access. Team members can be added and removed here (UserDirectory);
+   the built-in owners can't be removed, and nobody can remove themselves. Names live in their own table; a customer's login change merges
+   just those columns into the record (OnboardingStore.SetLoginAsync), never their setup answers. *@
+
+<PageTitle>Users — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title"><a href="/admin" style="color:inherit;text-decoration:none">Admin</a> / Users</span>
+    </div>
+</header>
+
+<main class="adm">
+    @* Cloudflare's email obfuscation would show addresses as "[email protected]"; this page is staff-only. *@
+    @((MarkupString)"<!--email_off-->")
+    <div class="container adm__wrap">
+        @if (!Onboarding.IsConfigured)
+        {
+            <p class="onb-error">Storage is not configured (STORAGE_CONNECTION_STRING).</p>
+        }
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 10px">
+            <h2 style="font-size:18px;margin:0">Team <small style="color:var(--muted);font-weight:400">full admin access</small></h2>
+            <button type="button" class="btn btn-ghost onb-small" disabled="@(!Users.IsConfigured)" @onclick="NewTeam">+ Add</button>
+        </div>
+        <ul class="adm-list">
+            <li>
+                <div class="adm-row" style="cursor:default">
+                    <span class="adm-avatar" aria-hidden="true">@@</span>
+                    <span class="adm-row__main"><strong>Everyone at @(AppAuthValidator.TeamDomain.TrimStart('@'))</strong><small>Any company address can sign in</small></span>
+                </div>
+            </li>
+            @foreach (var email in TeamList)
+            {
+                <li>
+                    <button type="button" class="adm-row" @onclick="() => OpenTeam(email)">
+                        <span class="adm-avatar" aria-hidden="true">@Initial(NameOf(email))</span>
+                        <span class="adm-row__main"><strong>@(NameOf(email) ?? "No name yet")</strong><small>@(AppAuthValidator.IsBuiltInStaff(email) ? "Team · owner" : "Team")</small></span>
+                    </button>
+                </li>
+            }
+        </ul>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:28px 0 10px">
+            <h2 style="font-size:18px;margin:0">Customers <small style="color:var(--muted);font-weight:400">their own setup page only</small></h2>
+            <a class="btn btn-ghost onb-small" href="/onboarding/admin">+ Add</a>
+        </div>
+        @if (_loading)
+        {
+            <p class="onb__muted">Loading…</p>
+        }
+        else if (_customers.Count == 0)
+        {
+            <p class="onb__muted">No customers yet.</p>
+        }
+        else
+        {
+            <ul class="adm-list">
+                @foreach (var r in _customers)
+                {
+                    <li>
+                        <button type="button" class="adm-row" @onclick="() => OpenCustomer(r)">
+                            <span class="adm-avatar" aria-hidden="true">@Initial(CustomerName(r))</span>
+                            <span class="adm-row__main">
+                                <strong>@CustomerName(r)</strong>
+                                <small>@Business(r) · @OnboardingIndustries.Label(r.Industry)</small>
+                            </span>
+                            <span class="adm-row__side">
+                                <span class="onb-status @AccessClass(r.Access)">@AccessLabel(r.Access)</span>
+                            </span>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    @if (_edit is not null)
+    {
+        <div class="adm-scrim" @onclick="Close"></div>
+        <div class="adm-sheet" role="dialog" aria-label="Edit user">
+            <h2>@(_edit.Record is not null ? Business(_edit.Record) : _edit.IsNew ? "Add team member" : "Team member")</h2>
+            <div class="adm-form">
+                <label>Name
+                    <input @bind="_edit.Name" placeholder="First and last name" />
+                </label>
+
+                @if (_edit.Record is null && _edit.IsNew)
+                {
+                    <label>Sign-in email
+                        <input type="email" @bind="_edit.Email" placeholder="name@gmail.com" />
+                        <small>The Google or Microsoft account they'll sign in with. They get full admin access.</small>
+                    </label>
+                }
+                else if (_edit.Record is null)
+                {
+                    <div class="adm-field">
+                        <span>Sign-in email</span>
+                        <span style="font-weight:400">@_edit.OriginalEmail</span>
+                        @if (AppAuthValidator.IsBuiltInStaff(_edit.OriginalEmail))
+                        {
+                            <small>Owner account: always on the team, can't be removed.</small>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <label>Sign-in email
+                        <input type="email" @bind="_edit.Email" @bind:event="oninput" />
+                        <small>The Google or Microsoft account they sign in with.</small>
+                    </label>
+                    @if (EmailChanged)
+                    {
+                        <div class="adm-confirm">
+                            <p><b>@_edit.OriginalEmail</b> will lose access; <b>@OnboardingRecord.CanonicalEmail(_edit.Email)</b> gets it.</p>
+                            <label class="adm-switch"><input type="checkbox" @bind="_edit.Invite" /> Email the new address an invitation</label>
+                        </div>
+                    }
+
+                    <div class="adm-field">
+                        <span>Access</span>
+                        <div class="wb-chips">
+                            @foreach (var a in Enum.GetValues<OnboardingAccess>())
+                            {
+                                <button type="button" class="wb-chip @(_edit.Access == a ? "is-on" : "")" @onclick="() => _edit.Access = a">@AccessLabel(a)</button>
+                            }
+                        </div>
+                        <small>Suspended: they sign in and see "paused". Archived: no sign-in. Nothing is deleted.</small>
+                    </div>
+                    <a href="/onboarding/admin" style="font-size:14px">Open in onboarding →</a>
+                }
+            </div>
+            @if (_error is not null) { <p class="onb-error">@_error</p> }
+            <div class="adm-sheet__actions">
+                @if (CanRemove)
+                {
+                    <button type="button" class="btn btn-ghost" style="margin-right:auto;color:var(--red)" disabled="@_busy" @onclick="Remove">
+                        @(_confirmRemove ? "Remove — sure?" : "Remove from team")
+                    </button>
+                }
+                <button type="button" class="btn btn-ghost" @onclick="Close">Cancel</button>
+                <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="Save">@(_busy ? "Saving…" : "Save")</button>
+            </div>
+        </div>
+    }
+    @((MarkupString)"<!--/email_off-->")
+</main>
+
+@code {
+    private sealed class EditState
+    {
+        public OnboardingRecord? Record; // null = team member
+        public string OriginalEmail = "";
+        public string Email = "";
+        public string Name = "";
+        public OnboardingAccess Access;
+        public bool Invite = true;
+        public bool IsNew;
+    }
+
+    private List<OnboardingRecord> _customers = [];
+    private IReadOnlyDictionary<string, UserEntry> _users = new Dictionary<string, UserEntry>();
+    private string _me = "";
+    private bool _confirmRemove;
+
+    // Built-in owners first, then the members added here.
+    private IEnumerable<string> TeamList =>
+        AppAuthValidator.TeamEmails.Concat(_users.Values.Where(u => u.IsTeam).Select(u => u.Email)
+            .Where(e => !AppAuthValidator.TeamEmails.Contains(e)).OrderBy(e => NameOf(e) ?? e, StringComparer.OrdinalIgnoreCase));
+
+    // Not an owner, not yourself (no locking yourself out).
+    private bool CanRemove => _edit is { Record: null, IsNew: false } e
+        && !AppAuthValidator.IsBuiltInStaff(e.OriginalEmail) && e.OriginalEmail != _me;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _error;
+    private EditState? _edit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await Auth.GetAuthenticationStateAsync()).User;
+        _me = OnboardingRecord.CanonicalEmail(user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _users = await Users.GetAllAsync();
+        _customers = (await Onboarding.GetAllAsync())
+            .OrderBy(r => r.Access).ThenBy(r => CustomerName(r), StringComparer.OrdinalIgnoreCase).ToList();
+        _loading = false;
+    }
+
+    private string? NameOf(string email) => _users.TryGetValue(OnboardingRecord.CanonicalEmail(email), out var u) ? u.Name : null;
+
+    // Saved name, else the contact person from their setup form, else the business.
+    private string CustomerName(OnboardingRecord r) =>
+        NameOf(r.ContactEmail) ?? (string.IsNullOrWhiteSpace(r.Form.ContactName) ? Business(r) : r.Form.ContactName.Trim());
+
+    private static string Business(OnboardingRecord r) =>
+        string.IsNullOrWhiteSpace(r.Form.BusinessName) ? r.BusinessName : r.Form.BusinessName;
+
+    private bool EmailChanged => _edit?.Record is not null && OnboardingRecord.CanonicalEmail(_edit.Email) != _edit.OriginalEmail;
+
+    private void OpenTeam(string email)
+    {
+        _error = null;
+        _confirmRemove = false;
+        _edit = new EditState { OriginalEmail = email, Email = email, Name = NameOf(email) ?? "" };
+    }
+
+    private void NewTeam()
+    {
+        _error = null;
+        _confirmRemove = false;
+        _edit = new EditState { IsNew = true };
+    }
+
+    private async Task Remove()
+    {
+        if (_edit is null || !CanRemove) return;
+        if (!_confirmRemove) { _confirmRemove = true; return; }
+        _busy = true;
+        try
+        {
+            await Users.SetTeamAsync(_edit.OriginalEmail, _edit.Name, isTeam: false);
+            _edit = null;
+            await ReloadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private void OpenCustomer(OnboardingRecord r)
+    {
+        _error = null;
+        _confirmRemove = false;
+        _edit = new EditState
+        {
+            Record = r, OriginalEmail = r.ContactEmail, Email = r.ContactEmail,
+            Name = NameOf(r.ContactEmail) ?? r.Form.ContactName?.Trim() ?? "", Access = r.Access
+        };
+    }
+
+    private void Close() => _edit = null;
+
+    private async Task Save()
+    {
+        if (_edit is null) return;
+        _error = null;
+        var e = _edit;
+        var email = OnboardingRecord.CanonicalEmail(e.Email);
+
+        if ((e.IsNew || (e.Record is not null && EmailChanged))
+            && (email.Length < 3 || email.IndexOf('@') is < 1 || email.Contains(' ') || email.EndsWith('@')))
+        {
+            _error = "Enter a full email address.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (e.Record is { } r)
+            {
+                var emailChanged = EmailChanged;
+                var accessChanged = e.Access != r.Access;
+                if (emailChanged || accessChanged)
+                    await Onboarding.SetLoginAsync(r.Token, emailChanged ? email : null, accessChanged ? e.Access : null);
+
+                // The name follows the email it belongs to.
+                if (emailChanged) await Users.SetNameAsync(e.OriginalEmail, null);
+                await Users.SetNameAsync(emailChanged ? email : e.OriginalEmail, e.Name);
+
+                if (emailChanged && e.Invite && e.Access == OnboardingAccess.Active
+                    && await Onboarding.FindAsync(r.Token) is { } fresh)
+                    await OnboardingService.SendInviteAsync(fresh, Nav.BaseUri);
+            }
+            else if (e.IsNew)
+            {
+                if (AppAuthValidator.IsBuiltInStaff(email) || TeamList.Contains(email)) { _error = "Already on the team."; return; }
+                await Users.SetTeamAsync(email, e.Name, isTeam: true);
+            }
+            else
+            {
+                await Users.SetNameAsync(e.OriginalEmail, e.Name);
+            }
+
+            _edit = null;
+            await ReloadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private static string AccessLabel(OnboardingAccess a) => a switch
+    {
+        OnboardingAccess.Active => "Can sign in",
+        OnboardingAccess.Suspended => "Suspended",
+        _ => "Archived"
+    };
+
+    private static string AccessClass(OnboardingAccess a) =>
+        a == OnboardingAccess.Active ? "onb-status--submitted" : $"adm-access--{a.ToString().ToLowerInvariant()}";
+
+    private static string Initial(string? name) => string.IsNullOrWhiteSpace(name) ? "?" : name.Trim()[..1].ToUpperInvariant();
+}

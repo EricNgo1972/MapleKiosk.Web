@@ -1,0 +1,44 @@
+@page "/admin"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+
+@* Staff home: one place to reach every admin page. Signing in is required (central OAuth);
+   a signed-in customer is sent to /access-denied. *@
+
+<PageTitle>Admin — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title">Admin</span>
+    </div>
+</header>
+
+<main class="adm">
+    <div class="container adm__wrap">
+        <ul class="adm-list">
+            @foreach (var (href, icon, title, desc) in Links)
+            {
+                <li>
+                    <a class="adm-row" href="@href">
+                        <span class="adm-avatar" aria-hidden="true">@icon</span>
+                        <span class="adm-row__main">
+                            <strong>@title</strong>
+                            <small>@desc</small>
+                        </span>
+                        <span class="adm-row__side" aria-hidden="true">→</span>
+                    </a>
+                </li>
+            }
+        </ul>
+    </div>
+</main>
+
+@code {
+    private static readonly (string Href, string Icon, string Title, string Desc)[] Links =
+    [
+        ("/shop/admin", "🗂️", "Catalog", "Categories, products and services, prices — synced to Stripe"),
+        ("/admin/users", "👤", "Users", "Who can sign in: the team and customers"),
+        ("/chats", "💬", "Chat", "Website assistant conversations"),
+        ("/onboarding/admin", "📋", "Onboarding", "Customer setup, website briefs, designer packages"),
+    ];
+}
