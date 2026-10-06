@@ -137,6 +137,9 @@
             <label style="grid-column:1/-1">Description
                 <input @bind="_edit.Description" placeholder="One line" />
             </label>
+            <label style="grid-column:1/-1">Details <small class="cat-sub">what's included, one point per line · shown on the shop's product page</small>
+                <textarea rows="5" @bind="_edit.Details" placeholder="@DetailsPlaceholder"></textarea>
+            </label>
             <label style="grid-column:1/-1">Features (one per line)
                 <textarea rows="3" @bind="_featuresText" placeholder="@FeaturesPlaceholder"></textarea>
             </label>
@@ -223,6 +226,7 @@
 }
 
 @code {
+    private const string DetailsPlaceholder = "Installed and set up by our team\nWorks offline when the internet drops";
     private const string FeaturesPlaceholder = "Unlimited invoices\nPriority support";
 
     private IReadOnlyList<CatalogCategory> _categories = [];
@@ -303,7 +307,7 @@
     {
         _edit = new AppProduct
         {
-            Sku = p.Sku, Category = p.Category, Name = p.Name, Description = p.Description, Price = p.Price,
+            Sku = p.Sku, Category = p.Category, Name = p.Name, Description = p.Description, Details = p.Details, Price = p.Price,
             PriceVnd = p.PriceVnd, ImageUrl = p.ImageUrl, Active = p.Active, BillingInterval = p.BillingInterval,
             TrialDays = p.TrialDays, Sort = p.Sort, Recommended = p.Recommended, Features = new List<string>(p.Features)
         };

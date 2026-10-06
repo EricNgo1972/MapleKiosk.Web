@@ -21,6 +21,7 @@ public sealed class CatalogProductEntity : ITableEntity
     public string Category { get; set; } = "";
     public string Name { get; set; } = "";
     public string? Description { get; set; }
+    public string? Details { get; set; }
     public double Price { get; set; }
 
     /// <summary>Rows written before the catalog had one currency; read as <see cref="Price"/> when it's unset.</summary>
@@ -42,6 +43,7 @@ public sealed class CatalogProductEntity : ITableEntity
         Category = p.Category,
         Name = p.Name,
         Description = p.Description,
+        Details = p.Details,
         Price = (double)p.Price,
         PriceVnd = (double)p.PriceVnd,
         ImageUrl = p.ImageUrl,
@@ -59,6 +61,7 @@ public sealed class CatalogProductEntity : ITableEntity
         Category = Category ?? "",
         Name = Name,
         Description = Description,
+        Details = Details,
         Price = (decimal)(Price > 0 ? Price : PriceUsd),
         PriceVnd = (decimal)PriceVnd,
         ImageUrl = ImageUrl,

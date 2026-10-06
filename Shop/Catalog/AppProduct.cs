@@ -71,6 +71,9 @@ public sealed class AppProduct
     public int Sort { get; set; }
     public bool Recommended { get; set; }
 
+    /// <summary>What's included, one point per line: the shop's product page (/shop/{sku}) only.</summary>
+    public string? Details { get; set; }
+
     /// <summary>Selling points shown on the card when the site has no translated copy for it.</summary>
     public List<string> Features { get; set; } = new();
 

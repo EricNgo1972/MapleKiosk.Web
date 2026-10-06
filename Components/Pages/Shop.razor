@@ -48,7 +48,7 @@
                         @foreach (var i in items)
                         {
                             <li class="sh-item">
-                                <div class="sh-item__info">
+                                <a class="sh-item__info" href="@ItemPath(i)">
                                     <h3 class="sh-item__name">
                                         @i.Name
                                         @if (i.Recommended)
@@ -59,12 +59,13 @@
                                         {
                                             <span class="sh-tag sh-tag--trial">@string.Format(L["shop.trial"], i.TrialDays)</span>
                                         }
+                                        <span class="sh-item__go" aria-hidden="true">›</span>
                                     </h3>
                                     @if (Blurb(i) is { } blurb)
                                     {
                                         <p class="sh-item__desc">@blurb</p>
                                     }
-                                </div>
+                                </a>
                                 <p class="sh-item__price">@Money(i.Price)<small>@Per(i)</small></p>
                                 <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.Name" Price="@i.Price"
                                          BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
@@ -104,6 +105,8 @@
         BillingIntervals.Yearly => " " + L["pr.year"],
         _ => "",
     };
+
+    private string ItemPath(AppProduct i) => $"{(L.Culture == "en" ? "" : L.Culture + "/")}shop/{Uri.EscapeDataString(i.Sku)}";
 
     private string Money(decimal d) => ShopMoney.Format(d, L.Culture);
 }
