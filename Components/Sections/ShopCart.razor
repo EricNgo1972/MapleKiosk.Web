@@ -10,8 +10,8 @@
    Checkout sends only SKUs and quantities; the server prices them from the catalog and opens Stripe:
    one-time items are charged once, plans become one subscription that Stripe renews. *@
 
-<aside class="pr-bill shop-cart" id="cart" aria-labelledby="shop-cart-title">
-    <h2 class="pr-bill__title" id="shop-cart-title">@L["cart.title"]</h2>
+<aside class="sh-cart" id="cart" aria-labelledby="shop-cart-title">
+    <h2 class="sh-cart__title" id="shop-cart-title">@L["cart.title"]</h2>
 
     @if (Cart.Lines.Count == 0)
     {
@@ -44,7 +44,7 @@
             }
         </ul>
 
-        <dl class="pr-bill__totals">
+        <dl class="sh-cart__totals">
             @if (Cart.HasSubscription)
             {
                 <div>
@@ -52,7 +52,7 @@
                     <dd>@Money(Cart.Recurring) <small>@Per(Cart.Lines.First(l => l.IsRecurring).BillingInterval)</small></dd>
                 </div>
             }
-            <div class="pr-bill__first">
+            <div class="sh-cart__due">
                 <dt>@L["cart.today"]</dt>
                 <dd>@Money(Cart.DueToday)</dd>
             </div>
@@ -60,40 +60,40 @@
 
         @if (Cart.HasSubscription)
         {
-            <p class="pr-bill__fine">@L["cart.renew"]</p>
+            <p class="sh-cart__fine">@L["cart.renew"]</p>
         }
         @if (Cart.MixesCycles)
         {
-            <p class="pr-bill__msg">@L["cart.mixed"]</p>
+            <p class="sh-cart__msg">@L["cart.mixed"]</p>
         }
 
-        <div class="pr-cust">
+        <div class="sh-cart__email">
             <label>
                 <span>@L["cart.email"]</span>
                 <input type="email" @bind="_email" autocomplete="email" maxlength="120" placeholder="you@business.ca" />
             </label>
         </div>
 
-        <div class="pr-bill__actions">
+        <div class="sh-cart__actions">
             <button type="button" class="btn btn-primary" disabled="@(_busy || Cart.MixesCycles)" @onclick="Checkout">
                 @(_busy ? L["cart.wait"] : L["cart.checkout"])
             </button>
-            <p class="pr-bill__buy-note">🔒 @L["cart.secure"]</p>
+            <p class="sh-cart__fine">🔒 @L["cart.secure"]</p>
         </div>
     }
 
     @if (_msg is not null)
     {
-        <p class="pr-bill__msg shop-cart__msg" role="status">@_msg</p>
+        <p class="sh-cart__msg" role="status">@_msg</p>
     }
 </aside>
 
 @if (Cart.Count > 0)
 {
-    <a class="pr-bar shop-bar" href="@($"{Here}#cart")">
+    <a class="sh-bar" href="@($"{Here}#cart")">
         <span>@string.Format(L["cart.items"], Cart.Count)</span>
         <span>@L["cart.today"] <strong>@Money(Cart.DueToday)</strong></span>
-        <span class="pr-bar__go">@L["cart.view"] <span aria-hidden="true">↓</span></span>
+        <span class="sh-bar__go">@L["cart.view"] <span aria-hidden="true">↓</span></span>
     </a>
 }
 

@@ -9,14 +9,15 @@
 
 @if (Cart.Contains(Sku))
 {
-    <button type="button" class="btn shop-add shop-add--in" @onclick="() => Cart.Remove(Sku)" aria-pressed="true">
-        <span class="shop-add__label">✓ @L["shop.added"]</span>
-        <span class="shop-add__undo">@L["shop.remove"]</span>
+    <button type="button" class="sh-add sh-add--in" @onclick="() => Cart.Remove(Sku)" aria-pressed="true"
+            title="@L["shop.remove"]">
+        <span class="sh-add__label">✓ @L["shop.added"]</span>
+        <span class="sh-add__undo">@L["shop.remove"]</span>
     </button>
 }
 else
 {
-    <button type="button" class="btn btn-primary shop-add" @onclick="Add">@(PickOne && BillingInterval is "Monthly" or "Yearly" ? L["shop.choose"] : L["shop.add"])</button>
+    <button type="button" class="sh-add" @onclick="Add">@(PickOne && BillingInterval is "Monthly" or "Yearly" ? L["shop.choose"] : L["shop.add"])</button>
 }
 
 @code {

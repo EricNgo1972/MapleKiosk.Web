@@ -8,8 +8,8 @@
 @inject CatalogStore Catalog
 
 @* The public storefront: anyone can browse, fill the cart and check out (no sign-in; only /shop/admin
-   is gated). It sells the whole catalog (/shop/admin), one section per category, with the cart beside it:
-   one-time items are charged once and plans become a Stripe subscription (ShopCart → /api/checkout). *@
+   is gated). It sells the whole catalog (/shop/admin) as a compact list, one block per category, with
+   the cart beside it: one-time items are charged once, plans become a Stripe subscription (ShopCart). *@
 
 <PageTitle>@L["shop.meta.title"]</PageTitle>
 <HeadContent>
@@ -21,89 +21,63 @@
 
 <NavBar />
 
-<main class="gp pr shop">
+<main class="sh">
+    <div class="container sh__grid">
 
-    <section class="gp-hero pr-hero shop-hero" id="top">
-        <Breadcrumbs Current="@L["shop.crumb"]" />
-        <div class="container">
-            <p class="gp-hero__product">@L["shop.kicker"]</p>
-            <h1 class="gp-hero__title">@L["shop.title"]</h1>
-            <p class="gp-hero__sub">@L["shop.sub"]</p>
-            @if (_shop.Count > 0)
+        <div class="sh__main">
+            <header class="sh__head">
+                <h1 class="sh__title">@L["shop.crumb"]</h1>
+                <p class="sh__note">@L["shop.note"]</p>
+            </header>
+
+            @if (_shop.Count == 0)
             {
-                <nav class="shop-hero__cats" aria-label="@L["shop.crumb"]">
-                    @foreach (var (cat, _) in _shop)
-                    {
-                        <a href="@(Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0])#cat-@cat.Key">@cat.Name</a>
-                    }
-                </nav>
+                <p class="sh__empty">@L["shop.empty"]</p>
             }
-            <p class="gp-hero__note">@L["shop.note"]</p>
-        </div>
-    </section>
-
-    <section class="pr-build shop-build" id="products">
-        <div class="container pr-build__grid">
-
-            <div class="pr-options">
-                @if (_shop.Count == 0)
-                {
-                    <p class="shop-empty">@L["shop.empty"]</p>
-                }
-                @foreach (var (cat, items) in _shop)
-                {
-                    <section class="pr-group" id="cat-@cat.Key" aria-labelledby="shop-g-@cat.Key">
-                        <h2 class="gp-h2 pr-group__title" id="shop-g-@cat.Key">@cat.Name</h2>
+            @foreach (var (cat, items) in _shop)
+            {
+                <section class="sh-cat" id="cat-@cat.Key" aria-labelledby="sh-g-@cat.Key">
+                    <h2 class="sh-cat__title" id="sh-g-@cat.Key">
+                        @cat.Name
                         @if (cat.PickOne)
                         {
-                            <p class="pr-group__sub">@L["shop.pickone"]</p>
+                            <small>@L["shop.pickone"]</small>
                         }
-                        <div class="pr-cards @(items.Count == 2 ? "pr-cards--2" : "pr-cards--3")">
-                            @foreach (var i in items)
-                            {
-                                <article class="pr-card shop-card @(i.Recommended ? "pr-card--rec" : null)">
-                                    @if (i.Recommended)
-                                    {
-                                        <span class="pr-card__badge">@L["pr.rec"]</span>
-                                    }
-                                    @if (!string.IsNullOrWhiteSpace(i.ImageUrl))
-                                    {
-                                        <img class="shop-card__img" src="@i.ImageUrl" alt="" loading="lazy" />
-                                    }
-                                    <div class="pr-card__head">
-                                        <h3 class="pr-card__name">@i.Name</h3>
-                                        <p class="pr-card__price">@Money(i.Price) <small>@Per(i)</small></p>
+                    </h2>
+                    <ul class="sh-list">
+                        @foreach (var i in items)
+                        {
+                            <li class="sh-item">
+                                <div class="sh-item__info">
+                                    <h3 class="sh-item__name">
+                                        @i.Name
+                                        @if (i.Recommended)
+                                        {
+                                            <span class="sh-tag">@L["pr.rec"]</span>
+                                        }
                                         @if (i.TrialDays > 0 && BillingIntervals.IsRecurring(i.BillingInterval))
                                         {
-                                            <span class="shop-card__trial">@string.Format(L["shop.trial"], i.TrialDays)</span>
+                                            <span class="sh-tag sh-tag--trial">@string.Format(L["shop.trial"], i.TrialDays)</span>
                                         }
-                                    </div>
-                                    @if (!string.IsNullOrWhiteSpace(i.Description))
+                                    </h3>
+                                    @if (Blurb(i) is { } blurb)
                                     {
-                                        <p class="pr-card__goal">@i.Description</p>
+                                        <p class="sh-item__desc">@blurb</p>
                                     }
-                                    @if (i.Features.Count > 0)
-                                    {
-                                        <ul class="pr-card__list">
-                                            @foreach (var f in i.Features) { <li>@f</li> }
-                                        </ul>
-                                    }
-                                    <div class="shop-card__foot">
-                                        <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.Name" Price="@i.Price"
-                                                 BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
-                                                 Group="@cat.Key" PickOne="@cat.PickOne" />
-                                    </div>
-                                </article>
-                            }
-                        </div>
-                    </section>
-                }
-            </div>
-
-            <ShopCart Culture="@L.Culture" />
+                                </div>
+                                <p class="sh-item__price">@Money(i.Price)<small>@Per(i)</small></p>
+                                <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.Name" Price="@i.Price"
+                                         BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
+                                         Group="@cat.Key" PickOne="@cat.PickOne" />
+                            </li>
+                        }
+                    </ul>
+                </section>
+            }
         </div>
-    </section>
 
+        <ShopCart Culture="@L.Culture" />
+    </div>
 </main>
 
 <Footer />
@@ -119,11 +93,16 @@
         _shop = await Catalog.GetShopAsync();
     }
 
+    // One short line per item: its description, else its selling points run together.
+    private static string? Blurb(AppProduct i)
+        => !string.IsNullOrWhiteSpace(i.Description) ? i.Description
+         : i.Features.Count > 0 ? string.Join(" · ", i.Features) : null;
+
     private string Per(AppProduct i) => i.BillingInterval switch
     {
-        BillingIntervals.Monthly => L["pr.month"],
-        BillingIntervals.Yearly => L["pr.year"],
-        _ => L["pr.once"],
+        BillingIntervals.Monthly => " " + L["pr.month"],
+        BillingIntervals.Yearly => " " + L["pr.year"],
+        _ => "",
     };
 
     private string Money(decimal d) => ShopMoney.Format(d, L.Culture);
