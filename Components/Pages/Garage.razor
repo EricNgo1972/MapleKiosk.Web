@@ -54,8 +54,8 @@
                 {
                     var s = _scenes[i];
                     <li class="gp-step @(i % 2 == 1 ? "gp-step--flip" : "")">
-                        <button type="button" class="gp-shot" data-video="@VideoId" data-start="@s.Start"
-                                aria-label="@($"{L["gar.watch"]}: {L[$"gar.s.{s.Key}.t"]} ({Clock(s.Start)})")">
+                        <button type="button" class="gp-shot" data-video="@(s.Video ?? VideoId)" data-start="@s.Start"
+                                aria-label="@($"{L["gar.watch"]}: {L[$"gar.s.{s.Key}.t"]} ({s.Length ?? Clock(s.Start)})")">
                             <img src="img/garage/@(s.Key).jpg" alt="@L[$"gar.s.{s.Key}.alt"]" loading="lazy" width="1280" height="580" />
                             <span class="hp-play" aria-hidden="true"></span>
                         </button>
@@ -63,8 +63,8 @@
                             <span class="gp-step__num">@(i + 1)</span>
                             <h3>@L[$"gar.s.{s.Key}.t"]</h3>
                             <p>@L[$"gar.s.{s.Key}.d"]</p>
-                            <button type="button" class="hp-link" data-video="@VideoId" data-start="@s.Start">
-                                @L["gar.watch"] <span>@Clock(s.Start)</span>
+                            <button type="button" class="hp-link" data-video="@(s.Video ?? VideoId)" data-start="@s.Start">
+                                @L["gar.watch"] <span>@(s.Length ?? Clock(s.Start))</span>
                             </button>
                         </div>
                     </li>
@@ -142,10 +142,14 @@
     // to the second its caption appears.
     private const string VideoId = "t1_a_Nac8wA";
 
-    private record Scene(string Key, int Start);
+    // A scene from the overview (Start = its second), or a film of its own (Video, played from Start, with
+    // its Length on the label instead of the overview's timestamp).
+    private record Scene(string Key, int Start, string? Video = null, string? Length = null);
 
     private readonly Scene[] _scenes =
     {
+        // "The Job Reaches You Before the Car Does: Repair Requests" — before anything is booked.
+        new("request",    0, Video: "for6OTc911k", Length: "1:27"),
         new("book",      16),
         new("check-in",  24),
         new("quote",     34),
