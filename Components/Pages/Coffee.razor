@@ -105,10 +105,10 @@
 
     // The "Maple Coffee" films on the Maple Kiosk YouTube channel (playlist PLcyXbOgtlNhA, English
     // only). HowTo = a longer set-up walkthrough shown under the step it belongs to.
-    private record Film(string Id, string Length);
+    internal record Film(string Id, string Length);
     private record FilmInfo(string Key, string Id, string Length, Film? HowTo = null);
 
-    private static readonly Film Overview = new("dwXwTZY2cGA", "0:38");
+    internal static readonly Film Overview = new("dwXwTZY2cGA", "0:38");
 
     // Ordered as a café day: the rush, the second till, checkout, regulars, then payday and the menu.
     private readonly FilmInfo[] _films =

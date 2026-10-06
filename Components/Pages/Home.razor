@@ -29,7 +29,7 @@
                     <article class="hp-door hp-door--@d.Key" id="@d.Key">
                         @if (d.VideoId is not null)
                         {
-                            <button type="button" class="hp-door__media" data-video="@d.VideoId" data-video-fr="@d.VideoFr"
+                            <button type="button" class="hp-door__media" @attributes="d.Cuts"
                                     aria-label="@($"{L["hp.watch"]}: {d.Product} ({d.Length})")">
                                 <img src="img/home/@d.Image" alt="" loading="@(d.Key == "coffee" ? "eager" : "lazy")" width="1280" height="720" />
                                 <span class="hp-play" aria-hidden="true"></span>
@@ -52,7 +52,7 @@
                             <div class="hp-door__actions">
                                 @if (d.VideoId is not null)
                                 {
-                                    <button type="button" class="hp-link" data-video="@d.VideoId" data-video-fr="@d.VideoFr">@L["hp.watch"] <span>@d.Length</span></button>
+                                    <button type="button" class="hp-link" @attributes="d.Cuts">@L["hp.watch"] <span>@d.Length</span></button>
                                 }
                                 @if (d.Page is not null)
                                 {
@@ -142,17 +142,25 @@
 <MobileCta />
 
 @code {
-    // One door per trade. VideoId = YouTube video on the Maple Kiosk channel;
-    // Page = the trade's own page (null until it ships). VideoFr = a French cut (the lightbox offers
-    // English / Français).
-    private record Door(string Key, string Product, string? VideoId, string? Image, string? Length, string? Page, bool Vietnamese = false, string? VideoFr = null);
+    // One door per trade, each playing its trade's overview film (the one at the top of the trade's own
+    // page, so the two can't drift apart). Cuts = the lightbox's data-video* attributes: the default cut,
+    // plus other languages the visitor can switch to. Page = the trade's own page.
+    private record Door(string Key, string Product, Dictionary<string, object>? Cuts, string? Image, string? Length,
+        string? Page, bool Vietnamese = false)
+    {
+        public string? VideoId => Cuts?["data-video"] as string;
+    }
 
     private readonly Door[] _doors =
     {
-        new("coffee", "MapleCoffee", "DOrVkwVhBVQ", "coffee-morning-rush.jpg", "1:08", "/coffee"),
-        new("nails",  "MapleSPA",    "pO7CuFU-pm8", "nails-turn-board.jpg",    "1:02", "/nails", Vietnamese: true),
-        new("garage", "MapleGarage", "t1_a_Nac8wA", "garage-my-jobs.jpg",      "1:28", "/garage"),
-        new("resto",  "MaplePOS",    "yNZny11acfk", "resto-floor.jpg",         "0:52", "/restaurants", VideoFr: "dvio2Pc7DQQ"),
+        new("coffee", "MapleCoffee", new() { ["data-video"] = Coffee.Overview.Id },
+            "coffee-morning-rush.jpg", Coffee.Overview.Length, "/coffee"),
+        new("nails",  "MapleSPA",    new() { ["data-video"] = Nails.Overview.Vi!, ["data-video-lang"] = "vi", ["data-video-ru"] = Nails.Overview.Ru },
+            "nails-turn-board.jpg", Nails.Overview.ViLength, "/nails", Vietnamese: true),
+        new("garage", "MapleGarage", new() { ["data-video"] = Garage.VideoId },
+            "garage-my-jobs.jpg", "1:28", "/garage"),
+        new("resto",  "MaplePOS",    new() { ["data-video"] = Restaurant.Overview.En, ["data-video-fr"] = Restaurant.Overview.Fr },
+            "resto-floor.jpg", Restaurant.Overview.EnLength, "/restaurants"),
     };
 
     protected override void OnInitialized()

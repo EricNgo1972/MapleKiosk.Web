@@ -109,9 +109,9 @@
     // Vietnamese "Nails and SPA" (PLcZPSrx-Gm5c) and Russian "MapleSPA _ru" (PLFRENlV4DHg8).
     // The photo-advice film is only in Russian so far (Vi = null). The visitor picks the language
     // (site.js remembers it); the Russian page starts in Russian, every other page in Vietnamese.
-    private record FilmInfo(string Key, string? Vi, string? ViLength, string Ru, string RuLength);
+    internal record FilmInfo(string Key, string? Vi, string? ViLength, string Ru, string RuLength);
 
-    private static readonly FilmInfo Overview = new("hero", "UbmRsBF2aNI", "0:47", "PvruNdaH_C4", "0:54");
+    internal static readonly FilmInfo Overview = new("hero", "UbmRsBF2aNI", "0:47", "PvruNdaH_C4", "0:54");
 
     // Ordered as a salon day: turns and bookings, the phone, the rush, checkout, then payday and promotions.
     private readonly FilmInfo[] _films =
