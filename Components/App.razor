@@ -4,6 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+    <link rel="canonical" href="@SiteHost.Canonical(Nav.ToBaseRelativePath(Nav.Uri))" />
+    @if (!SiteHost.IsPublic(Nav.BaseUri))
+    {
+        @* The dev box (web.maplekiosk.ca) and localhost stay out of search engines and AI indexes. *@
+        <meta name="robots" content="noindex, nofollow" />
+    }
 
     @* Title and description come from each page (<PageTitle>, <HeadContent>) — a fixed one here
        would be emitted first and win over every page's own. *@
