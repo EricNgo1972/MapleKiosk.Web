@@ -11,6 +11,7 @@
     <meta property="og:title" content="@L["home.meta.title"]" />
     <meta property="og:description" content="@L["home.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
+    <VideoSchema Ids="SchemaVideos" />
 </HeadContent>
 
 <NavBar />
@@ -31,7 +32,7 @@
                         {
                             <button type="button" class="hp-door__media" @attributes="d.Cuts"
                                     aria-label="@($"{L["hp.watch"]}: {d.Product} ({d.Length})")">
-                                <img src="img/home/@d.Image" alt="" loading="@(d.Key == "coffee" ? "eager" : "lazy")" width="1280" height="720" />
+                                <img src="img/home/@d.Image" alt="@L[$"hp.alt.{d.Key}"]" loading="@(d.Key == "coffee" ? "eager" : "lazy")" width="1280" height="720" />
                                 <span class="hp-play" aria-hidden="true"></span>
                                 <span class="hp-len" @attributes="d.Lens">@d.Length</span>
                                 @if (d.Vietnamese)
@@ -82,7 +83,7 @@
             <div class="hp-ai__grid">
                 <figure class="hp-ai__item">
                     <button type="button" class="hp-door__media" data-video="G5uLNWY26ds" aria-label="@($"{L["hp.watch"]}: MapleCoffee (1:15)")">
-                        <img src="img/home/coffee-voice-kiosk.jpg" alt="" loading="lazy" width="1280" height="720" />
+                        <img src="img/home/coffee-voice-kiosk.jpg" alt="@L["hp.alt.voice"]" loading="lazy" width="1280" height="720" />
                         <span class="hp-play" aria-hidden="true"></span>
                         <span class="hp-len">1:15</span>
                     </button>
@@ -93,7 +94,7 @@
                 </figure>
                 <figure class="hp-ai__item">
                     <button type="button" class="hp-door__media" data-video="n1Src-4w5MY" aria-label="@($"{L["hp.watch"]}: MapleSPA (1:21)")">
-                        <img src="img/home/nails-ai-receptionist.jpg" alt="" loading="lazy" width="1280" height="720" />
+                        <img src="img/home/nails-ai-receptionist.jpg" alt="@L["hp.alt.phone"]" loading="lazy" width="1280" height="720" />
                         <span class="hp-play" aria-hidden="true"></span>
                         <span class="hp-len">1:21</span>
                         <span class="hp-tag">@L["hp.narrated.vi"]</span>
@@ -142,6 +143,12 @@
 <MobileCta />
 
 @code {
+    // The films as search engines see them (VideoSchema): each door's cut in this page's language,
+    // else its default cut, plus the two AI films.
+    private IEnumerable<string?> SchemaVideos =>
+        [.. _doors.Select(d => (d.Cuts?.GetValueOrDefault($"data-video-{L.Culture}") ?? d.VideoId) as string),
+         "G5uLNWY26ds", "n1Src-4w5MY"];
+
     // One door per trade, each playing its trade's overview film: the one at the top of the trade's own
     // page (so the two can't drift apart), except the garage, whose homepage film is its animated overview.
     // Cuts = the lightbox's data-video* attributes: the default cut, plus other languages the visitor can

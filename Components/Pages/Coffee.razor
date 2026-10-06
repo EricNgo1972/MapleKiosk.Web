@@ -13,6 +13,7 @@
     <meta property="og:description" content="@L["cof.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
     <meta property="og:image" content="@(Nav.BaseUri)img/coffee/hero.jpg" />
+    <VideoSchema Ids="SchemaVideos" />
 </HeadContent>
 
 <NavBar />
@@ -101,6 +102,10 @@
 <MobileCta Href="@TestDrive" Label="@L["cof.cta.trial"]" />
 
 @code {
+    // The films as search engines see them (VideoSchema): English only.
+    private IEnumerable<string?> SchemaVideos =>
+        [Overview.Id, .. _films.Select(f => f.Id), .. _films.Select(f => f.HowTo?.Id)];
+
     private const string TestDrive = "https://coffee.maplekiosk.ca";
 
     // The "Maple Coffee" films on the Maple Kiosk YouTube channel (playlist PLcyXbOgtlNhA, English

@@ -5,4 +5,4 @@ Disallow: /thank-you
 Disallow: /not-found
 Disallow: /Error
 
-Sitemap: https://web.maplekiosk.ca/sitemap.xml
+Sitemap: https://www.maplekiosk.ca/sitemap.xml
