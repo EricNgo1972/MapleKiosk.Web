@@ -8,6 +8,7 @@
 @inject BlobImageUploader Uploader
 @inject StripeProductSync Stripe
 @inject AppStoreConfig Config
+@inject NavigationManager Nav
 
 @* The catalog: everything the site sells, in one place. Categories group the items and say where
    they're sold (the trades' pricing pages, or the shop); each item has a price and how often it's
@@ -142,11 +143,29 @@
             <label>VND price (VietQR, shop only)
                 <input type="number" min="0" step="1" @bind="_edit.PriceVnd" />
             </label>
-            <label>Image
-                <InputFile OnChange="OnImageSelected" accept="image/*" />
-                @if (_uploading) { <span style="color:var(--muted)">Uploading…</span> }
-                else if (!string.IsNullOrWhiteSpace(_edit.ImageUrl)) { <img src="@_edit.ImageUrl" alt="" style="height:48px;border-radius:8px;margin-top:6px" /> }
-            </label>
+            <div class="cat-image" style="grid-column:1/-1">
+                <span class="cat-image__label">Image <small class="cat-sub">JPG, PNG or WebP, up to 5 MB · shown in the shop and on Stripe</small></span>
+                <div class="cat-image__row">
+                    @if (!string.IsNullOrWhiteSpace(_edit.ImageUrl))
+                    {
+                        <img class="cat-image__preview" src="@_edit.ImageUrl" alt="" />
+                    }
+                    else
+                    {
+                        <span class="cat-image__preview cat-image__preview--none">No image</span>
+                    }
+                    <div class="cat-image__actions">
+                        <label class="btn btn-ghost cat-image__pick">
+                            @(_uploading ? "Uploading…" : string.IsNullOrWhiteSpace(_edit.ImageUrl) ? "Choose image" : "Replace")
+                            <InputFile OnChange="OnImageSelected" accept="image/jpeg,image/png,image/webp" disabled="@(_uploading || !Uploader.IsConfigured)" />
+                        </label>
+                        @if (!string.IsNullOrWhiteSpace(_edit.ImageUrl) && !_uploading)
+                        {
+                            <button class="btn btn-ghost" @onclick="() => _edit.ImageUrl = null">Remove</button>
+                        }
+                    </div>
+                </div>
+            </div>
             <label class="cat-check"><input type="checkbox" @bind="_edit.Active" /> Active (for sale)</label>
             <label class="cat-check"><input type="checkbox" @bind="_edit.Recommended" /> Recommended</label>
         </div>
@@ -232,7 +251,11 @@
     {
         var st = _stripe.GetValueOrDefault(i.Sku);
         <tr class="cat-click @(i.Active ? null : "cat-off")" @onclick="() => Edit(i)">
-            <td><strong>@i.Name</strong>@(i.Recommended ? " ★" : "")<br /><small class="cat-sub"><code>@i.Sku</code>@(i.Active ? "" : " · not for sale")</small></td>
+            <td class="cat-item">
+                @if (!string.IsNullOrWhiteSpace(i.ImageUrl)) { <img class="cat-thumb" src="@i.ImageUrl" alt="" loading="lazy" /> }
+                else { <span class="cat-thumb cat-thumb--none"></span> }
+                <span><strong>@i.Name</strong>@(i.Recommended ? " ★" : "")<br /><small class="cat-sub"><code>@i.Sku</code>@(i.Active ? "" : " · not for sale")</small></span>
+            </td>
             <td>$@i.Price.ToString("0.00") <small class="cat-sub">@Every(i)@(i.TrialDays > 0 ? $" · {i.TrialDays}-day trial" : "")</small></td>
             <td>
                 @if (st is not null)
@@ -252,7 +275,7 @@
             _items = await Store.GetAllAsync();
             var key = await Config.GetStripeSecretKeyAsync();
             _mode = string.IsNullOrEmpty(key) ? "not configured" : key.Contains("_live_") ? "live" : "test";
-            _stripe = (await Stripe.GetStatusAsync(_items.Select(StripeItem.From).ToList())).ToDictionary(s => s.Item.Sku);
+            _stripe = (await Stripe.GetStatusAsync(_items.Select(i => StripeItem.From(i, Nav.BaseUri)).ToList())).ToDictionary(s => s.Item.Sku);
         }
         catch (Exception ex) { _error = ex.Message; }
     }
@@ -292,13 +315,15 @@
     private async Task OnImageSelected(InputFileChangeEventArgs e)
     {
         _error = null;
+        if (!BlobImageUploader.IsSupported(e.File.ContentType)) { _error = "Use a JPG, PNG or WebP image."; return; }
+        if (e.File.Size > BlobImageUploader.MaxBytes) { _error = "That image is over 5 MB."; return; }
         _uploading = true;
         try
         {
             using var ms = new MemoryStream();
-            await e.File.OpenReadStream(5 * 1024 * 1024).CopyToAsync(ms);
+            await e.File.OpenReadStream(BlobImageUploader.MaxBytes).CopyToAsync(ms);
             ms.Position = 0;
-            _edit.ImageUrl = await Uploader.UploadAsync(ms, e.File.Name, e.File.ContentType);
+            _edit.ImageUrl = await Uploader.UploadAsync(ms, e.File.ContentType);
         }
         catch (Exception ex) { _error = $"Image upload failed: {ex.Message}"; }
         finally { _uploading = false; }
@@ -338,7 +363,7 @@
         try
         {
             // Archive in Stripe first (Stripe keeps products that have sold; live subscriptions carry on).
-            var archived = new AppProduct { Sku = p.Sku, Name = p.Name, Price = p.Price, BillingInterval = p.BillingInterval, Active = false };
+            var archived = new AppProduct { Sku = p.Sku, Name = p.Name, Price = p.Price, BillingInterval = p.BillingInterval, ImageUrl = p.ImageUrl, Active = false };
             var stripe = await SyncAsync(archived);
             await Store.DeleteAsync(p.Sku);
             _itemOpen = false;
@@ -353,7 +378,7 @@
     private async Task<string> SyncAsync(AppProduct p)
     {
         if (!await Stripe.IsConfiguredAsync()) return "";
-        var r = await Stripe.SyncAsync(StripeItem.From(p));
+        var r = await Stripe.SyncAsync(StripeItem.From(p, Nav.BaseUri));
         return r.Success ? (p.Active ? " Synced to Stripe." : " Archived in Stripe.") : $" Stripe sync failed: {r.Error}";
     }
 

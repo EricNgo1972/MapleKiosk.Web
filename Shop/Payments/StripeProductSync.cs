@@ -7,12 +7,26 @@ namespace MapleKiosk.Web.Shop.Payments;
 /// <summary>One thing we sell, as Stripe should know it: a Product with one active Price.</summary>
 /// <param name="Sku">The catalog SKU.</param>
 /// <param name="Interval">OneTime / Monthly / Yearly (<see cref="BillingIntervals"/>).</param>
+/// <param name="ImageUrl">The product image as an absolute https URL Stripe can fetch, or null for none.</param>
 public sealed record StripeItem(string Sku, string Name, string? Description, decimal Price, string Currency,
-    string Interval, bool Active)
+    string Interval, bool Active, string? ImageUrl = null)
 {
-    /// <summary>A catalog item; unpriced or inactive items are archived in Stripe.</summary>
-    public static StripeItem From(AppProduct p)
-        => new(p.Sku, p.Name, p.Description, p.Price, CatalogStore.Currency, p.BillingInterval, p.Active && p.Price > 0);
+    /// <summary>A catalog item; unpriced or inactive items are archived in Stripe. <paramref name="siteOrigin"/>
+    /// (e.g. https://www.maplekiosk.ca/) turns the item's site path (/media/catalog/…) into the URL Stripe
+    /// fetches; an image that wouldn't be reachable over https (a local dev site) isn't sent.</summary>
+    public static StripeItem From(AppProduct p, string siteOrigin)
+        => new(p.Sku, p.Name, p.Description, p.Price, CatalogStore.Currency, p.BillingInterval, p.Active && p.Price > 0,
+            PublicImageUrl(p.ImageUrl, siteOrigin));
+
+    private static string? PublicImageUrl(string? imageUrl, string siteOrigin)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl)) return null;
+        if (!Uri.TryCreate(siteOrigin, UriKind.Absolute, out var origin)
+            || !Uri.TryCreate(origin, imageUrl, out var url)
+            || url.Scheme != Uri.UriSchemeHttps
+            || url.IsLoopback) return null;
+        return url.AbsoluteUri;
+    }
 }
 
 /// <summary>Where a <see cref="StripeItem"/> stands in the Stripe account the site's key points at.</summary>
@@ -79,6 +93,7 @@ public sealed class StripeProductSync
             var diffs = new List<string>();
             if (!product.Active) diffs.Add("archived in Stripe");
             if (product.Name != item.Name) diffs.Add($"name “{product.Name}”");
+            if (!(product.Images ?? []).SequenceEqual(Images(item))) diffs.Add(item.ImageUrl is null ? "has an image" : "image");
             if (!Matches(price, item)) diffs.Add($"price {price.UnitAmount / 100m:0.00} {price.Currency.ToUpperInvariant()}{(price.Recurring is null ? "" : "/" + price.Recurring.Interval)}");
             result.Add(diffs.Count == 0 ? Status(StripeSyncState.InSync) : Status(StripeSyncState.Outdated, string.Join(", ", diffs)));
         }
@@ -110,6 +125,7 @@ public sealed class StripeProductSync
                     Name = item.Name,
                     Description = NullIfEmpty(item.Description),
                     Active = item.Active,
+                    Images = Images(item),
                     Metadata = metadata
                 }, cancellationToken: ct).ConfigureAwait(false);
             }
@@ -120,6 +136,7 @@ public sealed class StripeProductSync
                     Name = item.Name,
                     Description = NullIfEmpty(item.Description) ?? "",
                     Active = item.Active,
+                    Images = Images(item), // an empty list clears a removed image
                     Metadata = metadata
                 }, cancellationToken: ct).ConfigureAwait(false);
             }
@@ -218,6 +235,8 @@ public sealed class StripeProductSync
             && string.Equals(price.Currency, item.Currency, StringComparison.OrdinalIgnoreCase)
             && sameInterval;
     }
+
+    private static List<string> Images(StripeItem item) => item.ImageUrl is { } url ? [url] : [];
 
     public static long Cents(decimal amount) => (long)Math.Round(amount * 100m, MidpointRounding.AwayFromZero);
 
