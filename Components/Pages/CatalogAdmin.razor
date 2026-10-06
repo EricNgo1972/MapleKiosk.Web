@@ -1,6 +1,7 @@
 @page "/shop/admin"
 @attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
-@rendermode InteractiveServer
+@* Not prerendered: an admin page has nothing to show search engines, and it loads once instead of twice. *@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using MapleKiosk.Web.Shop.Catalog
 @using MapleKiosk.Web.Shop.Config
 @using MapleKiosk.Web.Shop.Payments
@@ -299,7 +300,17 @@
     private string? _notice;
     private string? _error;
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    private bool _stripeLoading;
+
+    // The catalog first (from memory, instant), then where each item stands in Stripe (a few API calls).
+    protected override async Task OnInitializedAsync() => await ReloadCatalogAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await ReloadStripeAsync();
+        StateHasChanged();
+    }
 
     private RenderFragment ItemRow(AppProduct i) => __builder =>
     {
@@ -312,7 +323,11 @@
             </td>
             <td>$@i.Price.ToString("0.00") <small class="cat-sub">@Every(i)@(i.TrialDays > 0 ? $" · {i.TrialDays}-day trial" : "")</small></td>
             <td>
-                @if (st is not null)
+                @if (st is null && _stripeLoading)
+                {
+                    <small class="cat-sub">checking…</small>
+                }
+                else if (st is not null)
                 {
                     <span class="stp-state stp-state--@st.State.ToString().ToLowerInvariant()">@Label(st.State)</span>
                     @if (st.Detail is not null) { <br /><small class="cat-sub">@st.Detail</small> }
@@ -323,15 +338,31 @@
 
     private async Task ReloadAsync()
     {
+        await ReloadCatalogAsync();
+        await ReloadStripeAsync();
+    }
+
+    private async Task ReloadCatalogAsync()
+    {
         try
         {
             _categories = await Store.GetCategoriesAsync();
             _items = await Store.GetAllAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+    }
+
+    private async Task ReloadStripeAsync()
+    {
+        _stripeLoading = true;
+        try
+        {
             var key = await Config.GetStripeSecretKeyAsync();
             _mode = string.IsNullOrEmpty(key) ? "not configured" : key.Contains("_live_") ? "live" : "test";
             _stripe = (await Stripe.GetStatusAsync(_items.Select(i => StripeItem.From(i, Nav.BaseUri)).ToList())).ToDictionary(s => s.Item.Sku);
         }
         catch (Exception ex) { _error = ex.Message; }
+        finally { _stripeLoading = false; }
     }
 
     // --- Items ---

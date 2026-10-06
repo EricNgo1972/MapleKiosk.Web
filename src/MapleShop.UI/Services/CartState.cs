@@ -27,6 +27,8 @@ public sealed class CartLine
 /// the cart button, drawer and add buttons re-render together. Scoped, so all interactive islands on a
 /// page share one instance; saved to the browser's localStorage so it survives a reload or a cancelled
 /// Stripe page. Prices here are for display only — checkout re-reads them from the catalog.
+/// The site's /shop page keeps its cart in the browser (site.js) under the same key and format, so
+/// /shop/success empties that one too.
 /// </summary>
 public sealed class CartState
 {
@@ -107,16 +109,6 @@ public sealed class CartState
         if (_lines.Count == 0) return;
         _lines.Clear();
         Changed();
-    }
-
-    /// <summary>Shows saved lines under the names the page uses (e.g. after the visitor switched language).</summary>
-    public void Rename(IReadOnlyDictionary<string, string> names)
-    {
-        var changed = false;
-        foreach (var line in _lines)
-            if (names.TryGetValue(line.Sku, out var name) && !string.IsNullOrWhiteSpace(name) && line.Name != name)
-                (line.Name, changed) = (name, true);
-        if (changed) Changed();
     }
 
     /// <summary>Brings saved lines up to date with the live catalog: new names/prices/cadence, and

@@ -18,13 +18,17 @@ public sealed partial class CatalogStore : IAppCatalog
     /// <summary>Every catalog price is in this currency (Stripe checkout and the pricing pages).</summary>
     public const string Currency = "CAD";
 
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(1);
+    // The catalog changes only from /shop/admin, which writes through this store (so its own changes show
+    // at once). Past this age a read still answers from memory and refreshes in the background, so no
+    // visitor ever waits on the table; that only picks up rows edited outside the admin.
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
 
     private readonly ILogger<CatalogStore> _logger;
     private readonly TableClient? _table;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private Snapshot? _cache;
     private DateTime _cachedAtUtc;
+    private int _refreshing;
 
     private sealed record Snapshot(IReadOnlyList<CatalogCategory> Categories, IReadOnlyList<AppProduct> Products);
 
@@ -121,8 +125,22 @@ public sealed partial class CatalogStore : IAppCatalog
 
     private async Task<Snapshot> LoadAsync(CancellationToken ct)
     {
-        if (_cache is { } hit && DateTime.UtcNow - _cachedAtUtc < CacheTtl) return hit;
+        if (_cache is { } hit)
+        {
+            if (DateTime.UtcNow - _cachedAtUtc >= CacheTtl && Interlocked.Exchange(ref _refreshing, 1) == 0)
+                _ = Task.Run(async () =>
+                {
+                    try { await LoadFreshAsync(CancellationToken.None).ConfigureAwait(false); }
+                    finally { Volatile.Write(ref _refreshing, 0); }
+                });
+            return hit;
+        }
+        return await LoadFreshAsync(ct).ConfigureAwait(false);
+    }
 
+    // Reads the table (once at a time); the first read of the process, and the one after an admin write, wait for it.
+    private async Task<Snapshot> LoadFreshAsync(CancellationToken ct)
+    {
         await _lock.WaitAsync(ct).ConfigureAwait(false);
         try
         {

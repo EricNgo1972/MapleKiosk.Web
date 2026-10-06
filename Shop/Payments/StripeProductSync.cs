@@ -77,13 +77,15 @@ public sealed class StripeProductSync
         var client = await ClientAsync().ConfigureAwait(false);
         if (client is null) return items.Select(i => new StripeItemStatus(i, StripeSyncState.NotConfigured, null, null, null)).ToList();
 
-        var prices = await FindPricesAsync(client, items.Select(i => LookupKeyFor(i.Sku)), ct).ConfigureAwait(false);
-        var products = new ProductService(client);
+        // Two batched lookups (prices by lookup key, products by id) rather than one call per item.
+        var pricesTask = FindPricesAsync(client, items.Select(i => LookupKeyFor(i.Sku)), ct);
+        var productsTask = FindProductsAsync(client, items.Select(i => ProductIdFor(i.Sku)), ct);
+        var prices = await pricesTask.ConfigureAwait(false);
+        var products = await productsTask.ConfigureAwait(false);
         var result = new List<StripeItemStatus>();
         foreach (var item in items)
         {
-            var productId = ProductIdFor(item.Sku);
-            var product = await GetOrNullAsync(() => products.GetAsync(productId, cancellationToken: ct)).ConfigureAwait(false);
+            products.TryGetValue(ProductIdFor(item.Sku), out var product);
             prices.TryGetValue(LookupKeyFor(item.Sku), out var price);
 
             StripeItemStatus Status(StripeSyncState s, string? detail = null) => new(item, s, product?.Id, price?.Id, detail);
@@ -209,6 +211,19 @@ public sealed class StripeProductSync
             _logger.LogWarning(ex, "Stripe price lookup failed; checkout prices inline.");
         }
         return resolved;
+    }
+
+    // Products by id, active or archived (Stripe takes up to 100 ids per list call).
+    private static async Task<Dictionary<string, Product>> FindProductsAsync(StripeClient client, IEnumerable<string> ids, CancellationToken ct)
+    {
+        var service = new ProductService(client);
+        var found = new Dictionary<string, Product>();
+        foreach (var chunk in ids.Distinct().Chunk(100))
+        {
+            var page = await service.ListAsync(new ProductListOptions { Ids = chunk.ToList(), Limit = 100 }, cancellationToken: ct).ConfigureAwait(false);
+            foreach (var p in page.Data) found[p.Id] = p;
+        }
+        return found;
     }
 
     // Active prices by lookup key (Stripe takes up to 10 keys per list call).

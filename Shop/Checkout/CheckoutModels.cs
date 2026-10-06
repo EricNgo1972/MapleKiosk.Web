@@ -19,6 +19,14 @@ public sealed class CreateCheckoutRequest
     public string? Culture { get; set; }
 }
 
+/// <summary>The /shop cart (site.js) checking out: SKUs and quantities only, prices come from the catalog.</summary>
+public sealed class ShopCheckoutRequest
+{
+    public List<CheckoutItem> Items { get; set; } = new();
+    public string? Email { get; set; }
+    public string? Culture { get; set; }
+}
+
 public sealed class CheckoutResult
 {
     public bool Success { get; set; }

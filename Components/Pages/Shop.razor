@@ -9,7 +9,8 @@
 
 @* The public storefront: anyone can browse, fill the cart and check out (no sign-in; only /shop/admin
    is gated). It sells the whole catalog (/shop/admin) as a compact list, one block per category; a row
-   opens in place to show what's included (site.js, data-sh-toggle). The cart sits beside it: one-time items are charged once, plans become a Stripe subscription (ShopCart). *@
+   opens in place to show what's included (site.js, data-sh-toggle). The cart sits beside it (site.js,
+   data-shop): one-time items are charged once, plans become a Stripe subscription. *@
 
 <PageTitle>@L["shop.meta.title"]</PageTitle>
 <HeadContent>
@@ -61,9 +62,12 @@
                                     <div class="sh-item__info">@ItemHead(i)</div>
                                 }
                                 <p class="sh-item__price">@Money(i.Price)<small>@Per(i)</small></p>
-                                <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.NameIn(L.Culture)" Price="@i.Price"
-                                         BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
-                                         Group="@cat.Key" PickOne="@cat.PickOne" />
+                                <button type="button" class="sh-add" data-shop-add="@i.Sku" data-name="@i.NameIn(L.Culture)"
+                                        data-price="@i.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                        data-interval="@i.BillingInterval" data-trial="@i.TrialDays" data-group="@cat.Key"
+                                        data-pickone="@(cat.PickOne ? "1" : null)" data-recurring="@(BillingIntervals.IsRecurring(i.BillingInterval) ? "1" : null)">
+                                    @(cat.PickOne && BillingIntervals.IsRecurring(i.BillingInterval) ? L["shop.choose"] : L["shop.add"])
+                                </button>
                                 @if (points.Count > 0)
                                 {
                                     <div class="sh-item__more" id="item-@i.Sku-more" hidden>
@@ -79,7 +83,25 @@
             }
         </div>
 
-        <ShopCart Culture="@L.Culture" Names="@Names" />
+        @* The cart lives in the browser (site.js, data-shop): adding, quantities and totals answer at once,
+           and only Checkout goes to the server (/api/checkout/shop), which prices everything again. *@
+        <aside class="sh-cart" id="cart" aria-labelledby="shop-cart-title" data-shop
+               data-culture="@L.Culture" data-locale="@Locale"
+               data-t-add="@L["shop.add"]" data-t-choose="@L["shop.choose"]" data-t-added="@L["shop.added"]" data-t-remove="@L["shop.remove"]"
+               data-t-empty="@L["cart.empty"]" data-t-less="@L["cart.less"]" data-t-more="@L["cart.more"]" data-t-each="@L["cart.each"]"
+               data-t-today="@L["cart.today"]" data-t-then="@L["cart.then"]" data-t-aftertrial="@L["cart.aftertrial"]"
+               data-t-renew="@L["cart.renew"]" data-t-mixed="@L["cart.mixed"]" data-t-email="@L["cart.email"]"
+               data-t-checkout="@L["cart.checkout"]" data-t-wait="@L["cart.wait"]" data-t-secure="@L["cart.secure"]"
+               data-t-cancelled="@L["cart.cancelled"]" data-t-fail="@L["cart.fail"]" data-t-needemail="@L["cart.needemail"]"
+               data-t-view="@L["cart.view"]" data-t-items="@L["cart.items"]" data-t-month="@L["pr.month"]" data-t-year="@L["pr.year"]">
+            <h2 class="sh-cart__title" id="shop-cart-title">@L["cart.title"]</h2>
+            <div data-shop-body aria-live="polite">
+                <p class="shop-cart__empty">@L["cart.empty"]</p>
+            </div>
+            @* For visitors still deciding: the demo form opens in place (TrialForm below). *@
+            <p class="sh-cart__demo">@L["cart.demo"] <a href="javascript:void(0)" data-open-trial>@L["cart.demo.link"]</a></p>
+        </aside>
+        <a class="sh-bar" href="@($"{(L.Culture == "en" ? "" : L.Culture + "/")}shop#cart")" data-shop-bar hidden></a>
     </div>
 </main>
 
@@ -100,8 +122,8 @@
     // Everything the visitor reads is in their language where the catalog has it (/shop/admin), else English.
     private string? Blurb(AppProduct i) => i.DescriptionIn(L.Culture) is { Length: > 0 } d && !string.IsNullOrWhiteSpace(d) ? d : null;
 
-    // SKU → name in this language, so a cart saved in another language shows in this one.
-    private Dictionary<string, string> Names => _shop.SelectMany(g => g.Items).ToDictionary(i => i.Sku, i => i.NameIn(L.Culture));
+    // The cart formats amounts like the pricing pages (Intl, in site.js).
+    private string Locale => L.Culture switch { "fr" => "fr-CA", "vi" => "vi-VN", "ru" => "ru-RU", _ => "en-CA" };
 
     private string Per(AppProduct i) => i.BillingInterval switch
     {
