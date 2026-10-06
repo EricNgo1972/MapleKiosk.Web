@@ -46,7 +46,7 @@
             var items = _items.Where(i => i.Category == c.Key).ToList();
             <div class="cat-card">
                 <div class="cat-head">
-                    <h3>@c.Name <small class="cat-sub">@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages") · @(c.PickOne ? "pick one" : "pick any")</small></h3>
+                    <h3>@c.Name <small class="cat-sub">@(c.Placement == CatalogCategory.Shop ? "Shop only" : "Pricing pages + shop") · @(c.PickOne ? "pick one" : "pick any")</small></h3>
                     <button class="btn btn-ghost cat-add" disabled="@(!Store.IsConfigured)" @onclick="() => NewItem(c.Key)">+ Add</button>
                 </div>
                 @if (items.Count == 0)
@@ -87,7 +87,7 @@
                         <tr class="cat-click" @onclick="() => EditCategory(c)">
                             <td>@c.Name</td>
                             <td><code>@c.Key</code></td>
-                            <td>@(c.Placement == CatalogCategory.Shop ? "Shop" : "Pricing pages")</td>
+                            <td>@(c.Placement == CatalogCategory.Shop ? "Shop only" : "Pricing pages + shop")</td>
                             <td>@(c.PickOne ? "Pick one" : "Pick any")</td>
                             <td>@c.Sort</td>
                         </tr>
@@ -201,8 +201,8 @@
             <label>Key <input @bind="_cat.Key" disabled="@(!_catIsNew)" placeholder="hardware" /></label>
             <label>Sold on
                 <select @bind="_cat.Placement">
-                    <option value="@CatalogCategory.Quote">Pricing pages</option>
-                    <option value="@CatalogCategory.Shop">Shop</option>
+                    <option value="@CatalogCategory.Quote">Pricing pages + shop</option>
+                    <option value="@CatalogCategory.Shop">Shop only</option>
                 </select>
             </label>
             <label>Order <input type="number" step="1" @bind="_cat.Sort" /></label>

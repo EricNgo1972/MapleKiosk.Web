@@ -12,6 +12,9 @@ public sealed class CartLine
     public int TrialDays { get; set; }
     public int Quantity { get; set; } = 1;
 
+    /// <summary>The catalog category it came from; a pick-one category (one software plan, say) keeps one line.</summary>
+    public string? Group { get; set; }
+
     public bool IsRecurring => BillingInterval is "Monthly" or "Yearly";
     public string PriceSuffix => BillingInterval switch { "Monthly" => "/mo", "Yearly" => "/yr", _ => "" };
     public decimal LineTotal => Price * Quantity;
@@ -69,12 +72,19 @@ public sealed class CartState
     /// <summary>"/mo" or "/yr" for <see cref="Recurring"/> (the first plan's, when cycles are mixed).</summary>
     public string RecurringSuffix => _lines.FirstOrDefault(l => l.IsRecurring)?.PriceSuffix ?? "";
 
-    public void Add(string sku, string name, decimal price, string billingInterval = "OneTime", int trialDays = 0)
+    /// <param name="group">The item's catalog category.</param>
+    /// <param name="pickOne">The category sells one item at a time: this one replaces any other from it.</param>
+    public void Add(string sku, string name, decimal price, string billingInterval = "OneTime", int trialDays = 0,
+        string? group = null, bool pickOne = false)
     {
         if (string.IsNullOrWhiteSpace(sku)) return;
+        if (pickOne && group is not null) _lines.RemoveAll(l => l.Group == group && l.Sku != sku);
         var line = _lines.FirstOrDefault(l => l.Sku == sku);
         if (line is not null) line.Quantity = Math.Min(MaxQuantity, line.Quantity + 1);
-        else _lines.Add(new CartLine { Sku = sku, Name = name, Price = price, BillingInterval = billingInterval, TrialDays = trialDays });
+        else _lines.Add(new CartLine
+        {
+            Sku = sku, Name = name, Price = price, BillingInterval = billingInterval, TrialDays = trialDays, Group = group
+        });
         Changed();
     }
 

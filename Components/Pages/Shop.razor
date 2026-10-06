@@ -1,26 +1,130 @@
 @page "/shop"
+@page "/fr/shop"
+@page "/vi/shop"
+@page "/ru/shop"
+@using MapleKiosk.Web.Shop.Catalog
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject CatalogStore Catalog
 
-@* Public storefront: anyone can browse, fill the cart and check out (no sign-in; only /shop/admin is
-   gated). Lives in the site rather than MapleShop.UI so it wears the site's header and footer. *@
+@* The public storefront: anyone can browse, fill the cart and check out (no sign-in; only /shop/admin
+   is gated). It sells the whole catalog (/shop/admin), one section per category, with the cart beside it:
+   one-time items are charged once and plans become a Stripe subscription (ShopCart → /api/checkout). *@
 
-<PageTitle>Shop — MapleKiosk</PageTitle>
+<PageTitle>@L["shop.meta.title"]</PageTitle>
 <HeadContent>
-    <meta name="description" content="Buy MapleKiosk apps and plans online. Pay by card; monthly plans renew automatically and can be cancelled any time." />
+    <meta name="description" content="@L["shop.meta.desc"]" />
+    <meta property="og:title" content="@L["shop.meta.title"]" />
+    <meta property="og:description" content="@L["shop.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
 </HeadContent>
 
 <NavBar />
 
-<main class="lp">
-    <section class="section" id="shop">
+<main class="gp pr shop">
+
+    <section class="gp-hero pr-hero shop-hero" id="top">
+        <Breadcrumbs Current="@L["shop.crumb"]" />
         <div class="container">
-            <h1 style="font-size:clamp(28px,4vw,44px);text-align:center">Shop</h1>
-            <p style="color:var(--muted);text-align:center;max-width:520px;margin:12px auto 28px">
-                Pick the apps you want. Add them to your cart and check out by card.
-                Monthly plans renew automatically — cancel any time.
-            </p>
-            <ProductCatalog />
+            <p class="gp-hero__product">@L["shop.kicker"]</p>
+            <h1 class="gp-hero__title">@L["shop.title"]</h1>
+            <p class="gp-hero__sub">@L["shop.sub"]</p>
+            @if (_shop.Count > 0)
+            {
+                <nav class="shop-hero__cats" aria-label="@L["shop.crumb"]">
+                    @foreach (var (cat, _) in _shop)
+                    {
+                        <a href="@(Nav.ToBaseRelativePath(Nav.Uri).Split('?', '#')[0])#cat-@cat.Key">@cat.Name</a>
+                    }
+                </nav>
+            }
+            <p class="gp-hero__note">@L["shop.note"]</p>
         </div>
     </section>
+
+    <section class="pr-build shop-build" id="products">
+        <div class="container pr-build__grid">
+
+            <div class="pr-options">
+                @if (_shop.Count == 0)
+                {
+                    <p class="shop-empty">@L["shop.empty"]</p>
+                }
+                @foreach (var (cat, items) in _shop)
+                {
+                    <section class="pr-group" id="cat-@cat.Key" aria-labelledby="shop-g-@cat.Key">
+                        <h2 class="gp-h2 pr-group__title" id="shop-g-@cat.Key">@cat.Name</h2>
+                        @if (cat.PickOne)
+                        {
+                            <p class="pr-group__sub">@L["shop.pickone"]</p>
+                        }
+                        <div class="pr-cards @(items.Count == 2 ? "pr-cards--2" : "pr-cards--3")">
+                            @foreach (var i in items)
+                            {
+                                <article class="pr-card shop-card @(i.Recommended ? "pr-card--rec" : null)">
+                                    @if (i.Recommended)
+                                    {
+                                        <span class="pr-card__badge">@L["pr.rec"]</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(i.ImageUrl))
+                                    {
+                                        <img class="shop-card__img" src="@i.ImageUrl" alt="" loading="lazy" />
+                                    }
+                                    <div class="pr-card__head">
+                                        <h3 class="pr-card__name">@i.Name</h3>
+                                        <p class="pr-card__price">@Money(i.Price) <small>@Per(i)</small></p>
+                                        @if (i.TrialDays > 0 && BillingIntervals.IsRecurring(i.BillingInterval))
+                                        {
+                                            <span class="shop-card__trial">@string.Format(L["shop.trial"], i.TrialDays)</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(i.Description))
+                                    {
+                                        <p class="pr-card__goal">@i.Description</p>
+                                    }
+                                    @if (i.Features.Count > 0)
+                                    {
+                                        <ul class="pr-card__list">
+                                            @foreach (var f in i.Features) { <li>@f</li> }
+                                        </ul>
+                                    }
+                                    <div class="shop-card__foot">
+                                        <ShopAdd Culture="@L.Culture" Sku="@i.Sku" Name="@i.Name" Price="@i.Price"
+                                                 BillingInterval="@i.BillingInterval" TrialDays="@i.TrialDays"
+                                                 Group="@cat.Key" PickOne="@cat.PickOne" />
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+
+            <ShopCart Culture="@L.Culture" />
+        </div>
+    </section>
+
 </main>
 
 <Footer />
+
+@code {
+    private IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)> _shop = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Localized routes: /shop (en), /fr/shop, /vi/shop, /ru/shop.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+        _shop = await Catalog.GetShopAsync();
+    }
+
+    private string Per(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => L["pr.month"],
+        BillingIntervals.Yearly => L["pr.year"],
+        _ => L["pr.once"],
+    };
+
+    private string Money(decimal d) => ShopMoney.Format(d, L.Culture);
+}

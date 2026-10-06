@@ -42,6 +42,7 @@ public sealed class CreateOrderRequest
     public string? SuccessUrl { get; set; }
     public string? CancelUrl { get; set; }
     public string? Currency { get; set; }
+    public string? Culture { get; set; }
 }
 
 public sealed class CheckoutResult

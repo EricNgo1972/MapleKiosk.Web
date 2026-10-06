@@ -106,7 +106,7 @@ public sealed class CheckoutService
         if (string.IsNullOrWhiteSpace(request.SuccessUrl) || string.IsNullOrWhiteSpace(request.CancelUrl))
             return Fail(method, "SuccessUrl and CancelUrl are required for Stripe checkout.");
 
-        var session = await _stripe.CreateAsync(order, request.SuccessUrl!, request.CancelUrl!, ct).ConfigureAwait(false);
+        var session = await _stripe.CreateAsync(order, request.SuccessUrl!, request.CancelUrl!, ct, request.Culture).ConfigureAwait(false);
         if (!session.Success) return Fail(method, session.Error ?? "Could not start Stripe checkout.");
 
         order.ProviderRef = session.SessionId;

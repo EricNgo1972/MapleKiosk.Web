@@ -55,12 +55,18 @@ public sealed partial class CatalogStore : IAppCatalog
     public async Task<IReadOnlyList<AppProduct>> GetAllAsync(CancellationToken ct = default)
         => (await LoadAsync(ct).ConfigureAwait(false)).Products;
 
-    /// <summary>The shop's catalog (IAppCatalog): active items in shop categories.</summary>
+    /// <summary>The shop's catalog (IAppCatalog): every active item — the shop sells the whole catalog.</summary>
     public async Task<IReadOnlyList<AppProduct>> GetActiveAsync(CancellationToken ct = default)
+        => (await LoadAsync(ct).ConfigureAwait(false)).Products.Where(p => p.Active).ToList();
+
+    /// <summary>The /shop page: every category with its active items, in order (pricing-page categories too).</summary>
+    public async Task<IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)>> GetShopAsync(CancellationToken ct = default)
     {
         var s = await LoadAsync(ct).ConfigureAwait(false);
-        var shop = s.Categories.Where(c => c.Placement == CatalogCategory.Shop).Select(c => c.Key).ToHashSet();
-        return s.Products.Where(p => p.Active && shop.Contains(p.Category)).ToList();
+        return s.Categories
+            .Select(c => (c, (IReadOnlyList<AppProduct>)s.Products.Where(p => p.Active && p.Category == c.Key).ToList()))
+            .Where(g => g.Item2.Count > 0)
+            .ToList();
     }
 
     /// <summary>The pricing pages' quote: each quote category with its active items, in order.</summary>

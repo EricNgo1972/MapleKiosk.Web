@@ -29,8 +29,8 @@ public static class BillingIntervals
     };
 }
 
-/// <summary>A group of catalog items, e.g. "Setup" or "Software". <see cref="Placement"/> says where it's
-/// sold: on the trades' pricing pages (the quote builder) or in the app shop.</summary>
+/// <summary>A group of catalog items, e.g. "Setup" or "Software". Everything is sold in the shop (/shop);
+/// <see cref="Placement"/> says whether the trades' pricing pages (the quote builder) list it too.</summary>
 public sealed class CatalogCategory
 {
     public const string Quote = "quote";

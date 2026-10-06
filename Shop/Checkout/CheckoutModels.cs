@@ -14,6 +14,9 @@ public sealed class CreateCheckoutRequest
     public string? SuccessUrl { get; set; }
     public string? CancelUrl { get; set; }
     public string? Currency { get; set; }
+
+    /// <summary>en / fr / vi / ru: the Stripe checkout page's language.</summary>
+    public string? Culture { get; set; }
 }
 
 public sealed class CheckoutResult
