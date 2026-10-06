@@ -42,6 +42,10 @@
 .mshop-qty .mshop-remove { width: auto; padding: 0 10px; margin-left: auto; color: var(--red, #c0392b); }
 
 .mshop-total { display: flex; justify-content: space-between; align-items: baseline; margin: 16px 0; font-size: 16px; }
+.mshop-total--then { margin-top: -8px; font-size: 14px; color: var(--muted, #6b645c); }
+.mshop-qty span { min-width: 20px; text-align: center; }
+.mshop-qty__each { color: var(--muted, #6b645c); }
+.mshop-qty button:disabled, .mshop-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 .mshop-field { margin-bottom: 16px; }
 .mshop-field label { display: block; margin-bottom: 6px; color: var(--muted, #6b645c); font-size: 14px; }

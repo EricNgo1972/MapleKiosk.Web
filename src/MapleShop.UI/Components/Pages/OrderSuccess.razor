@@ -12,9 +12,20 @@
         @if (!string.IsNullOrWhiteSpace(Ref))
         {
             <p>Your order reference is <code>@Ref</code>.</p>
-            @if (_status is not null && string.Equals(_status, "Paid", StringComparison.OrdinalIgnoreCase))
+            @if (_status is not null && string.Equals(_status.Status, "Paid", StringComparison.OrdinalIgnoreCase))
             {
                 <p class="mshop-result__ok">Payment confirmed. A receipt is on its way to your inbox.</p>
+                @if (_status.IsSubscription)
+                {
+                    <p>
+                        @(_status.TrialDays > 0 ? $"Your {_status.TrialDays}-day free trial has started. " : "")
+                        Your plan renews automatically every @(_status.Interval == "Yearly" ? "year" : "month") on the same card — cancel any time.
+                    </p>
+                    @if (!string.IsNullOrWhiteSpace(_status.ManageUrl))
+                    {
+                        <p><a href="@_status.ManageUrl" target="_blank" rel="noopener">Manage your subscription</a></p>
+                    }
+                }
             }
             else
             {
@@ -33,18 +44,25 @@
     [Parameter, SupplyParameterFromQuery(Name = "ref")]
     public string? Ref { get; set; }
 
-    private string? _status;
+    private OrderStatus? _status;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Stripe redirects here on success; the webhook is what actually flips the
-        // order to Paid, so reflect whatever state we can read and clear the cart.
+        if (!firstRender) return;
+
+        // Paid (or being confirmed): empty the cart, here and in browser storage.
+        await Cart.RestoreAsync();
         Cart.Clear();
 
-        if (!string.IsNullOrWhiteSpace(Ref))
+        // Stripe redirects here on success, but the webhook is what flips the order to Paid,
+        // so give it a few seconds to land.
+        if (string.IsNullOrWhiteSpace(Ref)) return;
+        for (var attempt = 0; attempt < 5; attempt++)
         {
-            var status = await Client.GetStatusAsync(Ref!);
-            _status = status?.Status;
+            _status = await Client.GetStatusAsync(Ref!);
+            if (string.Equals(_status?.Status, "Paid", StringComparison.OrdinalIgnoreCase)) break;
+            await Task.Delay(TimeSpan.FromSeconds(2));
         }
+        StateHasChanged();
     }
 }

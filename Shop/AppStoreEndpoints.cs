@@ -82,14 +82,30 @@ public static class AppStoreEndpoints
         try { stripeEvent = EventUtility.ConstructEvent(json, signature, secret); }
         catch (StripeException ex) { log.LogWarning(ex, "Stripe webhook signature verification failed."); return Results.BadRequest(); }
 
+        var ct = request.HttpContext.RequestAborted;
         if (stripeEvent.Type is EventTypes.CheckoutSessionCompleted or EventTypes.CheckoutSessionAsyncPaymentSucceeded)
         {
+            // "no_payment_required" = a subscription that starts on a free trial: confirmed, nothing charged yet.
             if (stripeEvent.Data.Object is Stripe.Checkout.Session session
                 && !string.IsNullOrEmpty(session.ClientReferenceId)
-                && string.Equals(session.PaymentStatus, "paid", StringComparison.OrdinalIgnoreCase))
+                && session.PaymentStatus is "paid" or "no_payment_required")
             {
-                await orders.MarkPaidAsync(session.ClientReferenceId, session.PaymentIntentId ?? session.Id,
-                    request.HttpContext.RequestAborted);
+                await orders.MarkPaidAsync(session.ClientReferenceId, session.PaymentIntentId ?? session.SubscriptionId ?? session.Id,
+                    ct, session.CustomerId, session.SubscriptionId);
+            }
+        }
+        else if (stripeEvent.Type is EventTypes.CustomerSubscriptionCreated or EventTypes.CustomerSubscriptionUpdated
+                 or EventTypes.CustomerSubscriptionDeleted)
+        {
+            // From here Stripe runs the subscription: it renews, retries failed cards and emails the
+            // customer, who cancels or changes card in the Stripe customer portal. We only mirror its
+            // state onto the order (Checkout copied our orderRef into the subscription's metadata).
+            if (stripeEvent.Data.Object is Subscription sub
+                && sub.Metadata is not null && sub.Metadata.TryGetValue("orderRef", out var orderRef))
+            {
+                var periodEnd = sub.Items?.Data?.Select(i => (DateTime?)i.CurrentPeriodEnd).Max();
+                await orders.UpdateSubscriptionAsync(orderRef, sub.Id, sub.CustomerId, sub.Status,
+                    periodEnd is { } end ? new DateTimeOffset(DateTime.SpecifyKind(end, DateTimeKind.Utc)) : null, ct);
             }
         }
 

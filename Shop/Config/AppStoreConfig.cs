@@ -24,6 +24,9 @@ public sealed class AppStoreConfig
     public Task<string> GetCatalogJsonAsync() => GetAsync("APPSTORE_CATALOG", "Catalog");
     public Task<string> GetStripeSecretKeyAsync() => GetAsync("APPSTORE_STRIPE_SECRET_KEY", "StripeSecretKey");
     public Task<string> GetStripeAutomaticTaxAsync() => GetAsync("APPSTORE_STRIPE_AUTOMATIC_TAX", "StripeAutomaticTax");
+    /// <summary>The Stripe customer portal's login link (Stripe dashboard → Settings → Billing → Customer portal),
+    /// where subscribers cancel or change card themselves. Empty = no "manage subscription" link is shown.</summary>
+    public Task<string> GetStripePortalUrlAsync() => GetAsync("APPSTORE_STRIPE_PORTAL_URL", "StripePortalUrl");
     public Task<string> GetStripeWebhookSecretAsync() => GetAsync("APPSTORE_STRIPE_WEBHOOK_SECRET", "StripeWebhookSecret");
     public Task<string> GetVietQrBankCodeAsync() => GetAsync("APPSTORE_VIETQR_BANK_CODE", "VietQrBankCode");
     public Task<string> GetVietQrAccountNumberAsync() => GetAsync("APPSTORE_VIETQR_ACCOUNT_NUMBER", "VietQrAccountNumber");

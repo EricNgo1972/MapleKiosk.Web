@@ -44,9 +44,8 @@
                         $@p.Price.ToString("0.##") <small>CAD@p.PriceSuffix</small>
                     </div>
                     <button class="mshop-btn mshop-btn--primary"
-                            disabled="@Cart.Contains(p.Sku)"
-                            @onclick="() => Cart.Add(p.Sku, p.Name, p.Price, p.BillingInterval)">
-                        @(Cart.Contains(p.Sku) ? "In cart ✓" : p.IsRecurring ? "Subscribe" : "Add to cart")
+                            @onclick="() => Cart.Add(p.Sku, p.Name, p.Price, p.BillingInterval, p.TrialDays)">
+                        @(Cart.Contains(p.Sku) ? "Add another" : p.IsRecurring ? "Subscribe" : "Add to cart")
                     </button>
                 </div>
             }
@@ -63,6 +62,14 @@
         Cart.OnChange += OnCartChanged;
         _products = await Client.GetCatalogAsync();
         _loading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // The saved cart may hold yesterday's prices; show today's (checkout charges today's anyway).
+        if (!firstRender) return;
+        await Cart.RestoreAsync();
+        if (_products.Count > 0) Cart.Reprice(_products);
     }
 
     private async void OnCartChanged() => await InvokeAsync(StateHasChanged);

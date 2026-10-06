@@ -28,6 +28,10 @@ public sealed class AppOrderEntity : ITableEntity
     public string? Source { get; set; }
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
+    public string? StripeCustomerId { get; set; }
+    public string? StripeSubscriptionId { get; set; }
+    public string? SubscriptionStatus { get; set; }
+    public DateTimeOffset? CurrentPeriodEnd { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
@@ -52,6 +56,10 @@ public sealed class AppOrderEntity : ITableEntity
         Source = o.Source,
         ProviderTxnId = o.ProviderTxnId,
         ProviderRef = o.ProviderRef,
+        StripeCustomerId = o.StripeCustomerId,
+        StripeSubscriptionId = o.StripeSubscriptionId,
+        SubscriptionStatus = o.SubscriptionStatus,
+        CurrentPeriodEnd = o.CurrentPeriodEnd,
         CreatedAt = o.CreatedAt,
         PaidAt = o.PaidAt,
         ExpiresAt = o.ExpiresAt
@@ -74,6 +82,10 @@ public sealed class AppOrderEntity : ITableEntity
         Source = Source,
         ProviderTxnId = ProviderTxnId,
         ProviderRef = ProviderRef,
+        StripeCustomerId = StripeCustomerId,
+        StripeSubscriptionId = StripeSubscriptionId,
+        SubscriptionStatus = SubscriptionStatus,
+        CurrentPeriodEnd = CurrentPeriodEnd,
         CreatedAt = CreatedAt,
         PaidAt = PaidAt,
         ExpiresAt = ExpiresAt
