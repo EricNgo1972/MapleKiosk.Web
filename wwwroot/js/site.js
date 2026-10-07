@@ -225,10 +225,17 @@
   // first payment (setup plus the first month). Amounts are formatted in the page's locale.
   // The same lines fill the printed quote ([data-quote-doc]) with the customer's details, which
   // this browser remembers for next time.
+  // A language switch keeps the builder's elements (and their listeners) but drops the quoteWired marker, so
+  // it gets wired again: drop the previous wiring first, or Print and Buy fire once per switch (one Stripe
+  // checkout each).
+  let quoteWiring = null;
   function wireQuote() {
     const root = document.querySelector('[data-quote]');
     if (!root || root.dataset.quoteWired) return;
     root.dataset.quoteWired = '1';
+    if (quoteWiring) quoteWiring.abort();
+    quoteWiring = new AbortController();
+    const once = { signal: quoteWiring.signal };
     const locale = root.dataset.locale || 'en-US';
     const fmt = new Intl.NumberFormat(locale, { style: 'currency', currency: 'CAD', currencyDisplay: 'narrowSymbol' });
     const money = (n) => fmt.format(Math.round(n * 100) / 100);
@@ -256,7 +263,7 @@
       cust.forEach((i) => { v[i.dataset.cust] = i.value.trim(); docSet(i.dataset.cust, v[i.dataset.cust]); });
       try { localStorage.setItem('mk.quoteCustomer', JSON.stringify(v)); } catch (e) { }
     }
-    root.addEventListener('input', (ev) => { if (ev.target.matches('[data-cust]')) customer(); });
+    root.addEventListener('input', (ev) => { if (ev.target.matches('[data-cust]')) customer(); }, once);
     customer();
 
     const lines = root.querySelector('[data-quote-lines]');
@@ -321,13 +328,13 @@
     } catch (e) { }
     // What's ticked, as catalog SKUs.
     const picks = () => Array.from(root.querySelectorAll('input[data-price]:checked')).map((i) => i.value);
-    root.addEventListener('change', () => { try { localStorage.setItem(picksKey, JSON.stringify(picks())); } catch (e) { } });
+    root.addEventListener('change', () => { try { localStorage.setItem(picksKey, JSON.stringify(picks())); } catch (e) { } }, once);
 
-    root.addEventListener('change', update);
+    root.addEventListener('change', update, once);
     update();
 
     const print = root.querySelector('[data-quote-print]');
-    if (print) print.addEventListener('click', () => window.print());
+    if (print) print.addEventListener('click', () => window.print(), once);
 
     // Buy online: send the picks (never prices; the server prices them from the catalog) and go to
     // Stripe. Setup is paid once; monthly plans become a subscription.
@@ -353,14 +360,16 @@
           if (r.ok && res.stripeUrl) { location.href = res.stripeUrl; return; }
         } catch (e) { }
         btn.disabled = false; say(buy.dataset.fail);
-      });
+      }, once);
     }
 
     // The phone bar is for getting to the bill; hide it once the bill is on screen.
     const bar = document.querySelector('[data-quote-bar]');
     const bill = root.querySelector('.pr-bill');
     if (bar && bill && 'IntersectionObserver' in window) {
-      new IntersectionObserver((es) => bar.classList.toggle('is-hidden', es[0].isIntersecting)).observe(bill);
+      const io = new IntersectionObserver((es) => bar.classList.toggle('is-hidden', es[0].isIntersecting));
+      io.observe(bill);
+      quoteWiring.signal.addEventListener('abort', () => io.disconnect());
     }
   }
   wireQuote();

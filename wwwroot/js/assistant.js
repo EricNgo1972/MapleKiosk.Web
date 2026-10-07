@@ -75,18 +75,23 @@
     return { html: out.join(''), choices };
   }
 
+  // Enhanced navigation (a language switch, a page change) keeps the widget's elements and their listeners
+  // but resets their attributes and children to the new page's markup, so a marker attribute can't tell
+  // whether they're wired: wiring them again stacked a second toggle handler and the bubble opened and
+  // closed on one click. Remember wired widgets here; a kept widget only needs its conversation redrawn.
+  const wired = new WeakMap();
+
   function wire() {
     const root = document.querySelector('[data-assistant]');
-    if (!root || root.dataset.wired) return;
-    root.dataset.wired = '1';
-
+    if (!root) return;
     const panel = root.querySelector('.ast-panel');
     const log = root.querySelector('[data-ast-log]');
     const form = root.querySelector('[data-ast-form]');
     const input = root.querySelector('[data-ast-input]');
     const starters = root.querySelector('[data-ast-starters]');
     const fab = root.querySelector('.ast-fab');
-    const lang = root.dataset.lang || 'en';
+    const prev = wired.get(root);
+    if (prev && prev.panel === panel && prev.form === form && prev.fab === fab) { prev.refresh(); return; }
     let state = load();
     state.turns = Array.isArray(state.turns) ? state.turns : [];
     let busy = false;
@@ -149,7 +154,7 @@
         const res = await fetch('/assistant/message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: text, history: history, lang: lang, page: location.pathname, conversationId: state.id || null }),
+          body: JSON.stringify({ text: text, history: history, lang: root.dataset.lang || 'en', page: location.pathname, conversationId: state.id || null }),
         });
         const data = res.ok ? await res.json() : null;
         reply = data && data.reply;
@@ -177,8 +182,12 @@
     input.addEventListener('input', grow);
     root.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !panel.hidden) setOpen(false); });
 
-    render();
-    if (state.open) { panel.hidden = false; root.classList.add('is-open'); root.querySelectorAll('[data-ast-toggle]').forEach((b) => b.setAttribute('aria-expanded', 'true')); }
+    function refresh() {
+      render();
+      if (state.open) { panel.hidden = false; root.classList.add('is-open'); root.querySelectorAll('[data-ast-toggle]').forEach((b) => b.setAttribute('aria-expanded', 'true')); }
+    }
+    wired.set(root, { panel: panel, form: form, fab: fab, refresh: refresh });
+    refresh();
   }
 
   wire();
