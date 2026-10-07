@@ -34,7 +34,15 @@ public sealed class AppStoreConfig
     public Task<string> GetBankAggregatorSecretAsync() => GetAsync("APPSTORE_SEPAY_SECRET", "SepaySecret");
     public Task<string> GetOutboundWebhookUrlAsync() => GetAsync("APPSTORE_OUTBOUND_WEBHOOK_URL", "OutboundWebhookUrl");
     public Task<string> GetOutboundWebhookSecretAsync() => GetAsync("APPSTORE_OUTBOUND_WEBHOOK_SECRET", "OutboundWebhookSecret");
-    public Task<string> GetOrderInboxAsync() => GetAsync("APPSTORE_ORDER_INBOX", "OrderInbox");
+    /// <summary>The team's inbox for order copies (and onboarding mail, via OnboardingService). Never empty:
+    /// when neither the env var nor the keyvalue row is set, it's team@maplekiosk.ca.</summary>
+    public async Task<string> GetOrderInboxAsync()
+    {
+        var v = await GetAsync("APPSTORE_ORDER_INBOX", "OrderInbox").ConfigureAwait(false);
+        return string.IsNullOrWhiteSpace(v) ? DefaultTeamInbox : v;
+    }
+
+    public const string DefaultTeamInbox = "team@maplekiosk.ca";
 
     private async Task<string> GetAsync(string envVar, string rowKey)
     {
