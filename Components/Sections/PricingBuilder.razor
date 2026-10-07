@@ -81,7 +81,7 @@
                 {
                     var ck = cat.Key;
                     <div class="pr-group" role="group" aria-labelledby="pr-g-@ck">
-                        <h2 class="gp-h2 pr-group__title" id="pr-g-@ck">@(Tx($"{ck}.title") ?? cat.Name)</h2>
+                        <h2 class="gp-h2 pr-group__title" id="pr-g-@ck">@(Tx($"{ck}.title") ?? cat.NameIn(L.Culture))</h2>
                         @if (Tx($"{ck}.sub") is { } sub)
                         {
                             <p class="pr-group__sub">@sub</p>
@@ -91,11 +91,11 @@
                             {
                                 var k = i.CopyKey;
                                 var points = Points(ck, k);
-                                var goal = Tx($"{ck}.{k}.goal") ?? Tx($"{ck}.{k}.d") ?? (points.Count == 0 ? i.Description : null);
+                                var goal = Tx($"{ck}.{k}.goal") ?? Tx($"{ck}.{k}.d") ?? (points.Count == 0 ? i.DescriptionIn(L.Culture) : null);
                                 <label class="pr-card @(i.Recommended ? "pr-card--rec" : null)">
                                     <input type="@(cat.PickOne ? "radio" : "checkbox")" name="@ck" value="@i.Sku"
                                            data-price="@Raw(i.Price)" data-period="@Period(i)" data-name="@ItemName(ck, i)"
-                                           data-detail="@(goal ?? points.FirstOrDefault() ?? i.Description)" />
+                                           data-detail="@(goal ?? points.FirstOrDefault() ?? i.DescriptionIn(L.Culture))" />
                                     @if (i.Recommended)
                                     {
                                         <span class="pr-card__badge">@T("rec")</span>
@@ -127,6 +127,13 @@
                                                     @features[f]
                                                 </li>
                                             }
+                                        </ul>
+                                    }
+                                    else if (Lines(i.DetailsIn(L.Culture)) is { Count: > 0 } details)
+                                    {
+                                        @* Items the site has no copy for (e.g. gift cards): their Details lines from /shop/admin. *@
+                                        <ul class="pr-card__list">
+                                            @foreach (var d in details) { <li>@d</li> }
                                         </ul>
                                     }
                                     else if (i.Features.Count > 0)
@@ -362,7 +369,10 @@
         return v == $"pr.{key}" ? null : v;
     }
 
-    private string ItemName(string cat, AppProduct i) => Tx($"{cat}.{i.CopyKey}.t") ?? i.Name;
+    private string ItemName(string cat, AppProduct i) => Tx($"{cat}.{i.CopyKey}.t") ?? i.NameIn(L.Culture);
+
+    private static List<string> Lines(string? text)
+        => (text ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
     // The card's bullet points: pr.{cat}.{key}.d1, d2, ... while they exist.
     private List<string> Points(string cat, string key)

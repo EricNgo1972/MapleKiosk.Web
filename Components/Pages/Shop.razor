@@ -132,8 +132,12 @@
         _ => "",
     };
 
-    // The row's name, tags and one-line description (inside the toggle button, so only phrasing content).
+    // The row's picture, name, tags and one-line description (inside the toggle button, so only phrasing content).
     private RenderFragment ItemHead(AppProduct i) => @<text>
+        @if (!string.IsNullOrWhiteSpace(i.ImageUrl))
+        {
+            <img class="sh-item__img" src="@i.ImageUrl" alt="" width="64" height="64" loading="lazy" />
+        }
         <span class="sh-item__name">
             @i.NameIn(L.Culture)
             @if (i.Recommended)
