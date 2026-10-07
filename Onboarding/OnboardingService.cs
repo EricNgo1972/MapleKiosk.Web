@@ -12,7 +12,7 @@ namespace MapleKiosk.Web.Onboarding;
 /// implementation inbox gets everything in one email. Config is config-free via
 /// partition <c>Onboarding</c> in the keyvalue table:
 /// <list type="bullet">
-/// <item><c>Inbox</c> (ONBOARDING_INBOX) — implementer inbox; falls back to AppStore/OrderInbox.</item>
+/// <item><c>Inbox</c> (ONBOARDING_INBOX) — implementer inbox; falls back to AppStore/OrderInbox, then team@maplekiosk.ca.</item>
 /// <item><c>AccessEmail</c> (ONBOARDING_ACCESS_EMAIL) — email customers add as Google Business Profile manager.</item>
 /// <item><c>MetaBusinessId</c> (ONBOARDING_META_BUSINESS_ID) — our Meta Business ID for partner access.</item>
 /// </list>
