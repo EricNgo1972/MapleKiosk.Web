@@ -5,6 +5,7 @@
       // Pages without the form (legal pages, ...) send you to the homepage's.
       const seg = location.pathname.split('/')[1];
       const root = ['fr', 'vi', 'ru'].includes(seg) ? '/' + seg : '/';
+      document.documentElement.classList.add('nav-busy');
       location.href = root + '#demo';
       return;
     }
@@ -614,6 +615,7 @@
   let busyTimer = null;
   function navDone() {
     document.documentElement.classList.remove('nav-busy');
+    document.querySelectorAll('.nav-pending').forEach(x => x.classList.remove('nav-pending'));
     clearTimeout(busyTimer);
   }
   document.addEventListener('click', (ev) => {
@@ -624,6 +626,7 @@
     // Language pills: light up the chosen one right away.
     const sw = a.closest('.lang-switch');
     if (sw) sw.querySelectorAll('a').forEach(x => x.classList.toggle('active', x === a));
+    a.classList.add('nav-pending');
     document.documentElement.classList.add('nav-busy');
     clearTimeout(busyTimer);
     busyTimer = setTimeout(navDone, 15000); // never leave the bar stuck
@@ -641,6 +644,10 @@
   // A demo request that failed validation comes back with the modal still open.
   onEnhancedLoad(() => document.body.classList.toggle('modal-open', !!document.querySelector('#trialModal.open')));
   window.addEventListener('pageshow', navDone);
+
+  // Clicks that came in before this script loaded (App.razor's early click catcher).
+  window.mkReady = true;
+  if (window.mkPendingTrial) { window.mkPendingTrial = false; navDone(); openTrialModal(); }
 
   // ===== Scroll to top on page change =====
   const origPushState = history.pushState.bind(history);

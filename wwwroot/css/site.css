@@ -1000,9 +1000,16 @@ a.adm-row{text-decoration:none}
 .onb-grid label.onb-logo__btn{display:inline-flex;flex-direction:row;width:auto;font-size:13px}
 .gp-shot--film .hp-play{opacity:1}
 /* page-change feedback (site.js adds .nav-busy on link click until the new page is in) */
-html.nav-busy::before{content:"";position:fixed;top:0;left:0;z-index:1000;height:3px;width:100%;background:linear-gradient(90deg,transparent,var(--red),var(--accent),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:nav-busy 0.9s linear infinite}
+html.nav-busy::before{content:"";position:fixed;top:0;left:0;z-index:1000;height:4px;width:100%;background:linear-gradient(90deg,transparent,var(--red),var(--accent),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:nav-busy 0.9s linear infinite}
 html.nav-busy body{cursor:progress}
 @keyframes nav-busy{from{background-position:-50% 0}to{background-position:150% 0}}
+/* the clicked button or link itself shows it was heard */
+.nav-pending{cursor:progress;pointer-events:none}
+.btn.nav-pending::after,.nav-prod__item.nav-pending strong::after{content:"";display:inline-block;width:.85em;height:.85em;margin-left:.5em;vertical-align:-.1em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:busy-spin .7s linear infinite}
+.btn.nav-pending{opacity:.85}
+.lang-switch a.nav-pending,.nav-shop.nav-pending{animation:busy-pulse .8s ease-in-out infinite}
+@keyframes busy-spin{to{transform:rotate(360deg)}}
+@keyframes busy-pulse{50%{opacity:.45}}
 
 /* ============ NAV: PRODUCTS MENU ============ */
 /* One menu for every product page (Services/SiteProducts.cs), so the bar doesn't grow with the list. */
