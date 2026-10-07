@@ -23,7 +23,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
     // Each product's page copy lives under its own translation prefix.
     private static readonly Dictionary<string, string> PagePrefix = new()
     {
-        ["coffee"] = "cof", ["nails"] = "spa", ["resto"] = "rp", ["garage"] = "gar", ["agent"] = "ag",
+        ["coffee"] = "cof", ["nails"] = "spa", ["resto"] = "rp", ["garage"] = "gar", ["agent"] = "ag", ["gift"] = "gc",
     };
 
     // Free test-drive apps, from the product pages.
@@ -98,7 +98,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
             sb.AppendLine($"### {p.Name} — {Tr($"prod.{p.Key}.for")}");
             sb.AppendLine($"- Page: /{p.Slug}" + (p.Group == ProductGroup.Trade ? $" · Pricing and quote builder: /{p.Slug}/pricing" : ""));
             if (TestDrive.TryGetValue(p.Key, out var td)) sb.AppendLine($"- Free test drive: {td}");
-            if (p.Group == ProductGroup.AddOn) sb.AppendLine("- Sold on its own, or already built into every MapleKiosk system.");
+            if (p.Key == "agent") sb.AppendLine("- Sold on its own, or already built into every MapleKiosk system.");
             if (PagePrefix.TryGetValue(p.Key, out var prefix))
                 foreach (var line in PageCopy(prefix)) sb.AppendLine("- " + line);
         }

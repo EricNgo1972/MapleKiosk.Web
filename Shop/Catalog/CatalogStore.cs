@@ -195,6 +195,23 @@ public sealed partial class CatalogStore : IAppCatalog
             }
             _logger.LogInformation("Catalog seeded with the default categories and items.");
         }
+        else
+        {
+            // A category added to the defaults after the table was seeded (e.g. gift cards) arrives once, with
+            // its items. To retire one later, set its items inactive at /shop/admin rather than deleting the
+            // category, or it comes back on the next read.
+            foreach (var c in CatalogDefaults.Categories.Where(d => categories.All(c => c.Key != d.Key)))
+            {
+                await table.UpsertEntityAsync(CatalogCategoryEntity.From(c), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+                categories.Add(c);
+                foreach (var p in CatalogDefaults.Products.Where(d => d.Category == c.Key && products.All(p => p.Sku != d.Sku)))
+                {
+                    await table.UpsertEntityAsync(CatalogProductEntity.FromProduct(p), TableUpdateMode.Replace, ct).ConfigureAwait(false);
+                    products.Add(p);
+                }
+                _logger.LogInformation("Catalog: added the new default category {Key} with its items.", c.Key);
+            }
+        }
 
         return Order(categories, products);
     }

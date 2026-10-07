@@ -19,6 +19,7 @@ public static class SiteProducts
         new("restaurants", "MaplePOS",    "resto",  ProductGroup.Trade),
         new("garage",      "MapleGarage", "garage", ProductGroup.Trade),
         new("ai-agent",    "AI Voice Agent", "agent", ProductGroup.AddOn),
+        new("gift-cards",  "Gift Cards",     "gift",  ProductGroup.AddOn),
     };
 
     public static IEnumerable<SiteProduct> In(ProductGroup g) => All.Where(p => p.Group == g);

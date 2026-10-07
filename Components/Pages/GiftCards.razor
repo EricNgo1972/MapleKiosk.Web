@@ -1,0 +1,198 @@
+@page "/gift-cards"
+@page "/fr/gift-cards"
+@page "/vi/gift-cards"
+@page "/ru/gift-cards"
+@using MapleKiosk.Web.Shop.Catalog
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject CatalogStore Catalog
+
+@* Printed gift cards for MapleKiosk merchants. The packs and their prices are the catalog's "gift"
+   category (/shop/admin), so this page, /shop, the pricing pages and Stripe always agree. Ordering puts
+   the pack in the shop's cart (site.js, data-cart-go) and opens /shop to check out. *@
+
+<PageTitle>@L["gc.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["gc.meta.desc"]" />
+    <meta property="og:title" content="@L["gc.meta.title"]" />
+    <meta property="og:description" content="@L["gc.meta.desc"]" />
+    <meta property="og:url" content="@Nav.Uri" />
+</HeadContent>
+
+<NavBar />
+
+<main class="gp gc">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="gp-hero" id="top">
+        <Breadcrumbs Current="@L["prod.gift.name"]" />
+        <div class="container gp-hero__grid gc-hero__grid">
+            <div>
+                <p class="gp-hero__product">@L["gc.product"]</p>
+                <h1 class="gp-hero__title">@L["gc.hero.title"]</h1>
+                <p class="gp-hero__sub">@L["gc.hero.sub"]</p>
+                <div class="gp-hero__ctas">
+                    <a class="btn btn-primary" href="#prices">@L["gc.hero.prices"] <span aria-hidden="true">↓</span></a>
+                    <a class="btn gp-btn-ghost" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                </div>
+                @if (From is { } from)
+                {
+                    <p class="gp-hero__note">@string.Format(L["gc.hero.from"], PerCard(from))</p>
+                }
+            </div>
+            @* The card itself, drawn in CSS: a business's name on the front, its number, barcode and QR code. *@
+            <div class="gc-cards" aria-hidden="true">
+                <div class="gc-card gc-card--back">
+                    <span class="gc-card__qr"></span>
+                    <span class="gc-card__bars"></span>
+                    <span class="gc-card__num">6271 0042 1987</span>
+                </div>
+                <div class="gc-card gc-card--front">
+                    <span class="gc-card__shop">Your Café</span>
+                    <span class="gc-card__label">@L["gc.card.label"]</span>
+                    <span class="gc-card__amt">$50</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== HOW IT WORKS ===================== -->
+    <section class="gp-more">
+        <div class="container">
+            <h2 class="gp-h2">@L["gc.how.title"]</h2>
+            <p class="gp-lead">@L["gc.how.sub"]</p>
+            <ol class="gc-steps">
+                @for (var i = 1; i <= 3; i++)
+                {
+                    <li>
+                        <span class="pr-why__num">@i</span>
+                        <h3>@L[$"gc.how.{i}.t"]</h3>
+                        <p>@L[$"gc.how.{i}.d"]</p>
+                    </li>
+                }
+            </ol>
+        </div>
+    </section>
+
+    <!-- ===================== THE PACKS =====================
+         One card per catalog item: total, price per card, and what's included (its Details lines). -->
+    <section class="gc-prices" id="prices">
+        <div class="container">
+            <h2 class="gp-h2">@L["gc.prices.title"]</h2>
+            <p class="gp-lead">@L["gc.prices.sub"]</p>
+
+            @if (_packs.Count == 0)
+            {
+                <p class="sh__empty">@L["shop.empty"]</p>
+            }
+            else
+            {
+                <ul class="gc-packs">
+                    @foreach (var p in _packs)
+                    {
+                        <li class="gc-pack @(p.Recommended ? "gc-pack--rec" : null)">
+                            @if (p.Recommended)
+                            {
+                                <span class="pr-card__badge">@L["pr.rec"]</span>
+                            }
+                            <p class="gc-pack__count">@p.NameIn(L.Culture)</p>
+                            <p class="gc-pack__price">@Money(p.Price)</p>
+                            @if (PerCard(p) is { } each)
+                            {
+                                <p class="gc-pack__each">@string.Format(L["gc.each"], each)</p>
+                            }
+                            <ul class="gc-pack__list">
+                                @foreach (var line in Lines(p.DetailsIn(L.Culture)))
+                                {
+                                    <li>@line</li>
+                                }
+                            </ul>
+                            <a class="btn @(p.Recommended ? "btn-primary" : "gp-btn-ghost") gc-pack__go" href="@ShopPath#cart"
+                               data-cart-go="@p.Sku" data-name="@p.NameIn(L.Culture)"
+                               data-price="@p.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                               data-interval="@p.BillingInterval" data-group="@p.Category" data-pickone="1">@L["gc.order"]</a>
+                        </li>
+                    }
+                </ul>
+                <p class="gc-prices__fine">@L["gc.prices.fine"]</p>
+            }
+        </div>
+    </section>
+
+    <!-- ===================== WHY PRINTED CARDS ===================== -->
+    <section class="gp-ai">
+        <div class="container gp-ai__grid">
+            <h2 class="gp-h2">@L["gc.why.title"]</h2>
+            <div>
+                <p class="gp-lead">@L["gc.why.d"]</p>
+                <ul class="gp-ai__rules">
+                    <li>@L["gc.why.r1"]</li>
+                    <li>@L["gc.why.r2"]</li>
+                    <li>@L["gc.why.r3"]</li>
+                    <li>@L["gc.why.r4"]</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== QUESTIONS ===================== -->
+    <section class="gp-more">
+        <div class="container">
+            <h2 class="gp-h2">@L["gc.faq.title"]</h2>
+            <div class="faq gc-faq">
+                @for (var i = 1; i <= 5; i++)
+                {
+                    <details class="faq__item">
+                        <summary>@L[$"gc.faq.{i}.q"]</summary>
+                        <p>@L[$"gc.faq.{i}.a"]</p>
+                    </details>
+                }
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CLOSE ===================== -->
+    <section class="gp-end">
+        <div class="container">
+            <h2 class="gp-h2">@L["gc.end.title"]</h2>
+            <div class="hp-end__actions">
+                <a class="btn btn-primary" href="#prices">@L["gc.hero.prices"]</a>
+                <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<TrialForm Culture="@L.Culture" Product="Gift Cards" />
+<Footer />
+<MobileCta />
+
+@code {
+    private const string Category = "gift";
+
+    private IReadOnlyList<AppProduct> _packs = [];
+
+    // The cheapest price per card, for the hero.
+    private AppProduct? From => _packs.Where(p => Count(p) > 0).MinBy(p => p.Price / Count(p));
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Localized routes: /gift-cards (en), /fr/gift-cards, /vi/gift-cards, /ru/gift-cards.
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+        _packs = (await Catalog.GetGroupsAsync()).FirstOrDefault(g => g.Category.Key == Category).Items ?? [];
+    }
+
+    // The number of cards in a pack is its SKU's suffix (gift-3000 → 3000); 0 if an admin named it otherwise.
+    private static int Count(AppProduct p) => int.TryParse(p.CopyKey, out var n) && n > 0 ? n : 0;
+
+    private string? PerCard(AppProduct p) => Count(p) is > 0 and var n ? ShopMoney.Format(Math.Round(p.Price / n, 2), L.Culture) : null;
+
+    private string Money(decimal d) => ShopMoney.Format(d, L.Culture);
+
+    private static List<string> Lines(string? text)
+        => (text ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+
+    private string ShopPath => L.Culture == "en" ? "/shop" : $"/{L.Culture}/shop";
+}

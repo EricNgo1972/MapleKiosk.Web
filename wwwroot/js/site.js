@@ -570,6 +570,19 @@
   wireShop();
   onEnhancedLoad(wireShop);
 
+  // ===== Order from a product page (e.g. /gift-cards): into the shop's cart, then to /shop =====
+  // The link carries the item like a [data-shop-add] button; /shop re-reads names and prices from its own page.
+  document.addEventListener('click', (ev) => {
+    const go = ev.target.closest('[data-cart-go]');
+    if (!go) return;
+    const d = go.dataset;
+    const item = { Sku: d.cartGo, Name: d.name, Price: +d.price, BillingInterval: d.interval, TrialDays: 0, Quantity: 1, Group: d.group };
+    const lines = loadCart().filter((l) => l && l.Sku !== item.Sku && !(d.pickone && l.Group === item.Group));
+    lines.push(item);
+    saveCart(lines);
+    // The link's own href (/shop#cart) does the rest.
+  });
+
   // ===== Shop (/shop): a row opens in place to show what's included =====
   function toggleShopItem(btn, open) {
     const more = document.getElementById(btn.getAttribute('aria-controls'));
