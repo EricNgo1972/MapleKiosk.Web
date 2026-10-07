@@ -15,6 +15,15 @@ public static class SiteVideos
 
     private static readonly Dictionary<string, Video> All = new Video[]
     {
+        new("xVtDXOWpXC8", "Gift cards that bring in new clients | MapleSPA",
+            "A guest buys a gift card for a friend. The friend walks into your salon and pays with it, and you have a new client. This film follows a MapleSPA gift card from the order to the printed card, loading it at the front desk, and paying with it at checkout.",
+            "2026-10-07T05:04:02Z", 97),
+        new("Rk4OQA2B2SQ", "Thẻ quà tặng in tên tiệm: khách mua tặng bạn, bạn tới tiệm xài | MapleSPA",
+            "Anh chị muốn khách mua thẻ quà tặng của tiệm, đem tặng bạn bè, rồi bạn bè tới tiệm làm nail? Chị My chỉ trọn vòng đời một tấm thẻ quà tặng với MapleSPA, có quay thật tại quầy của một tiệm nail.",
+            "2026-10-06T03:23:00Z", 97),
+        new("IdRUCewVV3E", "Подарочные карты с логотипом салона: гость дарит, друг приходит | MapleSPA",
+            "Хотите, чтобы гости покупали подарочные карты вашего салона и дарили их друзьям, а друзья приходили к вам? Ми показывает весь путь подарочной карты в MapleSPA, с настоящей съёмкой у стойки салона.",
+            "2026-10-06T06:05:14Z", 109),
         new("-MW2ir_vs2o", "Fast Cafe Checkout and Tips Without the Awkward Moment | MapleCoffee",
             "Spinning the screen around, the awkward tip question, digging for change: checkout shouldn't be the slowest part of the visit.",
             "2026-10-02T04:27:36Z", 74),

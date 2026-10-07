@@ -17,6 +17,8 @@
     <meta property="og:title" content="@L["gc.meta.title"]" />
     <meta property="og:description" content="@L["gc.meta.desc"]" />
     <meta property="og:url" content="@Nav.Uri" />
+    <meta property="og:image" content="@(Nav.BaseUri + Poster)" />
+    <VideoSchema Ids="[Film.Id(L.Culture)]" />
 </HeadContent>
 
 <NavBar />
@@ -26,33 +28,33 @@
     <!-- ===================== HERO ===================== -->
     <section class="gp-hero" id="top">
         <Breadcrumbs Current="@L["prod.gift.name"]" />
-        <div class="container gp-hero__grid gc-hero__grid">
+        <div class="container gp-hero__grid">
             <div>
                 <p class="gp-hero__product">@L["gc.product"]</p>
                 <h1 class="gp-hero__title">@L["gc.hero.title"]</h1>
                 <p class="gp-hero__sub">@L["gc.hero.sub"]</p>
                 <div class="gp-hero__ctas">
                     <a class="btn btn-primary" href="#prices">@L["gc.hero.prices"] <span aria-hidden="true">↓</span></a>
-                    <a class="btn gp-btn-ghost" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                    <button type="button" class="btn gp-btn-ghost" @attributes="Cuts">
+                        @L["gc.hero.watch"] <span @attributes="Lens">@Film.Length(L.Culture)</span>
+                    </button>
                 </div>
                 @if (From is { } from)
                 {
                     <p class="gp-hero__note">@string.Format(L["gc.hero.from"], PerCard(from))</p>
                 }
-            </div>
-            @* The card itself, drawn in CSS: a business's name on the front, its number, barcode and QR code. *@
-            <div class="gc-cards" aria-hidden="true">
-                <div class="gc-card gc-card--back">
-                    <span class="gc-card__qr"></span>
-                    <span class="gc-card__bars"></span>
-                    <span class="gc-card__num">6271 0042 1987</span>
-                </div>
-                <div class="gc-card gc-card--front">
-                    <span class="gc-card__shop">Your Café</span>
-                    <span class="gc-card__label">@L["gc.card.label"]</span>
-                    <span class="gc-card__amt">$50</span>
+                <div class="film-lang" role="group" aria-label="@L["gc.lang"]">
+                    <span>@L["gc.lang"]</span>
+                    <button type="button" data-film-lang="en" lang="en" aria-pressed="@Pressed("en")">English</button>
+                    <button type="button" data-film-lang="vi" lang="vi" aria-pressed="@Pressed("vi")">Tiếng Việt</button>
+                    <button type="button" data-film-lang="ru" lang="ru" aria-pressed="@Pressed("ru")">Русский</button>
                 </div>
             </div>
+            <button type="button" class="gp-shot gp-shot--hero" @attributes="Cuts"
+                    aria-label="@($"{L["gc.watch"]}: {L["gc.hero.watch"]}")">
+                <img src="@Poster" alt="@L["gc.hero.alt"]" width="1280" height="720" />
+                <span class="hp-play" aria-hidden="true"></span>
+            </button>
         </div>
     </section>
 
@@ -170,6 +172,31 @@
 
 @code {
     private const string Category = "gift";
+
+    // "Gift cards, start to finish" (MapleSPA, M10) on the Maple Kiosk YouTube channel, in three cuts.
+    // French visitors get the English one; the visitor's pick (site.js, data-film-lang) is remembered.
+    private static class Film
+    {
+        public static readonly Dictionary<string, (string Id, string Length)> Cuts = new()
+        {
+            ["en"] = ("xVtDXOWpXC8", "1:37"),
+            ["vi"] = ("Rk4OQA2B2SQ", "1:37"),
+            ["ru"] = ("IdRUCewVV3E", "1:49"),
+        };
+
+        public static string Lang(string culture) => Cuts.ContainsKey(culture) ? culture : "en";
+        public static string Id(string culture) => Cuts[Lang(culture)].Id;
+        public static string Length(string culture) => Cuts[Lang(culture)].Length;
+    }
+
+    // data-video is the English cut, data-video-vi / -ru the others; data-len-* label the one that will play.
+    private static readonly Dictionary<string, object> Cuts =
+        new() { ["data-video"] = Film.Cuts["en"].Id, ["data-video-vi"] = Film.Cuts["vi"].Id, ["data-video-ru"] = Film.Cuts["ru"].Id };
+    private static readonly Dictionary<string, object> Lens =
+        Film.Cuts.ToDictionary(c => $"data-len-{c.Key}", c => (object)c.Value.Length);
+
+    private string Poster => $"img/giftcards/film-{Film.Lang(L.Culture)}.jpg";
+    private string Pressed(string lang) => (Film.Lang(L.Culture) == lang).ToString().ToLowerInvariant();
 
     private IReadOnlyList<AppProduct> _packs = [];
 
