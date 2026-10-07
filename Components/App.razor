@@ -29,10 +29,24 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-    <link rel="stylesheet" href="css/site.css?v=58" />
+    <link rel="stylesheet" href="css/site.css?v=59" />
     <link rel="stylesheet" href="_content/MapleShop.UI/css/mapleshop.css?v=2" />
     <link rel="stylesheet" href="MapleKiosk.Web.styles.css?v=2" />
     <HeadOutlet />
+    @* Clicks before site.js is wired up (blazor.web.js and site.js take a second or two on a slow
+       connection) used to do nothing. Show the busy state right away and remember a "Book a demo"
+       click; site.js opens the form once it loads (mkPendingTrial). *@
+    <script>
+        document.addEventListener('click', function (ev) {
+            if (window.mkReady || ev.button !== 0) return;
+            var t = ev.target.closest && ev.target.closest('[data-open-trial],a[href]');
+            if (!t || t.hasAttribute('data-video')) return;
+            if (t.hasAttribute('data-open-trial')) { ev.preventDefault(); window.mkPendingTrial = true; }
+            else if (t.target || t.origin !== location.origin || t.pathname === location.pathname) return;
+            t.classList.add('nav-pending');
+            document.documentElement.classList.add('nav-busy');
+        }, true);
+    </script>
     @if (!string.IsNullOrEmpty(_gaId))
     {
         <script async src="https://www.googletagmanager.com/gtag/js?id=@_gaId"></script>
@@ -48,7 +62,7 @@
     <Routes />
     <script type="application/ld+json">@((MarkupString)OrgJson())</script>
     <script src="_framework/blazor.web.js"></script>
-    <script src="js/site.js?v=29"></script>
+    <script src="js/site.js?v=30"></script>
     <script src="js/assistant.js?v=2"></script>
 </body>
 </html>
