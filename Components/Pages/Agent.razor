@@ -2,8 +2,10 @@
 @page "/fr/ai-agent"
 @page "/vi/ai-agent"
 @page "/ru/ai-agent"
+@using MapleKiosk.Web.Shop.Catalog
 @inject LocalizationService L
 @inject NavigationManager Nav
+@inject CatalogStore Catalog
 
 <PageTitle>@L["ag.meta.title"]</PageTitle>
 <HeadContent>
@@ -28,11 +30,23 @@
                 <h1 class="gp-hero__title">@L["ag.hero.title"]</h1>
                 <p class="gp-hero__sub">@L["ag.hero.sub"]</p>
                 <div class="gp-hero__ctas">
-                    <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                    @if (_item is not null)
+                    {
+                        @OrderLink(_item)
+                        <a class="btn gp-btn-ghost" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                    }
                     <button type="button" class="btn gp-btn-ghost" data-video="@VideoId" data-video-tall>
                         @L["ag.hero.watch"] <span>1:21</span>
                     </button>
                 </div>
+                @if (_item is not null)
+                {
+                    <p class="gp-hero__note">@ShopMoney.Format(_item.Price, L.Culture)@Per(_item) · @L["ag.terms"]</p>
+                }
                 <p class="ag-alone">@L["ag.hero.alone"]</p>
             </div>
             <button type="button" class="gp-shot gp-shot--hero ag-shot" data-video="@VideoId" data-video-tall data-start="23"
@@ -125,7 +139,11 @@
         <div class="container">
             <h2 class="gp-h2">@L["ag.end.title"]</h2>
             <div class="hp-end__actions">
-                <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
+                @if (_item is not null)
+                {
+                    @OrderLink(_item)
+                }
+                <a class="btn @(_item is null ? "btn-primary" : "gp-btn-ghost")" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
                 <span>@L["hp.end.or"] <a data-user="sales" data-domain="maplekiosk.ca">sales [at] maplekiosk.ca</a></span>
             </div>
         </div>
@@ -173,10 +191,32 @@
         return string.IsNullOrEmpty(root) ? $"/{page}" : $"{root}/{page}";
     }
 
-    protected override void OnInitialized()
+    // The agent as sold in the catalog (/shop/admin): "AI Booking System". Order puts it in the shop's cart
+    // (site.js, data-cart-go) and opens /shop; without the item (inactive or renamed) the page just offers a demo.
+    private const string Sku = "soft-booking";
+    private AppProduct? _item;
+    private bool _pickOne;
+
+    protected override async Task OnInitializedAsync()
     {
         var uri = new Uri(Nav.Uri);
         var seg = uri.AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
         L.SetCulture(seg);
+        _item = await Catalog.FindAsync(Sku);
+        if (_item is not null)
+            _pickOne = (await Catalog.GetCategoriesAsync()).FirstOrDefault(c => c.Key == _item.Category)?.PickOne ?? false;
     }
+
+    private string Per(AppProduct i) => i.BillingInterval switch
+    {
+        BillingIntervals.Monthly => " " + L["pr.month"],
+        BillingIntervals.Yearly => " " + L["pr.year"],
+        _ => "",
+    };
+
+    private string ShopPath => L.Culture == "en" ? "/shop" : $"/{L.Culture}/shop";
+
+    private RenderFragment OrderLink(AppProduct i) => @<a class="btn btn-primary" href="@ShopPath#cart"
+        data-cart-go="@i.Sku" data-name="@i.NameIn(L.Culture)" data-price="@i.Price.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+        data-interval="@i.BillingInterval" data-group="@i.Category" data-pickone="@(_pickOne ? "1" : null)">@L["ag.order"]</a>;
 }
