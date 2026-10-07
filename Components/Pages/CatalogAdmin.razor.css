@@ -100,17 +100,18 @@
 /* Item image: preview + pick/replace/remove in the dialog, a thumbnail in each row */
 .cat-image { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--muted, #6b645c); }
 .cat-image__row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.cat-image__preview {
-    width: 96px; height: 96px; border-radius: 10px; object-fit: cover;
+/* Item images are icons with transparent backgrounds: shown whole, with no tile behind them. */
+.cat-image__preview { width: 96px; height: 96px; object-fit: contain; }
+.cat-image__preview--none {
+    display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 10px;
     border: 1px solid var(--border, rgba(29,26,23,.12)); background: var(--surface-2, #f3ede4);
 }
-.cat-image__preview--none { display: flex; align-items: center; justify-content: center; font-size: 12px; }
 .cat-image__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .cat-grid label.cat-image__pick { flex-direction: row; position: relative; cursor: pointer; color: inherit; font-size: inherit; }
 .cat-image__pick ::deep input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
 
 .cat-item { display: flex; align-items: center; gap: 12px; }
-.cat-thumb { width: 40px; height: 40px; flex: none; border-radius: 8px; object-fit: cover; background: var(--surface-2, #f3ede4); }
+.cat-thumb { width: 40px; height: 40px; flex: none; object-fit: contain; }
 
 /* Wording in each language: tabs over name, description and details. */
 .cat-words { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border: 1px solid var(--border, rgba(29,26,23,.12)); border-radius: 10px; }

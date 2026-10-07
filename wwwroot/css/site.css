@@ -1193,10 +1193,10 @@ button.sh-item__info{display:block;width:100%;margin:0;padding:0;border:0;backgr
 button.sh-item__info:hover .sh-item__name{color:var(--red)}
 button.sh-item__info:focus-visible{outline:2px solid var(--red);outline-offset:4px}
 .sh-item__desc{display:block}
-/* The item's picture (/shop/admin), beside its name and description. */
+/* The item's picture (/shop/admin), beside its name and description: an icon on a transparent background. */
 .sh-item__info{display:flow-root}
 button.sh-item__info{display:flow-root}
-.sh-item__img{float:left;width:64px;height:64px;margin:0 14px 0 0;object-fit:cover;border-radius:8px;border:1px solid var(--border);background:var(--surface-2)}
+.sh-item__img{float:left;width:64px;height:64px;margin:0 14px 0 0;object-fit:contain}
 .sh-item__chev{width:7px;height:7px;margin-left:2px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:translateY(-2px) rotate(45deg);transition:transform .2s ease}
 button.sh-item__info:hover .sh-item__chev{border-color:var(--red)}
 button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1px) rotate(-135deg)}
