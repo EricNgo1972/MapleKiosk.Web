@@ -191,7 +191,7 @@ public sealed class AppOrderService : IPhoneLineOrders
 
     /// <summary>Records how buying the number ended. Only the claim's winner calls this.</summary>
     public async Task FinishPhoneLineAsync(string orderRef, string status, string? number, string? sid, string? error,
-        CancellationToken ct = default)
+        CancellationToken ct = default, string? accountSid = null)
     {
         if (_table is null) return;
         var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
@@ -204,8 +204,62 @@ public sealed class AppOrderService : IPhoneLineOrders
         };
         if (!string.IsNullOrEmpty(number)) patch[nameof(AppOrderEntity.PhoneLineNumber)] = number;
         if (!string.IsNullOrEmpty(sid)) patch[nameof(AppOrderEntity.PhoneLineSid)] = sid;
+        if (!string.IsNullOrEmpty(accountSid)) patch[nameof(AppOrderEntity.PhoneLineAccountSid)] = accountSid;
         await _table.UpdateEntityAsync(patch, ETag.All, TableUpdateMode.Merge, ct).ConfigureAwait(false);
         _logger.LogInformation("Phone line: order {OrderRef} is {Status} ({Number}).", orderRef, status, number);
+    }
+
+    /// <summary>Sets (or with null clears) when an Active line's number goes back to Twilio. The subscription
+    /// mirror calls it; the releaser acts on it.</summary>
+    public async Task ScheduleReleaseAsync(string orderRef, DateTimeOffset? releaseAt, CancellationToken ct = default)
+    {
+        if (_table is null) return;
+        var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
+        if (entity is null) return;
+
+        var patch = new TableEntity(entity.PartitionKey, entity.RowKey)
+        {
+            [nameof(AppOrderEntity.PhoneLineReleaseAt)] = releaseAt?.ToString("O") ?? ""
+        };
+        await _table.UpdateEntityAsync(patch, ETag.All, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+        _logger.LogInformation("Phone line: order {OrderRef} number release {When}.", orderRef,
+            releaseAt is { } at ? $"scheduled for {at:u}" : "cancelled");
+    }
+
+    public async Task SetCapStateAsync(string orderRef, string state, CancellationToken ct = default)
+    {
+        if (_table is null) return;
+        var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
+        if (entity is null) return;
+        var patch = new TableEntity(entity.PartitionKey, entity.RowKey) { [nameof(AppOrderEntity.PhoneLineCapState)] = state };
+        await _table.UpdateEntityAsync(patch, ETag.All, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+        _logger.LogInformation("Phone line: order {OrderRef} cap state {State}.", orderRef, state.Length == 0 ? "cleared" : state);
+    }
+
+    /// <summary>Active → Releasing with an ETag-conditional write, so exactly one caller hands the number back.</summary>
+    public async Task<bool> ClaimReleaseAsync(string orderRef, CancellationToken ct = default)
+    {
+        if (_table is null) return false;
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
+            if (entity is null || entity.PhoneLineStatus != PhoneLineStatus.Active) return false;
+
+            var patch = new TableEntity(entity.PartitionKey, entity.RowKey)
+            {
+                [nameof(AppOrderEntity.PhoneLineStatus)] = PhoneLineStatus.Releasing
+            };
+            try
+            {
+                await _table.UpdateEntityAsync(patch, entity.ETag, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+                return true;
+            }
+            catch (RequestFailedException ex) when (ex.Status == 412)
+            {
+                _logger.LogDebug("Phone line: ETag conflict claiming release of {OrderRef}; reading again.", orderRef);
+            }
+        }
+        return false;
     }
 
     /// <summary>Phone-line orders, newest first: one salon's when <paramref name="tenantId"/> is given, else all (staff).</summary>

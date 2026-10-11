@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Azure;
 using Azure.Data.Tables;
@@ -38,6 +39,10 @@ public sealed class AppOrderEntity : ITableEntity
     public string? PhoneLineStatus { get; set; }
     public string? PhoneLineSid { get; set; }
     public string? PhoneLineError { get; set; }
+    public string? PhoneLineAccountSid { get; set; }
+    // ISO 8601, "" = none: a Merge can blank a string but cannot remove a date.
+    public string? PhoneLineReleaseAt { get; set; }
+    public string? PhoneLineCapState { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
@@ -72,6 +77,9 @@ public sealed class AppOrderEntity : ITableEntity
         PhoneLineStatus = o.PhoneLineStatus,
         PhoneLineSid = o.PhoneLineSid,
         PhoneLineError = o.PhoneLineError,
+        PhoneLineAccountSid = o.PhoneLineAccountSid,
+        PhoneLineCapState = o.PhoneLineCapState,
+        PhoneLineReleaseAt = o.PhoneLineReleaseAt?.ToString("O") ?? "",
         CreatedAt = o.CreatedAt,
         PaidAt = o.PaidAt,
         ExpiresAt = o.ExpiresAt
@@ -104,6 +112,10 @@ public sealed class AppOrderEntity : ITableEntity
         PhoneLineStatus = PhoneLineStatus,
         PhoneLineSid = PhoneLineSid,
         PhoneLineError = PhoneLineError,
+        PhoneLineAccountSid = PhoneLineAccountSid,
+        PhoneLineCapState = PhoneLineCapState,
+        PhoneLineReleaseAt = DateTimeOffset.TryParse(PhoneLineReleaseAt, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at)
+            ? at : null,
         CreatedAt = CreatedAt,
         PaidAt = PaidAt,
         ExpiresAt = ExpiresAt

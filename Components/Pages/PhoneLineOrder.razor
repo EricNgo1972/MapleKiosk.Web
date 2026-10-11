@@ -53,7 +53,19 @@
                             break;
                         case PhoneLineStatus.Active:
                             <p class="pl-pay__number">@PhoneLineService.Pretty(_order.PhoneLineNumber)</p>
-                            <p>@string.Format(L["pl.o.active"], PhoneLineService.Pretty(_order.PhoneLineNumber))</p>
+                            @if (_order.PhoneLineReleaseAt is { } releaseAt)
+                            {
+                                <p>@string.Format(L["pl.o.ending"], PhoneLineService.Pretty(_order.PhoneLineNumber), releaseAt.ToString("D", L.CultureInfo))</p>
+                            }
+                            else
+                            {
+                                <p>@string.Format(L["pl.o.active"], PhoneLineService.Pretty(_order.PhoneLineNumber))</p>
+                            }
+                            @if (PhoneLineCap.IsCapped(_order.PhoneLineCapState))
+                            {
+                                <p class="pl-note pl-note--warn">@string.Format(L["pl.o.capped"], PhoneLineService.Pretty(_order.PhoneLineNumber),
+                                    PhoneLineCap.MonthStart(DateTimeOffset.UtcNow).AddMonths(1).ToString("D", L.CultureInfo))</p>
+                            }
                             @if (_manageUrl is not null)
                             {
                                 <p><a href="@_manageUrl" target="_blank" rel="noopener">@L["pl.o.manage"]</a></p>
@@ -67,6 +79,10 @@
                                     @L["pl.o.use"]
                                 </button>
                             </p>
+                            break;
+                        case PhoneLineStatus.Releasing:
+                        case PhoneLineStatus.Released:
+                            <p>@string.Format(L["pl.o.released"], PhoneLineService.Pretty(_order.PhoneLineNumber))</p>
                             break;
                         case PhoneLineStatus.WaitingForSalon:
                         case PhoneLineStatus.Failed:

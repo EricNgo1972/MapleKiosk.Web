@@ -5,6 +5,7 @@ using MapleKiosk.Web.Shop.Checkout;
 using MapleKiosk.Web.Shop.Config;
 using MapleKiosk.Web.Shop.Orders;
 using MapleKiosk.Web.Shop.Payments.VietQr;
+using MapleKiosk.Web.Shop.PhoneLines;
 using Stripe;
 // Stripe also defines a CheckoutService; alias ours so the unqualified name is unambiguous.
 using CheckoutService = MapleKiosk.Web.Shop.Checkout.CheckoutService;
@@ -64,6 +65,10 @@ public static class AppStoreEndpoints
             return result.Success ? Results.Ok(result) : Results.BadRequest(result);
         });
 
+        // A phone line past its monthly cap is pointed here: Twilio doesn't bill a call that is declined unanswered.
+        group.MapMethods("/phone-line/declined", ["GET", "POST"], () =>
+            Results.Content("<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response><Reject reason=\"busy\"/></Response>", "text/xml"));
+
         var hooks = group.MapGroup("/webhooks");
         hooks.MapPost("/stripe", HandleStripeWebhookAsync);
         hooks.MapPost("/bank", HandleBankWebhookAsync);
@@ -86,7 +91,7 @@ public static class AppStoreEndpoints
     }
 
     private static async Task<IResult> HandleStripeWebhookAsync(
-        HttpRequest request, AppStoreConfig config, AppOrderService orders, ILoggerFactory loggerFactory)
+        HttpRequest request, AppStoreConfig config, AppOrderService orders, PhoneLineService phoneLines, ILoggerFactory loggerFactory)
     {
         var log = loggerFactory.CreateLogger("AppStore.StripeWebhook");
         var secret = await config.GetStripeWebhookSecretAsync();
@@ -133,6 +138,8 @@ public static class AppStoreEndpoints
                 var periodEnd = sub.Items?.Data?.Select(i => (DateTime?)i.CurrentPeriodEnd).Max();
                 await orders.UpdateSubscriptionAsync(orderRef, sub.Id, sub.CustomerId, sub.Status,
                     periodEnd is { } end ? new DateTimeOffset(DateTime.SpecifyKind(end, DateTimeKind.Utc)) : null, ct);
+                // A phone line whose billing ended for good gets its number's release scheduled (never throws).
+                await phoneLines.OnSubscriptionChangedAsync(orderRef, DateTimeOffset.UtcNow, ct);
             }
         }
 

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using MapleKiosk.Web.Services;
 using MapleKiosk.Web.Shop.Catalog;
 using MapleKiosk.Web.Shop.Orders;
 using MapleKiosk.Web.Shop.Payments;
@@ -34,6 +35,10 @@ public sealed record PhoneLineOutcome(string Status, string? Number, string? Err
 ///   replayed or concurrent webhook can never buy twice.</item>
 ///   <item>A phone-line item with a free trial is never sold: a trial completes checkout with no payment.</item>
 ///   <item>One active line per salon.</item>
+///   <item>When Stripe stops billing for good, the number goes back to Twilio after a grace period
+///   (<see cref="OnSubscriptionChangedAsync"/>, <see cref="ReleaseDueAsync"/>), and an ended order never buys one.</item>
+///   <item>"Calls included" has a ceiling: past the monthly minute cap a line's calls are declined (Twilio doesn't
+///   bill a declined call) until the month turns or staff lift it (<see cref="EnforceCapsAsync"/>).</item>
 /// </list>
 /// The generic cart (CheckoutService) and the quotes refuse the phone-line category, so this is the only way in.
 /// </summary>
@@ -48,6 +53,14 @@ public sealed class PhoneLineService
     // E.164 for the two countries sold: +1 and ten digits.
     private static readonly Regex NorthAmericanNumber = new(@"^\+1\d{10}$", RegexOptions.Compiled);
     private static readonly Regex AreaCode = new(@"^\d{3}$", RegexOptions.Compiled);
+
+    /// <summary>Days a line keeps its number after its subscription ends, unless <c>PhoneLine/ReleaseGraceDays</c>
+    /// (or env PHONE_LINE_RELEASE_GRACE_DAYS) says otherwise. Room for a card fix or a change of mind.</summary>
+    public const int DefaultReleaseGraceDays = 14;
+
+    /// <summary>Where a capped line's calls go: a fixed answer that declines them, served by this site.</summary>
+    public const string DeclinedPath = "/api/checkout/phone-line/declined";
+    public static string DeclinedUrl => $"https://{SiteHost.Public}{DeclinedPath}";
 
     private readonly IPhoneLineOrders _orders;
     private readonly IAppCatalog _catalog;
@@ -94,7 +107,7 @@ public sealed class PhoneLineService
         {
             var endpoint = await _directory.GetPhoneEndpointAsync(owned.TenantId, ct).ConfigureAwait(false);
             var active = (await _orders.ListPhoneLinesAsync(owned.TenantId, ct).ConfigureAwait(false))
-                .FirstOrDefault(o => o.PhoneLineStatus == PhoneLineStatus.Active)?.PhoneLineNumber;
+                .FirstOrDefault(o => o.PhoneLineStatus is PhoneLineStatus.Active or PhoneLineStatus.Releasing)?.PhoneLineNumber;
             salons.Add(new PhoneLineSalon(
                 owned.TenantId,
                 string.IsNullOrWhiteSpace(endpoint?.SalonName) ? owned.TenantId : endpoint.SalonName,
@@ -214,6 +227,9 @@ public sealed class PhoneLineService
             return Current(order);
         }
 
+        // Stripe has stopped billing (cancelled before the number could be bought, say): nothing more to buy.
+        if (SubscriptionStates.HasEnded(order.SubscriptionStatus)) return Current(order, "pl.err.ended");
+
         var chosen = newNumber?.Trim();
         if (!string.IsNullOrEmpty(chosen) && !IsNumber(chosen)) return Current(order, "pl.err.pick");
 
@@ -234,7 +250,7 @@ public sealed class PhoneLineService
         try
         {
             var other = (await _orders.ListPhoneLinesAsync(tenantId, ct).ConfigureAwait(false))
-                .FirstOrDefault(o => o.OrderRef != order.OrderRef && o.PhoneLineStatus is PhoneLineStatus.Active or PhoneLineStatus.Buying);
+                .FirstOrDefault(o => o.OrderRef != order.OrderRef && PhoneLineStatus.HoldsNumber(o.PhoneLineStatus));
             if (other is not null)
                 return await FinishAsync(order, PhoneLineStatus.Failed, number, null,
                     $"Tenant {tenantId} already has a line on order {other.OrderRef} ({other.PhoneLineNumber}, {other.PhoneLineStatus}).", ct);
@@ -255,7 +271,7 @@ public sealed class PhoneLineService
                 number, order.OrderRef, order.CustomerEmail, tenantId, endpoint!.SalonName, endpoint.IncomingUrl,
                 endpoint.FallbackUrl, endpoint.StatusUrl, endpoint.ReportedAtUtc);
 
-            var bought = await _telephony.BuyAsync(number!,
+            var bought = await _telephony.BuyAsync(null, number!,
                 new VoiceWebhooks(endpoint.IncomingUrl, endpoint.FallbackUrl, endpoint.StatusUrl),
                 $"{(string.IsNullOrWhiteSpace(endpoint.SalonName) ? tenantId : endpoint.SalonName)} · {order.OrderRef}", ct).ConfigureAwait(false);
 
@@ -297,6 +313,183 @@ public sealed class PhoneLineService
         if (order is null || !IsPhoneLineOrder(order)) return null;
         var mine = Canonical(signedInEmail) is { Length: > 0 } me && me == Canonical(order.CustomerEmail);
         return mine || isStaff ? order : null;
+    }
+
+    /// <summary>
+    /// Follows the Stripe subscription mirror: once Stripe has stopped billing an Active line for good, its number is
+    /// scheduled to go back to Twilio a grace period after the paid time runs out; if billing resumes first (an
+    /// unpaid invoice settled), the release is called off. Never throws: the webhook must still answer Stripe.
+    /// </summary>
+    public async Task OnSubscriptionChangedAsync(string orderRef, DateTimeOffset now, CancellationToken ct = default)
+    {
+        try
+        {
+            var order = await _orders.GetAsync(orderRef, ct).ConfigureAwait(false);
+            if (order is null || !IsPhoneLineOrder(order) || order.PhoneLineStatus != PhoneLineStatus.Active) return;
+
+            var ended = SubscriptionStates.HasEnded(order.SubscriptionStatus);
+            if (ended && order.PhoneLineReleaseAt is null)
+            {
+                var paidUntil = order.CurrentPeriodEnd is { } end && end > now ? end : now;
+                var at = paidUntil.AddDays(await ReleaseGraceDaysAsync().ConfigureAwait(false));
+                _logger.LogWarning("Phone line: order {OrderRef} subscription {Status}; {Number} ({Sid}) will be released {At:u}.",
+                    order.OrderRef, order.SubscriptionStatus, order.PhoneLineNumber, order.PhoneLineSid, at);
+                await _orders.ScheduleReleaseAsync(order.OrderRef, at, ct).ConfigureAwait(false);
+            }
+            else if (!ended && order.PhoneLineReleaseAt is not null)
+            {
+                _logger.LogWarning("Phone line: order {OrderRef} subscription is {Status} again; keeping {Number}.",
+                    order.OrderRef, order.SubscriptionStatus, order.PhoneLineNumber);
+                await _orders.ScheduleReleaseAsync(order.OrderRef, null, ct).ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Phone line: following the subscription of order {OrderRef} failed.", orderRef);
+        }
+    }
+
+    /// <summary>
+    /// Hands back to Twilio every number whose release date has passed and whose subscription is still ended.
+    /// Each release is claimed (Active → Releasing) so two sweeps never both delete; a failed release goes back to
+    /// Active with the error and is tried on the next sweep. Returns how many numbers were released.
+    /// </summary>
+    public async Task<int> ReleaseDueAsync(DateTimeOffset now, CancellationToken ct = default)
+    {
+        var released = 0;
+        foreach (var order in await _orders.ListPhoneLinesAsync(null, ct).ConfigureAwait(false))
+        {
+            if (order.PhoneLineStatus != PhoneLineStatus.Active || order.PhoneLineReleaseAt is not { } at || at > now
+                || !SubscriptionStates.HasEnded(order.SubscriptionStatus))
+                continue;
+            if (string.IsNullOrWhiteSpace(order.PhoneLineSid))
+            {
+                _logger.LogError("Phone line: order {OrderRef} is due for release but has no Twilio number id.", order.OrderRef);
+                continue;
+            }
+            if (!await _orders.ClaimReleaseAsync(order.OrderRef, ct).ConfigureAwait(false)) continue;
+
+            string? error;
+            try { error = await _telephony.ReleaseAsync(order.PhoneLineAccountSid, order.PhoneLineSid, ct).ConfigureAwait(false); }
+            catch (Exception ex) { error = ex.Message; }
+
+            if (error is null)
+            {
+                _logger.LogWarning("Phone line: released {Number} ({Sid}) of tenant {TenantId}, order {OrderRef} (subscription {Status}).",
+                    order.PhoneLineNumber, order.PhoneLineSid, order.PhoneLineTenantId, order.OrderRef, order.SubscriptionStatus);
+                await _orders.FinishPhoneLineAsync(order.OrderRef, PhoneLineStatus.Released, null, null, null, ct).ConfigureAwait(false);
+                released++;
+            }
+            else
+            {
+                _logger.LogError("Phone line: releasing {Number} ({Sid}) of order {OrderRef} failed: {Error}",
+                    order.PhoneLineNumber, order.PhoneLineSid, order.OrderRef, error);
+                await _orders.FinishPhoneLineAsync(order.OrderRef, PhoneLineStatus.Active, null, null, "Release failed: " + error, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+        return released;
+    }
+
+    /// <summary>
+    /// Holds every Active line to the monthly minute cap (<c>PhoneLine/MonthlyMinuteCap</c>; unset or 0 = no cap):
+    /// a line past it this month has its calls declined; a line capped in an earlier month is pointed back at the
+    /// salon. Re-pointing reads the salon's reported address again, exactly as buying does. Returns lines changed.
+    /// </summary>
+    public async Task<int> EnforceCapsAsync(DateTimeOffset now, CancellationToken ct = default)
+    {
+        var cap = await MonthlyMinuteCapAsync().ConfigureAwait(false);
+        var month = PhoneLineCap.Month(now);
+        var changed = 0;
+        foreach (var order in await _orders.ListPhoneLinesAsync(null, ct).ConfigureAwait(false))
+        {
+            if (order.PhoneLineStatus != PhoneLineStatus.Active || string.IsNullOrWhiteSpace(order.PhoneLineSid)) continue;
+            var state = order.PhoneLineCapState ?? "";
+            try
+            {
+                if (PhoneLineCap.IsCapped(state) && state != PhoneLineCap.Capped(now))
+                {
+                    // A new month: the line answers again.
+                    var endpoint = await _directory.GetPhoneEndpointAsync(order.PhoneLineTenantId!, ct).ConfigureAwait(false);
+                    if (!Reachable(endpoint))
+                    {
+                        _logger.LogWarning("Phone line: {Number} (order {OrderRef}) can't be pointed back at tenant {TenantId}: no public address.",
+                            order.PhoneLineNumber, order.OrderRef, order.PhoneLineTenantId);
+                        continue;
+                    }
+                    var error = await _telephony.PointAsync(order.PhoneLineAccountSid, order.PhoneLineSid,
+                        new VoiceWebhooks(endpoint!.IncomingUrl, endpoint.FallbackUrl, endpoint.StatusUrl), ct).ConfigureAwait(false);
+                    if (error is not null)
+                    {
+                        _logger.LogError("Phone line: restoring {Number} (order {OrderRef}) failed: {Error}", order.PhoneLineNumber, order.OrderRef, error);
+                        continue;
+                    }
+                    _logger.LogWarning("Phone line: {Number} (order {OrderRef}) answers again at {Incoming} for {Month}.",
+                        order.PhoneLineNumber, order.OrderRef, endpoint.IncomingUrl, month);
+                    await _orders.SetCapStateAsync(order.OrderRef, "", ct).ConfigureAwait(false);
+                    changed++;
+                    state = "";
+                }
+
+                if (cap <= 0 || PhoneLineCap.IsCapped(state) || state == PhoneLineCap.Lifted(now)) continue;
+
+                var (minutes, readError) = await _telephony.MinutesUsedAsync(order.PhoneLineAccountSid, order.PhoneLineNumber!,
+                    PhoneLineCap.MonthStart(now), ct).ConfigureAwait(false);
+                if (minutes is null)
+                {
+                    _logger.LogWarning("Phone line: couldn't read {Number}'s minutes (order {OrderRef}): {Error}", order.PhoneLineNumber, order.OrderRef, readError);
+                    continue;
+                }
+                if (minutes < cap) continue;
+
+                var declined = new VoiceWebhooks(DeclinedUrl, DeclinedUrl, DeclinedUrl);
+                var pointError = await _telephony.PointAsync(order.PhoneLineAccountSid, order.PhoneLineSid, declined, ct).ConfigureAwait(false);
+                if (pointError is not null)
+                {
+                    _logger.LogError("Phone line: capping {Number} (order {OrderRef}) failed: {Error}", order.PhoneLineNumber, order.OrderRef, pointError);
+                    continue;
+                }
+                _logger.LogWarning("Phone line: {Number} (order {OrderRef}, tenant {TenantId}) used {Minutes} of {Cap} minutes in {Month}; its calls are declined until next month.",
+                    order.PhoneLineNumber, order.OrderRef, order.PhoneLineTenantId, minutes, cap, month);
+                await _orders.SetCapStateAsync(order.OrderRef, PhoneLineCap.Capped(now), ct).ConfigureAwait(false);
+                changed++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Phone line: holding order {OrderRef} to its cap failed.", order.OrderRef);
+            }
+        }
+        return changed;
+    }
+
+    /// <summary>Staff only: lets a capped line answer again for the rest of this month (the cap returns next month).</summary>
+    public async Task<string?> LiftCapAsync(string orderRef, DateTimeOffset now, CancellationToken ct = default)
+    {
+        var order = await _orders.GetAsync(orderRef, ct).ConfigureAwait(false);
+        if (order is null || !IsPhoneLineOrder(order) || order.PhoneLineStatus != PhoneLineStatus.Active || string.IsNullOrWhiteSpace(order.PhoneLineSid))
+            return "Not an active line.";
+        var endpoint = await _directory.GetPhoneEndpointAsync(order.PhoneLineTenantId!, ct).ConfigureAwait(false);
+        if (!Reachable(endpoint)) return "The salon hasn't reported a public https address.";
+
+        var error = await _telephony.PointAsync(order.PhoneLineAccountSid, order.PhoneLineSid,
+            new VoiceWebhooks(endpoint!.IncomingUrl, endpoint.FallbackUrl, endpoint.StatusUrl), ct).ConfigureAwait(false);
+        if (error is not null) return error;
+        _logger.LogWarning("Phone line: cap lifted on {Number} (order {OrderRef}) for {Month}.", order.PhoneLineNumber, order.OrderRef, PhoneLineCap.Month(now));
+        await _orders.SetCapStateAsync(order.OrderRef, PhoneLineCap.Lifted(now), ct).ConfigureAwait(false);
+        return null;
+    }
+
+    /// <summary>Minutes a line may use per month; 0 = no cap. Key <c>PhoneLine/MonthlyMinuteCap</c> or env PHONE_LINE_MONTHLY_MINUTE_CAP.</summary>
+    public static async Task<int> MonthlyMinuteCapAsync()
+    {
+        var raw = await KeyValueTable.ResolveAsync("PHONE_LINE_MONTHLY_MINUTE_CAP", "PhoneLine", "MonthlyMinuteCap").ConfigureAwait(false);
+        return int.TryParse(raw, out var minutes) && minutes > 0 ? minutes : 0;
+    }
+
+    private static async Task<int> ReleaseGraceDaysAsync()
+    {
+        var raw = await KeyValueTable.ResolveAsync("PHONE_LINE_RELEASE_GRACE_DAYS", "PhoneLine", "ReleaseGraceDays").ConfigureAwait(false);
+        return int.TryParse(raw, out var days) && days is >= 0 and <= 365 ? days : DefaultReleaseGraceDays;
     }
 
     /// <summary>Every phone-line order, newest first (staff).</summary>
