@@ -1,0 +1,79 @@
+@using MapleKiosk.Web.Shop.PhoneLines
+@inject LocalizationService L
+@inject PhoneLineService PhoneLines
+
+@* Search numbers for sale by country and area code, and pick one. The search and its rules are
+   PhoneLineService's; this only collects the two inputs and reports the chosen number. Used by /phone-line,
+   by the order page when a number was taken before it could be bought, and by /admin/phone-lines. *@
+
+<div class="pl-pick">
+    <div class="pl-pick__search">
+        <label>
+            <span>@L["pl.country"]</span>
+            <select @bind="_country">
+                <option value="US">@L["pl.country.us"]</option>
+                <option value="CA">@L["pl.country.ca"]</option>
+            </select>
+        </label>
+        <label>
+            <span>@L["pl.area"]</span>
+            <input type="text" inputmode="numeric" maxlength="3" placeholder="416" @bind="_areaCode" />
+        </label>
+        <button type="button" class="btn btn-ghost" disabled="@_searching" @onclick="SearchAsync">
+            @(_searching ? L["pl.searching"] : L["pl.search"])
+        </button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <p class="pl-note pl-note--warn">@L[_error]</p>
+    }
+    else if (_found is { Count: 0 })
+    {
+        <p class="pl-muted">@L["pl.none"]</p>
+    }
+    else if (_found is not null)
+    {
+        <div class="pl-pick__list" role="listbox" aria-label="@L["pl.step.number"]">
+            @foreach (var n in _found)
+            {
+                var selected = n.Number == Selected;
+                <button type="button" class="pl-choice @(selected ? "is-selected" : null)" role="option" aria-selected="@(selected ? "true" : "false")"
+                        @onclick="() => SelectedChanged.InvokeAsync(n.Number)">
+                    <strong>@PhoneLineService.Pretty(n.Number)</strong>
+                    <small>@string.Join(", ", new[] { n.Locality, n.Region }.Where(s => !string.IsNullOrWhiteSpace(s)))</small>
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>The chosen number (E.164), or null.</summary>
+    [Parameter] public string? Selected { get; set; }
+    [Parameter] public EventCallback<string?> SelectedChanged { get; set; }
+
+    private string _country = "CA";
+    private string? _areaCode;
+    private bool _searching;
+    private string? _error;
+    private IReadOnlyList<AvailableNumber>? _found;
+
+    private async Task SearchAsync()
+    {
+        _searching = true;
+        _error = null;
+        try
+        {
+            var result = await PhoneLines.SearchAsync(_country, _areaCode);
+            _found = result.Numbers;
+            _error = result.Error;
+            if (Selected is not null && _found.All(n => n.Number != Selected))
+                await SelectedChanged.InvokeAsync(null);
+        }
+        finally
+        {
+            _searching = false;
+        }
+    }
+}

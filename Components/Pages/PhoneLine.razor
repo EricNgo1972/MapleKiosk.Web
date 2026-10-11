@@ -1,0 +1,183 @@
+@page "/phone-line"
+@page "/fr/phone-line"
+@page "/vi/phone-line"
+@page "/ru/phone-line"
+@page "/store/phone-line"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using MapleKiosk.Web.Shop.PhoneLines
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject PhoneLineService PhoneLines
+
+@* A salon owner buys their salon's phone number: signs in (central OAuth proves the email), picks one of the
+   salons that email owns, chooses a number and subscribes. Nothing is bought until Stripe confirms the payment.
+   Every rule is PhoneLineService's; this page only collects the three choices. The salon app's "Get a phone
+   number" links to /store/phone-line (MapleKiosk VoicePhoneLine.ShopUrl). *@
+
+<PageTitle>@L["pl.meta.title"]</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["pl.meta.desc"]" />
+</HeadContent>
+
+<NavBar />
+
+<main class="lp pl">
+    <section class="section">
+        <div class="container pl__wrap">
+            <h1>@L["pl.title"]</h1>
+            <p class="pl__lead">
+                @L["pl.lead"]
+                @if (_offer is not null)
+                {
+                    <strong> @string.Format(L["pl.price"], ShopMoney.Format(_offer.Price, L.Culture))</strong>
+                }
+            </p>
+
+            @if (Checkout == "cancelled")
+            {
+                <p class="pl-note">@L["pl.cancelled"]</p>
+            }
+
+            @if (!_loaded)
+            {
+                <p class="pl-muted">@L["pl.loading"]</p>
+            }
+            else if (_offer is null)
+            {
+                <p class="pl-note">@L["pl.offsale"]</p>
+            }
+            else if (_email is null)
+            {
+                <div class="pl-card">
+                    <h2>@L["pl.signin.title"]</h2>
+                    <p class="pl-muted">@L["pl.signin.body"]</p>
+                    <a class="btn btn-primary" href="@SignInUrl" data-enhance-nav="false">@L["pl.signin.cta"]</a>
+                </div>
+            }
+            else
+            {
+                <p class="pl-muted">@string.Format(L["pl.as"], _email)</p>
+
+                <div class="pl-card">
+                    <h2>@L["pl.step.salon"]</h2>
+                    @if (_salons is null or { Count: 0 })
+                    {
+                        <p>@string.Format(L["pl.nosalon"], _email)</p>
+                        <form method="post" action="/logout" data-enhance="false">
+                            <button type="submit" class="btn btn-ghost">@L["pl.other"]</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="pl-choices">
+                            @foreach (var s in _salons)
+                            {
+                                var usable = s.CanTakeCalls && s.ActiveNumber is null;
+                                <button type="button" class="pl-choice @(s.TenantId == _tenantId ? "is-selected" : null)" disabled="@(!usable)"
+                                        @onclick="() => _tenantId = s.TenantId">
+                                    <strong>@s.Name</strong>
+                                    @if (s.ActiveNumber is not null)
+                                    {
+                                        <small>@string.Format(L["pl.salon.has"], PhoneLineService.Pretty(s.ActiveNumber))</small>
+                                    }
+                                    else if (!s.CanTakeCalls)
+                                    {
+                                        <small>@L["pl.salon.unreachable"]</small>
+                                    }
+                                    else if (s.Address is not null)
+                                    {
+                                        <small>@s.Address</small>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="pl-card">
+                    <h2>@L["pl.step.number"]</h2>
+                    <PhoneNumberPicker @bind-Selected="_number" />
+                </div>
+
+                <div class="pl-card pl-pay">
+                    <div>
+                        <h2>@L["pl.step.pay"]</h2>
+                        <p class="pl-pay__number">@(_number is null ? L["pl.chosen.none"] : PhoneLineService.Pretty(_number))</p>
+                        <p class="pl-muted">@string.Format(L["pl.pay.note"], ShopMoney.Format(_offer.Price, L.Culture))</p>
+                    </div>
+                    <button type="button" class="btn btn-primary" disabled="@(_busy || _tenantId is null || _number is null)" @onclick="SubscribeAsync">
+                        @L["pl.subscribe"]
+                    </button>
+                </div>
+                @if (_error is not null)
+                {
+                    <p class="pl-note pl-note--warn" role="alert">@L[_error]</p>
+                }
+            }
+        </div>
+    </section>
+</main>
+
+<Footer />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "checkout")] public string? Checkout { get; set; }
+
+    private bool _loaded;
+    private bool _busy;
+    private string? _email;
+    private PhoneLineOffer? _offer;
+    private IReadOnlyList<PhoneLineSalon>? _salons;
+    private string? _tenantId;
+    private string? _number;
+    private string? _error;
+
+    private string SignInUrl => "/signin?returnUrl=" + Uri.EscapeDataString(new Uri(Nav.Uri).AbsolutePath);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+
+        // The email comes from the sign-in cookie only, never from the page.
+        var user = (await AuthState).User;
+        var email = user.Identity?.IsAuthenticated == true ? user.FindFirst(ClaimTypes.Email)?.Value : null;
+        _email = string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
+
+        _offer = await PhoneLines.GetOfferAsync();
+        if (_email is not null && _offer is not null)
+        {
+            _salons = await PhoneLines.ListSalonsAsync(_email);
+            var usable = _salons.Where(s => s.CanTakeCalls && s.ActiveNumber is null).ToList();
+            if (usable.Count == 1) _tenantId = usable[0].TenantId;
+        }
+        _loaded = true;
+    }
+
+    private async Task SubscribeAsync()
+    {
+        if (_email is null || _tenantId is null || _number is null) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var result = await PhoneLines.StartCheckoutAsync(_email, _tenantId, _number, L.Culture, Nav.BaseUri);
+            if (result.Success && result.CheckoutUrl is not null)
+            {
+                Nav.NavigateTo(result.CheckoutUrl, forceLoad: true);
+                return;
+            }
+            _error = result.Error ?? "pl.err.checkout";
+        }
+        catch
+        {
+            _error = "pl.err.checkout";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

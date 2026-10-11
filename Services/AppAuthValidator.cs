@@ -12,6 +12,8 @@ namespace MapleKiosk.Web.Services;
 /// added on /admin/users (<see cref="UserDirectory"/>) → role <see cref="AdminRole"/>.</item>
 /// <item>Customers — any email on the onboarding list (added by staff after the
 /// deposit) → role <see cref="CustomerRole"/>, which only reaches their own setup page.</item>
+/// <item>Salon owners — any email that owns an activated salon (the platform's TenantActivation table) → role
+/// <see cref="SalonOwnerRole"/>, which only reaches /phone-line and their own phone-line orders. No admin.</item>
 /// </list>
 /// Returning claims = allow; null = deny (the auth callback then redirects to
 /// /access-denied). This is the <c>AuthEmailValidator</c> the
@@ -21,6 +23,7 @@ public static class AppAuthValidator
 {
     public const string AdminRole = "Admin";
     public const string CustomerRole = "Customer";
+    public const string SalonOwnerRole = "SalonOwner";
 
     /// <summary>Every address on this domain is team (shown on /admin/users).</summary>
     public const string TeamDomain = "@spc-technology.com";
@@ -44,11 +47,18 @@ public static class AppAuthValidator
         if (await IsStaffAsync(canonical, users))
             return new List<Claim> { new(ClaimTypes.Role, AdminRole) };
 
+        var roles = new List<Claim>();
+
         // Archived-only customers no longer sign in; suspended ones do, and see the "paused" page.
         var records = await onboarding.FindByEmailAsync(canonical);
         if (records.Any(r => r.Access != OnboardingAccess.Archived))
-            return new List<Claim> { new(ClaimTypes.Role, CustomerRole) };
+            roles.Add(new(ClaimTypes.Role, CustomerRole));
 
-        return null;
+        // A salon owner buying a phone line. Which salons they may buy for is checked again on every step
+        // (PhoneLineService), so this role only lets them sign in.
+        if (await Shop.PhoneLines.TenantDirectory.OwnsAnySalonAsync(canonical))
+            roles.Add(new(ClaimTypes.Role, SalonOwnerRole));
+
+        return roles.Count > 0 ? roles : null;
     }
 }

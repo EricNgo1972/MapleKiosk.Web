@@ -6,8 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- The MapleShop.UI RCL lives under src\; keep the web project's default
          globs from sweeping its .cs/.razor/obj files (which would duplicate the
-         RCL's assembly attributes). It still builds via the ProjectReference. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);src\**</DefaultItemExcludes>
+         RCL's assembly attributes). It still builds via the ProjectReference.
+         The tests (tests\) are their own project for the same reason. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);src\**;tests\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

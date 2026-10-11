@@ -45,6 +45,9 @@ public sealed class CheckoutService
         {
             var product = await _catalog.FindAsync(group.Key, ct).ConfigureAwait(false);
             if (product is null) return Fail(method, $"Unknown or inactive product: {group.Key}");
+            // Bought only on /phone-line, which ties the order to a salon and a number; from a cart it would be
+            // paid for with neither.
+            if (product.IsPhoneLine) return Fail(method, $"{product.Name} is sold on the phone-line page only.");
             var quantity = group.Sum(i => Math.Max(1, i.Quantity));
             if (quantity > MaxQuantity) return Fail(method, $"At most {MaxQuantity} of {product.Name}.");
             picks.Add((product, quantity));

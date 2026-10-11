@@ -1,0 +1,111 @@
+@page "/admin/phone-lines"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using MapleKiosk.Web.Shop.Orders
+@using MapleKiosk.Web.Shop.PhoneLines
+@inject PhoneLineService PhoneLines
+
+@* Staff view of every phone-line order: paid or not, and where buying its number stands. Staff get the buyer's
+   "Try again" (and "pick another number" when it was taken). An order stuck at Buying crashed mid-purchase:
+   find the number in the Twilio console by the order ref in its friendly name. *@
+
+<PageTitle>Phone lines — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/admin" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title">Phone lines</span>
+    </div>
+</header>
+
+<main class="adm">
+    <div class="container adm__wrap">
+        @if (_orders is null)
+        {
+            <p class="pl-muted">Loading…</p>
+        }
+        else if (_orders.Count == 0)
+        {
+            <p class="pl-muted">No phone-line orders yet.</p>
+        }
+        else
+        {
+            <ul class="adm-list">
+                @foreach (var o in _orders)
+                {
+                    <li class="pl-adm">
+                        <div class="adm-row">
+                            <span class="adm-row__main">
+                                <strong>@o.Company · @PhoneLineService.Pretty(o.PhoneLineNumber)</strong>
+                                <small>@o.OrderRef · @o.CustomerEmail · tenant @o.PhoneLineTenantId · @o.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                                @if (!string.IsNullOrWhiteSpace(o.PhoneLineSid))
+                                {
+                                    <small>Twilio @o.PhoneLineSid</small>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(o.PhoneLineError))
+                                {
+                                    <small class="pl-adm__err">@o.PhoneLineError</small>
+                                }
+                            </span>
+                            <span class="adm-row__side">
+                                <strong>@(o.Status == AppOrderStatus.Paid ? (string.IsNullOrEmpty(o.PhoneLineStatus) ? PhoneLineStatus.None : o.PhoneLineStatus) : o.Status.ToString())</strong>
+                                <small>@(o.SubscriptionStatus ?? "")</small>
+                            </span>
+                        </div>
+                        @if (o.Status == AppOrderStatus.Paid && PhoneLineStatus.IsRetryable(o.PhoneLineStatus))
+                        {
+                            <div class="pl-adm__actions">
+                                <button type="button" class="btn btn-ghost" disabled="@_busy" @onclick="() => RetryAsync(o, null)">Try again</button>
+                                <button type="button" class="btn btn-ghost" @onclick="() => _picking = _picking == o.OrderRef ? null : o.OrderRef">Pick another number</button>
+                            </div>
+                            @if (_picking == o.OrderRef)
+                            {
+                                <div class="pl-adm__actions">
+                                    <PhoneNumberPicker @bind-Selected="_number" />
+                                    <button type="button" class="btn btn-primary" disabled="@(_busy || _number is null)" @onclick="() => RetryAsync(o, _number)">
+                                        Buy @PhoneLineService.Pretty(_number)
+                                    </button>
+                                </div>
+                            }
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        @if (_message is not null)
+        {
+            <p class="pl-note" role="status">@_message</p>
+        }
+    </div>
+</main>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private IReadOnlyList<AppOrder>? _orders;
+    private string? _picking;
+    private string? _number;
+    private bool _busy;
+    private string? _message;
+
+    protected override async Task OnInitializedAsync() => _orders = await PhoneLines.ListOrdersAsync();
+
+    private async Task RetryAsync(AppOrder order, string? newNumber)
+    {
+        _busy = true;
+        try
+        {
+            var email = (await AuthState).User.FindFirst(ClaimTypes.Email)?.Value;
+            var outcome = await PhoneLines.RetryAsync(order.OrderRef, email, isStaff: true, newNumber);
+            _message = $"{order.OrderRef}: {outcome.Status} {PhoneLineService.Pretty(outcome.Number)}";
+            _picking = null;
+            _number = null;
+            _orders = await PhoneLines.ListOrdersAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

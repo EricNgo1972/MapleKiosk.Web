@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Data.Tables;
 using MapleKiosk.Web.Shop.Notifications;
+using MapleKiosk.Web.Shop.PhoneLines;
 
 namespace MapleKiosk.Web.Shop.Orders;
 
@@ -12,7 +13,7 @@ namespace MapleKiosk.Web.Shop.Orders;
 /// Pending→Paid transition is ETag-guarded so concurrent webhook retries confirm
 /// exactly once. Uses the site's existing STORAGE_CONNECTION_STRING.
 /// </summary>
-public sealed class AppOrderService
+public sealed class AppOrderService : IPhoneLineOrders
 {
     public const string TableName = "appstoreorders";
 
@@ -143,6 +144,83 @@ public sealed class AppOrderService
             _logger.LogInformation("App Store order {OrderRef} marked failed: {Reason}", orderRef, reason);
         }
         catch (RequestFailedException ex) when (ex.Status == 412) { /* lost race with confirmation */ }
+    }
+
+    /// <summary>
+    /// Claims a PAID phone-line order for buying its number: moves it to <see cref="PhoneLineStatus.Buying"/>
+    /// with an ETag-conditional write, so of any number of concurrent callers (Stripe replays, a second tab,
+    /// staff) exactly one wins and only that one may call Twilio. <paramref name="newNumber"/> replaces the
+    /// chosen number (a retry after it was taken). False = not paid, not claimable, or someone else won.
+    /// </summary>
+    public async Task<bool> ClaimPhoneLineAsync(string orderRef, string? newNumber, CancellationToken ct = default)
+    {
+        if (_table is null) return false;
+
+        // A Stripe subscription mirror can touch the row between our read and write (it lands alongside the
+        // payment); that 412 isn't a rival claim, so read again and retry while the order is still claimable.
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
+            if (entity is null
+                || !string.Equals(entity.Status, nameof(AppOrderStatus.Paid), StringComparison.Ordinal)
+                || string.IsNullOrEmpty(entity.PhoneLineTenantId)
+                || !PhoneLineStatus.IsClaimable(entity.PhoneLineStatus))
+                return false;
+
+            var patch = new TableEntity(entity.PartitionKey, entity.RowKey)
+            {
+                [nameof(AppOrderEntity.PhoneLineStatus)] = PhoneLineStatus.Buying,
+                [nameof(AppOrderEntity.PhoneLineError)] = ""
+            };
+            if (!string.IsNullOrEmpty(newNumber)) patch[nameof(AppOrderEntity.PhoneLineNumber)] = newNumber;
+
+            try
+            {
+                await _table.UpdateEntityAsync(patch, entity.ETag, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+                _logger.LogInformation("Phone line: order {OrderRef} claimed for buying.", orderRef);
+                return true;
+            }
+            catch (RequestFailedException ex) when (ex.Status == 412)
+            {
+                _logger.LogDebug("Phone line: ETag conflict claiming {OrderRef}; reading again.", orderRef);
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Records how buying the number ended. Only the claim's winner calls this.</summary>
+    public async Task FinishPhoneLineAsync(string orderRef, string status, string? number, string? sid, string? error,
+        CancellationToken ct = default)
+    {
+        if (_table is null) return;
+        var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
+        if (entity is null) return;
+
+        var patch = new TableEntity(entity.PartitionKey, entity.RowKey)
+        {
+            [nameof(AppOrderEntity.PhoneLineStatus)] = status,
+            [nameof(AppOrderEntity.PhoneLineError)] = error ?? ""
+        };
+        if (!string.IsNullOrEmpty(number)) patch[nameof(AppOrderEntity.PhoneLineNumber)] = number;
+        if (!string.IsNullOrEmpty(sid)) patch[nameof(AppOrderEntity.PhoneLineSid)] = sid;
+        await _table.UpdateEntityAsync(patch, ETag.All, TableUpdateMode.Merge, ct).ConfigureAwait(false);
+        _logger.LogInformation("Phone line: order {OrderRef} is {Status} ({Number}).", orderRef, status, number);
+    }
+
+    /// <summary>Phone-line orders, newest first: one salon's when <paramref name="tenantId"/> is given, else all (staff).</summary>
+    public async Task<IReadOnlyList<AppOrder>> ListPhoneLinesAsync(string? tenantId, CancellationToken ct = default)
+    {
+        if (_table is null) return [];
+
+        var filter = string.IsNullOrEmpty(tenantId)
+            ? TableClient.CreateQueryFilter($"Source eq {PhoneLineService.Source}")
+            : TableClient.CreateQueryFilter($"Source eq {PhoneLineService.Source} and PhoneLineTenantId eq {tenantId}");
+
+        var orders = new List<AppOrder>();
+        await foreach (var e in _table.QueryAsync<AppOrderEntity>(filter: filter, cancellationToken: ct).ConfigureAwait(false))
+            orders.Add(e.ToOrder());
+        return orders.OrderByDescending(o => o.CreatedAt).ToList();
     }
 
     private async Task FireSignalsAsync(AppOrder order, CancellationToken ct)

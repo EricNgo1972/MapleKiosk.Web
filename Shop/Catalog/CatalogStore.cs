@@ -59,16 +59,17 @@ public sealed partial class CatalogStore : IAppCatalog
     public async Task<IReadOnlyList<AppProduct>> GetAllAsync(CancellationToken ct = default)
         => (await LoadAsync(ct).ConfigureAwait(false)).Products;
 
-    /// <summary>The shop's catalog (IAppCatalog): every active item — the shop sells the whole catalog.</summary>
+    /// <summary>The shop's catalog (IAppCatalog): every active item the cart sells — all but the phone line.</summary>
     public async Task<IReadOnlyList<AppProduct>> GetActiveAsync(CancellationToken ct = default)
-        => (await LoadAsync(ct).ConfigureAwait(false)).Products.Where(p => p.Active).ToList();
+        => (await LoadAsync(ct).ConfigureAwait(false)).Products.Where(p => p.Active && !p.IsPhoneLine).ToList();
 
     /// <summary>Every category with its active items, in order: the pricing pages' quote builder and the shop
-    /// both sell all of them.</summary>
+    /// both sell all of them, except the phone line (sold only on /phone-line, with its salon and number).</summary>
     public async Task<IReadOnlyList<(CatalogCategory Category, IReadOnlyList<AppProduct> Items)>> GetGroupsAsync(CancellationToken ct = default)
     {
         var s = await LoadAsync(ct).ConfigureAwait(false);
         return s.Categories
+            .Where(c => c.Key != CatalogDefaults.PhoneLineCategory)
             .Select(c => (c, (IReadOnlyList<AppProduct>)s.Products.Where(p => p.Active && p.Category == c.Key).ToList()))
             .Where(g => g.Item2.Count > 0)
             .ToList();
