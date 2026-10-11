@@ -21,6 +21,8 @@
 
 <main class="adm">
     <div class="container adm__wrap">
+        <p class="pl-muted">Monthly minute cap: @(_cap > 0 ? $"{_cap} minutes per line" : "none (set keyvalue PhoneLine/MonthlyMinuteCap)") ·
+            ended subscriptions release their number after the grace period (PhoneLine/ReleaseGraceDays, default @PhoneLineService.DefaultReleaseGraceDays days).</p>
         @if (_orders is null)
         {
             <p class="pl-muted">Loading…</p>
@@ -41,7 +43,15 @@
                                 <small>@o.OrderRef · @o.CustomerEmail · tenant @o.PhoneLineTenantId · @o.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
                                 @if (!string.IsNullOrWhiteSpace(o.PhoneLineSid))
                                 {
-                                    <small>Twilio @o.PhoneLineSid</small>
+                                    <small>Twilio @o.PhoneLineSid@(string.IsNullOrWhiteSpace(o.PhoneLineAccountSid) ? "" : " on " + o.PhoneLineAccountSid)</small>
+                                }
+                                @if (!string.IsNullOrEmpty(o.PhoneLineCapState))
+                                {
+                                    <small class="pl-adm__err">Usage cap: @o.PhoneLineCapState</small>
+                                }
+                                @if (o.PhoneLineReleaseAt is { } releaseAt)
+                                {
+                                    <small class="pl-adm__err">Subscription @o.SubscriptionStatus — number released @releaseAt.ToString("yyyy-MM-dd HH:mm") UTC</small>
                                 }
                                 @if (!string.IsNullOrWhiteSpace(o.PhoneLineError))
                                 {
@@ -53,6 +63,12 @@
                                 <small>@(o.SubscriptionStatus ?? "")</small>
                             </span>
                         </div>
+                        @if (o.PhoneLineStatus == PhoneLineStatus.Active && PhoneLineCap.IsCapped(o.PhoneLineCapState))
+                        {
+                            <div class="pl-adm__actions">
+                                <button type="button" class="btn btn-ghost" disabled="@_busy" @onclick="() => LiftAsync(o)">Lift cap this month</button>
+                            </div>
+                        }
                         @if (o.Status == AppOrderStatus.Paid && PhoneLineStatus.IsRetryable(o.PhoneLineStatus))
                         {
                             <div class="pl-adm__actions">
@@ -89,7 +105,28 @@
     private bool _busy;
     private string? _message;
 
-    protected override async Task OnInitializedAsync() => _orders = await PhoneLines.ListOrdersAsync();
+    private int _cap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orders = await PhoneLines.ListOrdersAsync();
+        _cap = await PhoneLineService.MonthlyMinuteCapAsync();
+    }
+
+    private async Task LiftAsync(AppOrder order)
+    {
+        _busy = true;
+        try
+        {
+            var error = await PhoneLines.LiftCapAsync(order.OrderRef, DateTimeOffset.UtcNow);
+            _message = $"{order.OrderRef}: {error ?? "cap lifted for this month"}";
+            _orders = await PhoneLines.ListOrdersAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
 
     private async Task RetryAsync(AppOrder order, string? newNumber)
     {

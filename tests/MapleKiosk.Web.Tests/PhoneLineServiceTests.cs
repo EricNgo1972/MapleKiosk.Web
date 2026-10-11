@@ -270,7 +270,188 @@ public sealed class PhoneLineServiceTests
         Assert.Equal(BillingIntervals.Monthly, item.BillingInterval);
     }
 
+    // --- Phase 2: number release when billing ends ---
+
+    [Fact]
+    public async Task A_cancelled_line_keeps_its_number_through_the_paid_time_and_grace_then_releases_it_once()
+    {
+        var orderRef = await BuyLineAsync();
+        var now = DateTimeOffset.UtcNow;
+        var paidUntil = now.AddDays(10);
+
+        _orders.Mirror(orderRef, "canceled", paidUntil);
+        await _service.OnSubscriptionChangedAsync(orderRef, now);
+        var releaseAt = (await _orders.GetAsync(orderRef))!.PhoneLineReleaseAt;
+        Assert.Equal(paidUntil.AddDays(PhoneLineService.DefaultReleaseGraceDays), releaseAt);
+
+        Assert.Equal(0, await _service.ReleaseDueAsync(releaseAt!.Value.AddMinutes(-1)));
+        Assert.Empty(_telephony.Released);
+
+        _telephony.Delay = TimeSpan.FromMilliseconds(20);
+        var sweeps = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => _service.ReleaseDueAsync(releaseAt.Value.AddMinutes(1))));
+        Assert.Equal(1, sweeps.Sum());
+        Assert.Equal(["PN-" + Number], _telephony.Released);
+        Assert.Equal(PhoneLineStatus.Released, (await _orders.GetAsync(orderRef))!.PhoneLineStatus);
+    }
+
+    [Fact]
+    public async Task Billing_that_resumes_before_the_release_keeps_the_number()
+    {
+        var orderRef = await BuyLineAsync();
+        var now = DateTimeOffset.UtcNow;
+
+        _orders.Mirror(orderRef, "unpaid", now);
+        await _service.OnSubscriptionChangedAsync(orderRef, now);
+        Assert.NotNull((await _orders.GetAsync(orderRef))!.PhoneLineReleaseAt);
+
+        _orders.Mirror(orderRef, "active", now.AddDays(30));
+        await _service.OnSubscriptionChangedAsync(orderRef, now);
+        Assert.Null((await _orders.GetAsync(orderRef))!.PhoneLineReleaseAt);
+
+        Assert.Equal(0, await _service.ReleaseDueAsync(now.AddYears(1)));
+        Assert.Empty(_telephony.Released);
+    }
+
+    [Fact]
+    public async Task A_past_due_card_is_not_an_ended_subscription()
+    {
+        var orderRef = await BuyLineAsync();
+        _orders.Mirror(orderRef, "past_due", DateTimeOffset.UtcNow);
+        await _service.OnSubscriptionChangedAsync(orderRef, DateTimeOffset.UtcNow);
+        Assert.Null((await _orders.GetAsync(orderRef))!.PhoneLineReleaseAt);
+    }
+
+    [Fact]
+    public async Task A_release_Twilio_refuses_stays_active_and_is_tried_again()
+    {
+        var orderRef = await BuyLineAsync();
+        var now = DateTimeOffset.UtcNow;
+        _orders.Mirror(orderRef, "canceled", now);
+        await _service.OnSubscriptionChangedAsync(orderRef, now);
+
+        _telephony.ReleaseError = "Twilio is down";
+        Assert.Equal(0, await _service.ReleaseDueAsync(now.AddYears(1)));
+        var order = (await _orders.GetAsync(orderRef))!;
+        Assert.Equal(PhoneLineStatus.Active, order.PhoneLineStatus);
+        Assert.Contains("Twilio is down", order.PhoneLineError);
+
+        _telephony.ReleaseError = null;
+        Assert.Equal(1, await _service.ReleaseDueAsync(now.AddYears(1)));
+    }
+
+    [Fact]
+    public async Task A_released_salon_can_buy_a_new_line()
+    {
+        var orderRef = await BuyLineAsync();
+        var now = DateTimeOffset.UtcNow;
+        _orders.Mirror(orderRef, "canceled", now);
+        await _service.OnSubscriptionChangedAsync(orderRef, now);
+        await _service.ReleaseDueAsync(now.AddYears(1));
+
+        var salon = Assert.Single(await _service.ListSalonsAsync(Owner));
+        Assert.Null(salon.ActiveNumber);
+        await PayAsync(await PlaceAsync());
+        Assert.Equal(2, _telephony.Bought.Count);
+    }
+
+    [Fact]
+    public async Task An_order_whose_subscription_ended_never_buys_a_number()
+    {
+        var orderRef = await PlaceAsync();
+        _directory.Forget(Tenant);
+        await PayAsync(orderRef); // the salon stopped reporting: WaitingForSalon
+        _orders.Mirror(orderRef, "canceled", DateTimeOffset.UtcNow);
+
+        _directory.Report(Tenant, "Lotus Nails", "https://lotus.example.com");
+        var outcome = await _service.RetryAsync(orderRef, Owner, isStaff: false, null);
+        Assert.Equal("pl.err.ended", outcome.Error);
+        Assert.Empty(_telephony.Bought);
+    }
+
+    // --- Phase 2: monthly usage cap ---
+
+    [Fact]
+    public async Task A_line_past_its_monthly_cap_has_calls_declined_until_the_month_turns()
+    {
+        var orderRef = await BuyLineAsync();
+        var october = new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
+        using var cap = Cap(500);
+
+        _telephony.Minutes = 499;
+        Assert.Equal(0, await _service.EnforceCapsAsync(october));
+        Assert.Empty(_telephony.Pointed);
+
+        _telephony.Minutes = 500;
+        Assert.Equal(1, await _service.EnforceCapsAsync(october));
+        Assert.Equal(PhoneLineService.DeclinedUrl, Assert.Single(_telephony.Pointed).Hooks.Incoming);
+        Assert.Equal(new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero), _telephony.MeteredSince);
+        Assert.Equal(0, await _service.EnforceCapsAsync(october.AddHours(1))); // stays capped, no re-pointing
+
+        _telephony.Minutes = 0;
+        Assert.Equal(1, await _service.EnforceCapsAsync(october.AddDays(12))); // November
+        Assert.Equal("https://lotus.example.com/voice/in", _telephony.Pointed[^1].Hooks.Incoming);
+        Assert.Equal("", (await _orders.GetAsync(orderRef))!.PhoneLineCapState ?? "");
+    }
+
+    [Fact]
+    public async Task Staff_can_lift_the_cap_for_the_rest_of_the_month()
+    {
+        var orderRef = await BuyLineAsync();
+        var october = new DateTimeOffset(2026, 10, 20, 12, 0, 0, TimeSpan.Zero);
+        using var cap = Cap(500);
+        _telephony.Minutes = 900;
+        await _service.EnforceCapsAsync(october);
+
+        Assert.Null(await _service.LiftCapAsync(orderRef, october));
+        Assert.Equal("https://lotus.example.com/voice/in", _telephony.Pointed[^1].Hooks.Incoming);
+        Assert.Equal(0, await _service.EnforceCapsAsync(october.AddDays(1)));
+
+        Assert.Equal(1, await _service.EnforceCapsAsync(october.AddDays(12))); // November counts again
+        Assert.Equal(PhoneLineService.DeclinedUrl, _telephony.Pointed[^1].Hooks.Incoming);
+    }
+
+    [Fact]
+    public async Task Without_a_cap_no_line_is_metered()
+    {
+        await BuyLineAsync();
+        _telephony.Minutes = 1_000_000;
+        Assert.Equal(0, await _service.EnforceCapsAsync(DateTimeOffset.UtcNow));
+        Assert.Equal(0, _telephony.MeterReads);
+    }
+
+    [Fact]
+    public void A_call_log_page_bills_each_call_rounded_up_to_the_minute()
+    {
+        var (minutes, next) = TwilioGateway.ParseCallMinutes("""
+            {"calls":[{"duration":"61"},{"duration":"60"},{"duration":"0"},{"duration":null}],
+             "next_page_uri":"/2010-04-01/Accounts/AC1/Calls.json?Page=1"}
+            """);
+        Assert.Equal(3, minutes);
+        Assert.Equal("/2010-04-01/Accounts/AC1/Calls.json?Page=1", next);
+        Assert.Equal((0, (string?)null), TwilioGateway.ParseCallMinutes("""{"calls":[],"next_page_uri":null}"""));
+    }
+
     // --- Helpers ---
+
+    private async Task<string> BuyLineAsync()
+    {
+        var orderRef = await PlaceAsync();
+        await PayAsync(orderRef);
+        Assert.Equal(PhoneLineStatus.Active, (await _orders.GetAsync(orderRef))!.PhoneLineStatus);
+        return orderRef;
+    }
+
+    // The cap is read like the live site reads it (env first); the tests in this class run one at a time.
+    private static IDisposable Cap(int minutes)
+    {
+        Environment.SetEnvironmentVariable("PHONE_LINE_MONTHLY_MINUTE_CAP", minutes.ToString());
+        return new Undo(() => Environment.SetEnvironmentVariable("PHONE_LINE_MONTHLY_MINUTE_CAP", null));
+    }
+
+    private sealed class Undo(Action undo) : IDisposable
+    {
+        public void Dispose() => undo();
+    }
 
     private static AppProduct PhoneLineProduct() => new()
     {
@@ -306,6 +487,16 @@ public sealed class PhoneLineServiceTests
 
         public void MarkPaid(string orderRef) { lock (_gate) _rows[orderRef].Status = AppOrderStatus.Paid; }
 
+        // What UpdateSubscriptionAsync writes when Stripe reports a subscription change.
+        public void Mirror(string orderRef, string status, DateTimeOffset periodEnd)
+        {
+            lock (_gate)
+            {
+                _rows[orderRef].SubscriptionStatus = status;
+                _rows[orderRef].CurrentPeriodEnd = periodEnd;
+            }
+        }
+
         public Task<AppOrder> CreateAsync(AppOrder order, CancellationToken ct = default)
         {
             lock (_gate) _rows[order.OrderRef] = Copy(order);
@@ -331,7 +522,8 @@ public sealed class PhoneLineServiceTests
             }
         }
 
-        public Task FinishPhoneLineAsync(string orderRef, string status, string? number, string? sid, string? error, CancellationToken ct = default)
+        public Task FinishPhoneLineAsync(string orderRef, string status, string? number, string? sid, string? error, CancellationToken ct = default,
+            string? accountSid = null)
         {
             lock (_gate)
             {
@@ -342,6 +534,29 @@ public sealed class PhoneLineServiceTests
                 if (!string.IsNullOrEmpty(sid)) o.PhoneLineSid = sid;
             }
             return Task.CompletedTask;
+        }
+
+        public Task ScheduleReleaseAsync(string orderRef, DateTimeOffset? releaseAt, CancellationToken ct = default)
+        {
+            lock (_gate) _rows[orderRef].PhoneLineReleaseAt = releaseAt;
+            return Task.CompletedTask;
+        }
+
+        public Task SetCapStateAsync(string orderRef, string state, CancellationToken ct = default)
+        {
+            lock (_gate) _rows[orderRef].PhoneLineCapState = state;
+            return Task.CompletedTask;
+        }
+
+        // Same rule as AppOrderService's ETag-conditional release claim: Active, and one winner.
+        public Task<bool> ClaimReleaseAsync(string orderRef, CancellationToken ct = default)
+        {
+            lock (_gate)
+            {
+                if (!_rows.TryGetValue(orderRef, out var o) || o.PhoneLineStatus != PhoneLineStatus.Active) return Task.FromResult(false);
+                o.PhoneLineStatus = PhoneLineStatus.Releasing;
+                return Task.FromResult(true);
+            }
         }
 
         public Task<IReadOnlyList<AppOrder>> ListPhoneLinesAsync(string? tenantId, CancellationToken ct = default)
@@ -394,12 +609,42 @@ public sealed class PhoneLineServiceTests
         public Task<NumberSearchResult> SearchAsync(string country, string? areaCode, CancellationToken ct = default) =>
             Task.FromResult(new NumberSearchResult([new AvailableNumber(Number, "Toronto", "ON")]));
 
-        public async Task<NumberPurchase> BuyAsync(string phoneNumber, VoiceWebhooks webhooks, string friendlyName, CancellationToken ct = default)
+        public async Task<NumberPurchase> BuyAsync(string? accountSid, string phoneNumber, VoiceWebhooks webhooks, string friendlyName,
+            CancellationToken ct = default)
         {
             await Task.Delay(Delay, ct);
             if (Taken.Contains(phoneNumber)) return NumberPurchase.Taken("21422");
             lock (_bought) _bought.Add((phoneNumber, webhooks, friendlyName));
             return NumberPurchase.Bought("PN-" + phoneNumber, phoneNumber);
+        }
+
+        public List<string> Released { get; } = new();
+        public string? ReleaseError { get; set; }
+        public List<(string Sid, VoiceWebhooks Hooks)> Pointed { get; } = new();
+        public int Minutes { get; set; }
+        public int MeterReads { get; private set; }
+        public DateTimeOffset? MeteredSince { get; private set; }
+
+        public async Task<string?> ReleaseAsync(string? accountSid, string numberSid, CancellationToken ct = default)
+        {
+            await Task.Delay(Delay, ct);
+            if (ReleaseError is not null) return ReleaseError;
+            lock (Released) Released.Add(numberSid);
+            return null;
+        }
+
+        public Task<string?> PointAsync(string? accountSid, string numberSid, VoiceWebhooks webhooks, CancellationToken ct = default)
+        {
+            Pointed.Add((numberSid, webhooks));
+            return Task.FromResult<string?>(null);
+        }
+
+        public Task<(int? Minutes, string? Error)> MinutesUsedAsync(string? accountSid, string number, DateTimeOffset since,
+            CancellationToken ct = default)
+        {
+            MeterReads++;
+            MeteredSince = since;
+            return Task.FromResult<(int?, string?)>((Minutes, null));
         }
     }
 

@@ -78,6 +78,15 @@ public sealed class AppOrder
     /// <summary>Twilio's id for the bought number, and why the last attempt didn't buy it.</summary>
     public string? PhoneLineSid { get; set; }
     public string? PhoneLineError { get; set; }
+
+    /// <summary>The Twilio account that owns the number: the salon's own subaccount, or empty for the platform
+    /// account. When the subscription has ended, the number is released at <see cref="PhoneLineReleaseAt"/>.</summary>
+    public string? PhoneLineAccountSid { get; set; }
+    public DateTimeOffset? PhoneLineReleaseAt { get; set; }
+
+    /// <summary>The monthly usage cap: "" normally, "capped:yyyy-MM" while that month's calls are declined, or
+    /// "lifted:yyyy-MM" when staff let the line run past its cap for that month.</summary>
+    public string? PhoneLineCapState { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.UtcNow.AddMinutes(30);

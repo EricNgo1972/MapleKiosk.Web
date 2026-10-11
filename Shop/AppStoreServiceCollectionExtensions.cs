@@ -49,6 +49,8 @@ public static class AppStoreServiceCollectionExtensions
         services.AddSingleton<ITelephonyGateway, TwilioGateway>();
         services.AddSingleton<PhoneLineService>();
         services.AddSingleton<IOrderPaidSink, PhoneLineFulfilment>();
+        // Numbers whose subscription ended go back to Twilio after the grace period.
+        services.AddHostedService<PhoneLineSweeper>();
 
         return services;
     }

@@ -15,6 +15,12 @@ public class LocalizationService
         };
     }
 
+    /// <summary>For dates and numbers in the visitor's language (Canadian English and French).</summary>
+    public System.Globalization.CultureInfo CultureInfo => System.Globalization.CultureInfo.GetCultureInfo(Culture switch
+    {
+        "fr" => "fr-CA", "vi" => "vi-VN", "ru" => "ru-RU", _ => "en-CA",
+    });
+
     public string this[string key]
     {
         get
