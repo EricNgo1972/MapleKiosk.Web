@@ -33,6 +33,11 @@ public sealed class AppOrderEntity : ITableEntity
     public string? StripeSubscriptionId { get; set; }
     public string? SubscriptionStatus { get; set; }
     public DateTimeOffset? CurrentPeriodEnd { get; set; }
+    public string? PhoneLineTenantId { get; set; }
+    public string? PhoneLineNumber { get; set; }
+    public string? PhoneLineStatus { get; set; }
+    public string? PhoneLineSid { get; set; }
+    public string? PhoneLineError { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
@@ -62,6 +67,11 @@ public sealed class AppOrderEntity : ITableEntity
         StripeSubscriptionId = o.StripeSubscriptionId,
         SubscriptionStatus = o.SubscriptionStatus,
         CurrentPeriodEnd = o.CurrentPeriodEnd,
+        PhoneLineTenantId = o.PhoneLineTenantId,
+        PhoneLineNumber = o.PhoneLineNumber,
+        PhoneLineStatus = o.PhoneLineStatus,
+        PhoneLineSid = o.PhoneLineSid,
+        PhoneLineError = o.PhoneLineError,
         CreatedAt = o.CreatedAt,
         PaidAt = o.PaidAt,
         ExpiresAt = o.ExpiresAt
@@ -89,6 +99,11 @@ public sealed class AppOrderEntity : ITableEntity
         StripeSubscriptionId = StripeSubscriptionId,
         SubscriptionStatus = SubscriptionStatus,
         CurrentPeriodEnd = CurrentPeriodEnd,
+        PhoneLineTenantId = PhoneLineTenantId,
+        PhoneLineNumber = PhoneLineNumber,
+        PhoneLineStatus = PhoneLineStatus,
+        PhoneLineSid = PhoneLineSid,
+        PhoneLineError = PhoneLineError,
         CreatedAt = CreatedAt,
         PaidAt = PaidAt,
         ExpiresAt = ExpiresAt

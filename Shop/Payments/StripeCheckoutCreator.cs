@@ -6,12 +6,19 @@ using Stripe.Checkout;
 
 namespace MapleKiosk.Web.Shop.Payments;
 
+/// <summary>Opens Stripe Checkout for an order (<see cref="StripeCheckoutCreator"/>); a seam for the phone-line tests.</summary>
+public interface IStripeCheckout
+{
+    Task<StripeCheckoutCreator.Result> CreateAsync(AppOrder order, string successUrl, string cancelUrl, CancellationToken ct = default,
+        string? locale = null);
+}
+
 /// <summary>
 /// Creates a hosted Stripe Checkout Session for an app-store order. The OrderRef
 /// is carried as ClientReferenceId + metadata so the webhook converges on the
 /// order, and success/cancel redirect back to the website.
 /// </summary>
-public sealed class StripeCheckoutCreator
+public sealed class StripeCheckoutCreator : IStripeCheckout
 {
     private readonly AppStoreConfig _config;
     private readonly StripeProductSync _products;

@@ -1,0 +1,163 @@
+@page "/phone-line/order"
+@page "/fr/phone-line/order"
+@page "/vi/phone-line/order"
+@page "/ru/phone-line/order"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using MapleKiosk.Web.Shop.Orders
+@using MapleKiosk.Web.Shop.PhoneLines
+@using MapleKiosk.Web.Shop.Config
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject PhoneLineService PhoneLines
+@inject AppStoreConfig Config
+
+@* Where Stripe sends the buyer back, and where they follow their phone line: the payment, then the number.
+   Only the email that placed the order (or staff) sees it. When the number was taken before it could be bought,
+   they pick another here with no new charge; other setbacks get "Try again". The webhook does the buying; this
+   page only reads the order and asks PhoneLineService to retry. *@
+
+<PageTitle>@L["pl.o.title"] — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="robots" content="noindex" />
+</HeadContent>
+
+<NavBar ShowCta="false" />
+
+<main class="lp pl">
+    <section class="section">
+        <div class="container pl__wrap">
+            <h1>@L["pl.o.title"]</h1>
+
+            @if (!_loaded)
+            {
+                <p class="pl-muted">@L["pl.loading"]</p>
+            }
+            else if (_order is null)
+            {
+                <p class="pl-note pl-note--warn">@L["pl.err.notfound"]</p>
+            }
+            else
+            {
+                <div class="pl-card">
+                    <p class="pl-muted">@L["pl.o.ref"] <strong>@_order.OrderRef</strong> · @L["pl.o.salon"] <strong>@_order.Company</strong></p>
+
+                    @switch (Stage)
+                    {
+                        case "unpaid":
+                            <p>@L["pl.o.unpaid"]</p>
+                            break;
+                        case "paying":
+                            <p>@L["pl.o.paying"]</p>
+                            break;
+                        case PhoneLineStatus.Active:
+                            <p class="pl-pay__number">@PhoneLineService.Pretty(_order.PhoneLineNumber)</p>
+                            <p>@string.Format(L["pl.o.active"], PhoneLineService.Pretty(_order.PhoneLineNumber))</p>
+                            @if (_manageUrl is not null)
+                            {
+                                <p><a href="@_manageUrl" target="_blank" rel="noopener">@L["pl.o.manage"]</a></p>
+                            }
+                            break;
+                        case PhoneLineStatus.NumberTaken:
+                            <p>@string.Format(L["pl.o.taken"], PhoneLineService.Pretty(_order.PhoneLineNumber))</p>
+                            <PhoneNumberPicker @bind-Selected="_number" />
+                            <p>
+                                <button type="button" class="btn btn-primary" disabled="@(_busy || _number is null)" @onclick="() => RetryAsync(_number)">
+                                    @L["pl.o.use"]
+                                </button>
+                            </p>
+                            break;
+                        case PhoneLineStatus.WaitingForSalon:
+                        case PhoneLineStatus.Failed:
+                            <p>@L[Stage == PhoneLineStatus.WaitingForSalon ? "pl.o.waiting" : "pl.o.failed"]</p>
+                            <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="() => RetryAsync(null)">@L["pl.o.retry"]</button>
+                            break;
+                        default:
+                            <p>@L["pl.o.buying"]</p>
+                            break;
+                    }
+                </div>
+                @if (_error is not null)
+                {
+                    <p class="pl-note pl-note--warn" role="alert">@L[_error]</p>
+                }
+            }
+            <p><a href="@(L.Path(L.Culture).TrimEnd('/') + "/phone-line")">@L["pl.o.back"]</a></p>
+        </div>
+    </section>
+</main>
+
+<Footer />
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+    [SupplyParameterFromQuery(Name = "ref")] public string? Ref { get; set; }
+
+    private bool _loaded;
+    private bool _busy;
+    private string? _email;
+    private bool _isStaff;
+    private AppOrder? _order;
+    private string? _number;
+    private string? _error;
+    private string? _manageUrl;
+
+    // Not paid yet, never paid, or where buying the number stands.
+    private string Stage => _order!.Status switch
+    {
+        AppOrderStatus.Paid => string.IsNullOrEmpty(_order.PhoneLineStatus) ? PhoneLineStatus.None : _order.PhoneLineStatus,
+        AppOrderStatus.Pending => "paying",
+        _ => "unpaid",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+
+        var user = (await AuthState).User;
+        _email = user.FindFirst(ClaimTypes.Email)?.Value;
+        _isStaff = user.IsInRole(AppAuthValidator.AdminRole);
+        await LoadAsync();
+        var portal = await Config.GetStripePortalUrlAsync();
+        _manageUrl = string.IsNullOrWhiteSpace(portal) ? null : portal;
+        _loaded = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Stripe redirects here as soon as the card is accepted; its webhook (which marks the order paid and buys
+        // the number) usually lands within seconds, so watch for a little while.
+        if (!firstRender) return;
+        for (var i = 0; i < 15 && _order is not null && Stage is "paying" or PhoneLineStatus.None or PhoneLineStatus.Buying; i++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            await LoadAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        try { _order = await PhoneLines.GetForAsync(Ref, _email, _isStaff); }
+        catch { /* storage hiccup: keep what's shown */ }
+    }
+
+    private async Task RetryAsync(string? newNumber)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            var outcome = await PhoneLines.RetryAsync(_order!.OrderRef, _email, _isStaff, newNumber);
+            _error = outcome.Error;
+            _number = null;
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

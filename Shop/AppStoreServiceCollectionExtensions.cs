@@ -6,6 +6,7 @@ using MapleKiosk.Web.Shop.Orders;
 using MapleKiosk.Web.Shop.Payments;
 using MapleKiosk.Web.Shop.Payments.Qr;
 using MapleKiosk.Web.Shop.Payments.VietQr;
+using MapleKiosk.Web.Shop.PhoneLines;
 
 namespace MapleKiosk.Web.Shop;
 
@@ -14,7 +15,7 @@ public static class AppStoreServiceCollectionExtensions
     /// <summary>
     /// Registers the in-app checkout: config, catalog, orders, payment creators,
     /// the bank confirmation source, and the two "payment finished" signal sinks
-    /// (outbound webhook + email). Reuses the site's EmailService for receipts and
+    /// (outbound webhook + email), plus the phone-line purchase. Reuses the site's EmailService for receipts and
     /// STORAGE_CONNECTION_STRING for persistence.
     /// </summary>
     public static IServiceCollection AddAppStore(this IServiceCollection services)
@@ -32,6 +33,7 @@ public static class AppStoreServiceCollectionExtensions
         services.AddSingleton<AppOrderService>();
         services.AddSingleton<StripeProductSync>();
         services.AddSingleton<StripeCheckoutCreator>();
+        services.AddSingleton<IStripeCheckout>(sp => sp.GetRequiredService<StripeCheckoutCreator>());
         services.AddSingleton<VietQrCreator>();
         services.AddSingleton<CheckoutService>();
         services.AddSingleton<QuoteCheckoutService>();
@@ -39,6 +41,14 @@ public static class AppStoreServiceCollectionExtensions
 
         services.AddSingleton<IOrderPaidSink, OutboundWebhookNotifier>();
         services.AddSingleton<IOrderPaidSink, EmailReceiptSender>();
+
+        // Phone lines (/phone-line): a salon's number, bought on the platform's Twilio account only once its
+        // order is paid (PhoneLineFulfilment, a "payment finished" sink).
+        services.AddSingleton<IPhoneLineOrders>(sp => sp.GetRequiredService<AppOrderService>());
+        services.AddSingleton<ITenantDirectory, TenantDirectory>();
+        services.AddSingleton<ITelephonyGateway, TwilioGateway>();
+        services.AddSingleton<PhoneLineService>();
+        services.AddSingleton<IOrderPaidSink, PhoneLineFulfilment>();
 
         return services;
     }

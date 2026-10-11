@@ -1497,3 +1497,32 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
   .gc-packs{grid-template-columns:1fr 1fr}
 }
 @media (max-width:480px){ .gc-packs{grid-template-columns:1fr} }
+
+/* ===================== Phone line (/phone-line, /phone-line/order, /admin/phone-lines) ===================== */
+.pl__wrap{max-width:760px;margin:0 auto;padding:48px 0}
+.pl__wrap h1{font-size:clamp(32px,4.5vw,48px);margin:0 0 12px}
+.pl__lead{color:var(--muted);font-size:18px;margin:0 0 24px}
+.pl__lead strong{color:var(--text)}
+.pl-muted{color:var(--muted)}
+.pl-note{padding:12px 16px;border-radius:10px;background:var(--surface-2);margin:12px 0}
+.pl-note--warn{background:#fdecea;color:var(--red-2)}
+.pl-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px;margin:0 0 16px}
+.pl-card h2{font-size:20px;margin:0 0 12px}
+.pl-choices,.pl-pick__list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.pl-pick__list{max-height:340px;overflow-y:auto;margin-top:14px}
+.pl-choice{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font:inherit;color:var(--text);text-align:left;cursor:pointer}
+.pl-choice:hover:not(:disabled){border-color:var(--text)}
+.pl-choice.is-selected{border:2px solid var(--red);padding:11px 13px}
+.pl-choice:disabled{opacity:.6;cursor:default}
+.pl-choice small{color:var(--muted);font-size:13px;word-break:break-all}
+.pl-pick__search{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.pl-pick__search label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.pl-pick__search select,.pl-pick__search input{padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font:inherit;color:var(--text)}
+.pl-pick__search input{width:110px}
+.pl-pick__search .btn{padding:12px 22px}
+.pl-pay{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.pl-pay p{margin:0}
+.pl-pay__number{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.pl .btn:disabled{opacity:.5;cursor:default;transform:none}
+.pl-adm__actions{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:0 18px 14px}
+.pl-adm__err{color:var(--red-2)!important;white-space:normal!important}

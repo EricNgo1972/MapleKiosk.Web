@@ -121,6 +121,9 @@ public sealed class AppProduct
     /// <summary>Selling points shown on the card when the site has no translated copy for it.</summary>
     public List<string> Features { get; set; } = new();
 
+    /// <summary>The salon phone line: sold only on /phone-line, never by the cart or a quote.</summary>
+    public bool IsPhoneLine => Category == CatalogDefaults.PhoneLineCategory;
+
     /// <summary>The key of the pricing pages' translated copy: the SKU without its category prefix
     /// ("setup-server" → "server", read as pr.setup.server.*).</summary>
     public string CopyKey => Sku.StartsWith(Category + "-", StringComparison.Ordinal) ? Sku[(Category.Length + 1)..] : Sku;

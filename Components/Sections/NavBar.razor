@@ -86,7 +86,7 @@
     // the localized home so we never link to a non-existent localized route. App.razor lists these
     // pages' four languages for search engines (hreflang).
     internal static readonly HashSet<string> LocalizedPaths =
-        new(new[] { "", "privacy", "terms", "tos", "shop" }
+        new(new[] { "", "privacy", "terms", "tos", "shop", "phone-line" }
             .Concat(SiteProducts.All.Select(p => p.Slug))
             .Concat(SiteProducts.In(ProductGroup.Trade).Select(p => $"{p.Slug}/pricing")));
 

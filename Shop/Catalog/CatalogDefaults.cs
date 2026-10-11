@@ -8,6 +8,10 @@ namespace MapleKiosk.Web.Shop.Catalog;
 /// </summary>
 public static class CatalogDefaults
 {
+    /// <summary>The salon phone line's category. Sold only on /phone-line (PhoneLineService), which attaches the salon
+    /// and the number to the order: the shop, the cart and the quotes never list or accept it.</summary>
+    public const string PhoneLineCategory = "phone";
+
     public static readonly CatalogCategory[] Categories =
     {
         new() { Key = "setup", Name = "One-time setup",   PickOne = false, Sort = 1 },
@@ -16,6 +20,8 @@ public static class CatalogDefaults
         new() { Key = "mkt",   Name = "Online marketing", PickOne = true,  Sort = 4 },
         new() { Key = "gift",  Name = "Printed gift cards", PickOne = true,  Sort = 5,
                 Names = new() { ["fr"] = "Cartes-cadeaux imprimées", ["vi"] = "Thẻ quà tặng in sẵn", ["ru"] = "Печатные подарочные карты" } },
+        new() { Key = PhoneLineCategory, Name = "Phone line", PickOne = true, Sort = 6,
+                Names = new() { ["fr"] = "Ligne téléphonique", ["vi"] = "Số điện thoại", ["ru"] = "Телефонная линия" } },
     };
 
     private static AppProduct Item(string category, string key, string name, decimal price, string interval, int sort,
@@ -92,5 +98,14 @@ public static class CatalogDefaults
         Cards(2000, 2500m, designs: 1, sort: 2),
         Cards(3000, 3000m, designs: 1, sort: 3, recommended: true),
         Cards(4000, 3950m, designs: 2, sort: 4),
+
+        // Arrives inactive and unpriced: set the monthly price at /shop/admin, then make it active. Never give it a
+        // trial — /phone-line refuses to sell one, since a trial completes checkout with no payment.
+        new AppProduct
+        {
+            Sku = "phone-line", Category = PhoneLineCategory, Name = "Salon phone line", Price = 0m,
+            BillingInterval = BillingIntervals.Monthly, Sort = 1, Active = false,
+            Description = "A local phone number for your salon, answered by your AI assistant. Calls included."
+        },
     };
 }

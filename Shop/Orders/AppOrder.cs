@@ -68,6 +68,16 @@ public sealed class AppOrder
     /// <summary>Stripe's subscription status (trialing, active, past_due, canceled...), null for one-time orders.</summary>
     public string? SubscriptionStatus { get; set; }
     public DateTimeOffset? CurrentPeriodEnd { get; set; }
+
+    /// <summary>A phone-line order (<see cref="Source"/> = "phone-line"): the salon it is for, the number
+    /// chosen, and where buying that number stands (<c>PhoneLines.PhoneLineStatus</c>). Null on every other order.</summary>
+    public string? PhoneLineTenantId { get; set; }
+    public string? PhoneLineNumber { get; set; }
+    public string? PhoneLineStatus { get; set; }
+
+    /// <summary>Twilio's id for the bought number, and why the last attempt didn't buy it.</summary>
+    public string? PhoneLineSid { get; set; }
+    public string? PhoneLineError { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? PaidAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.UtcNow.AddMinutes(30);
