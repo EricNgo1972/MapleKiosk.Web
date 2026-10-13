@@ -29,8 +29,8 @@
                 <p class="gp-hero__sub">@L["gar.hero.sub"]</p>
                 <div class="gp-hero__ctas">
                     <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
-                    <button type="button" class="btn gp-btn-ghost" data-video="@VideoId">
-                        @L["gar.hero.watch"] <span>1:28</span>
+                    <button type="button" class="btn gp-btn-ghost" data-video="@PlaylistEn" data-video-fr="@PlaylistFr">
+                        @L["gar.hero.watch"]
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["gar.hero.note"]</p>
@@ -145,6 +145,11 @@
     // "MapleGarage Overview" on the Maple Kiosk channel; each scene deep-links
     // to the second its caption appears.
     private const string VideoId = "t1_a_Nac8wA";
+
+    // The hero button plays the whole YouTube playlist in the visitor's language, in the lightbox (site.js:
+    // "list:" = a playlist): MapleGarage_en and MapleGarage_fr.
+    private const string PlaylistEn = "list:PLGxhgS2raBk4";
+    private const string PlaylistFr = "list:PLBnQS2Fs_bQY";
 
     // A scene from the overview (Start = its second), or a film of its own (Video, played from Start, with
     // its Length on the label instead of the overview's timestamp).
