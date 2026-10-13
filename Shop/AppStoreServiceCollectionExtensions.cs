@@ -45,6 +45,7 @@ public static class AppStoreServiceCollectionExtensions
         // Phone lines (/phone-line): a salon's number, bought on the platform's Twilio account only once its
         // order is paid (PhoneLineFulfilment, a "payment finished" sink).
         services.AddSingleton<IPhoneLineOrders>(sp => sp.GetRequiredService<AppOrderService>());
+        services.AddSingleton<IPhoneLineCustomers, PhoneLineCustomers>();
         services.AddSingleton<ITenantDirectory, TenantDirectory>();
         services.AddSingleton<ITelephonyGateway, TwilioGateway>();
         services.AddSingleton<PhoneLineService>();

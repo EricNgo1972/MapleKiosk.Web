@@ -70,18 +70,24 @@ public interface IPhoneLineOrders
     Task<IReadOnlyList<AppOrder>> ListPhoneLinesAsync(string? tenantId, CancellationToken ct = default);
 }
 
-/// <summary>An activated salon an owner's email holds (TenantActivation).</summary>
-public sealed record OwnedSalon(string TenantId, string? Product);
+/// <summary>A business a customer email holds on this site (its onboarding record), with the app install staff
+/// linked to it. <paramref name="TenantId"/> is null until staff link one.</summary>
+public sealed record CustomerBusiness(string Key, string Name, string? Address, string? TenantId);
+
+/// <summary>This site's customers (the onboarding list), read only: which businesses a signed-in email holds.</summary>
+public interface IPhoneLineCustomers
+{
+    Task<IReadOnlyList<CustomerBusiness>> ListAsync(string email, CancellationToken ct = default);
+}
 
 /// <summary>Where a salon says its phone line answers (TenantPhoneEndpoints), reported by the salon itself.</summary>
 public sealed record SalonPhoneEndpoint(
     string TenantId, string SalonName, string BaseUrl, string IncomingUrl, string FallbackUrl, string StatusUrl,
     DateTimeOffset? ReportedAtUtc);
 
-/// <summary>The platform's tenant tables, read only: who owns which salon, and where each salon answers calls.</summary>
+/// <summary>The platform's tenant tables, read only: where each salon answers calls.</summary>
 public interface ITenantDirectory
 {
-    Task<IReadOnlyList<OwnedSalon>> ListOwnedAsync(string ownerEmail, CancellationToken ct = default);
     Task<SalonPhoneEndpoint?> GetPhoneEndpointAsync(string tenantId, CancellationToken ct = default);
 }
 

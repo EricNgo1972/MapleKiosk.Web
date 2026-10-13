@@ -6,10 +6,11 @@ using MapleKiosk.Web.Shop.Payments;
 
 namespace MapleKiosk.Web.Shop.PhoneLines;
 
-/// <summary>One salon a signed-in owner holds, as the phone-line page shows it.</summary>
-/// <param name="CanTakeCalls">The salon has reported where it answers, so a number can be pointed at it.</param>
+/// <summary>One business a signed-in customer holds, as the phone-line page shows it.</summary>
+/// <param name="TenantId">The app install staff linked to it; null = not linked yet, so it can't have a line.</param>
+/// <param name="CanTakeCalls">The linked app has reported a public address Twilio can dial, so a number can be pointed at it.</param>
 /// <param name="ActiveNumber">The number this salon already has from us, if any.</param>
-public sealed record PhoneLineSalon(string TenantId, string Name, string? Address, bool CanTakeCalls, string? ActiveNumber);
+public sealed record PhoneLineSalon(string Key, string? TenantId, string Name, string? Address, bool CanTakeCalls, string? ActiveNumber);
 
 /// <summary>What the phone line costs: the catalog item that sells it.</summary>
 public sealed record PhoneLineOffer(string Sku, string Name, decimal Price, string Currency);
@@ -23,14 +24,15 @@ public sealed record PhoneLineOutcome(string Status, string? Number, string? Err
 
 /// <summary>
 /// Sells a salon its phone number: a monthly subscription, calls included, answered by the salon's AI voice
-/// assistant. The owner signs in (central OAuth proves the email), picks one of THEIR salons, chooses a number and
+/// assistant. The customer signs in (central OAuth proves the email), picks one of THEIR businesses, chooses a number and
 /// subscribes; only once Stripe confirms the payment does <see cref="FulfilAsync"/> buy that number on the
 /// platform's Twilio account, pointed at the address the salon itself reported.
 ///
 /// <para>The rules that keep the platform's money safe live here, not in a page:</para>
 /// <list type="bullet">
-///   <item>Only for a salon the signed-in email owns (TenantActivation), and only pointed at the address that
-///   salon reported (TenantPhoneEndpoints) — never anything from the browser.</item>
+///   <item>Only for a business on the signed-in email's customer record (the onboarding list), through the app
+///   install staff linked to it, and only pointed at the address that install reported (TenantPhoneEndpoints) —
+///   never anything from the browser.</item>
 ///   <item>A number is bought only for a PAID order, and only by whoever wins the order's Buying claim, so a
 ///   replayed or concurrent webhook can never buy twice.</item>
 ///   <item>A phone-line item with a free trial is never sold: a trial completes checkout with no payment.</item>
@@ -64,16 +66,18 @@ public sealed class PhoneLineService
 
     private readonly IPhoneLineOrders _orders;
     private readonly IAppCatalog _catalog;
+    private readonly IPhoneLineCustomers _customers;
     private readonly ITenantDirectory _directory;
     private readonly ITelephonyGateway _telephony;
     private readonly IStripeCheckout _stripe;
     private readonly ILogger<PhoneLineService> _logger;
 
-    public PhoneLineService(IPhoneLineOrders orders, IAppCatalog catalog, ITenantDirectory directory, ITelephonyGateway telephony,
-        IStripeCheckout stripe, ILogger<PhoneLineService> logger)
+    public PhoneLineService(IPhoneLineOrders orders, IAppCatalog catalog, IPhoneLineCustomers customers, ITenantDirectory directory,
+        ITelephonyGateway telephony, IStripeCheckout stripe, ILogger<PhoneLineService> logger)
     {
         _orders = orders;
         _catalog = catalog;
+        _customers = customers;
         _directory = directory;
         _telephony = telephony;
         _stripe = stripe;
@@ -96,24 +100,30 @@ public sealed class PhoneLineService
         return new PhoneLineOffer(product.Sku, product.Name, product.Price, CatalogStore.Currency);
     }
 
-    /// <summary>The activated salons <paramref name="email"/> owns, with whether each can take a number.</summary>
+    /// <summary>The businesses <paramref name="email"/> holds as a customer of this site, with whether each can take a
+    /// number: it needs the app install staff linked to it, and that install's reported public address.</summary>
     public async Task<IReadOnlyList<PhoneLineSalon>> ListSalonsAsync(string email, CancellationToken ct = default)
     {
         var canonical = Canonical(email);
         if (canonical.Length == 0) return [];
 
         var salons = new List<PhoneLineSalon>();
-        foreach (var owned in await _directory.ListOwnedAsync(canonical, ct).ConfigureAwait(false))
+        foreach (var business in await _customers.ListAsync(canonical, ct).ConfigureAwait(false))
         {
-            var endpoint = await _directory.GetPhoneEndpointAsync(owned.TenantId, ct).ConfigureAwait(false);
-            var active = (await _orders.ListPhoneLinesAsync(owned.TenantId, ct).ConfigureAwait(false))
-                .FirstOrDefault(o => o.PhoneLineStatus is PhoneLineStatus.Active or PhoneLineStatus.Releasing)?.PhoneLineNumber;
-            salons.Add(new PhoneLineSalon(
-                owned.TenantId,
-                string.IsNullOrWhiteSpace(endpoint?.SalonName) ? owned.TenantId : endpoint.SalonName,
-                string.IsNullOrWhiteSpace(endpoint?.BaseUrl) ? null : endpoint.BaseUrl,
-                CanTakeCalls: Reachable(endpoint),
-                active));
+            var tenantId = string.IsNullOrWhiteSpace(business.TenantId) ? null : business.TenantId.Trim();
+            // Two records on one install would be one line: list it once.
+            if (tenantId is not null && salons.Any(s => string.Equals(s.TenantId, tenantId, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            SalonPhoneEndpoint? endpoint = null;
+            string? active = null;
+            if (tenantId is not null)
+            {
+                endpoint = await _directory.GetPhoneEndpointAsync(tenantId, ct).ConfigureAwait(false);
+                active = (await _orders.ListPhoneLinesAsync(tenantId, ct).ConfigureAwait(false))
+                    .FirstOrDefault(o => o.PhoneLineStatus is PhoneLineStatus.Active or PhoneLineStatus.Releasing)?.PhoneLineNumber;
+            }
+            salons.Add(new PhoneLineSalon(business.Key, tenantId, business.Name, business.Address, Reachable(endpoint), active));
         }
         return salons;
     }
@@ -157,7 +167,7 @@ public sealed class PhoneLineService
         if (!IsNumber(phone)) return Refuse("pl.err.pick");
 
         var salon = (await ListSalonsAsync(canonical, ct).ConfigureAwait(false))
-            .FirstOrDefault(s => string.Equals(s.TenantId, tenantId?.Trim(), StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(s => s.TenantId is not null && string.Equals(s.TenantId, tenantId?.Trim(), StringComparison.OrdinalIgnoreCase));
         if (salon is null) return Refuse("pl.err.notyours");
         if (!salon.CanTakeCalls) return Refuse("pl.err.unreachable");
         if (salon.ActiveNumber is not null) return Refuse("pl.err.hasline");
@@ -182,7 +192,7 @@ public sealed class PhoneLineService
             Company = salon.Name,
             Source = Source,
             Culture = lang,
-            PhoneLineTenantId = salon.TenantId,
+            PhoneLineTenantId = salon.TenantId!,
             PhoneLineNumber = phone,
             PhoneLineStatus = PhoneLineStatus.None
         };
@@ -514,8 +524,13 @@ public sealed class PhoneLineService
     private static bool Reachable(SalonPhoneEndpoint? e) =>
         e is not null && IsHttps(e.IncomingUrl) && IsHttps(e.FallbackUrl) && IsHttps(e.StatusUrl);
 
+    // Reserved names (RFC 2606/6761 and LAN suffixes) never resolve publicly: a test install's report, not a salon.
+    private static readonly HashSet<string> PrivateTlds = new(StringComparer.OrdinalIgnoreCase)
+        { "example", "test", "invalid", "localhost", "local", "internal", "lan", "home" };
+
     private static bool IsHttps(string? url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps && !u.IsLoopback;
+        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps && !u.IsLoopback
+        && u.Host.Contains('.') && !PrivateTlds.Contains(u.Host[(u.Host.LastIndexOf('.') + 1)..]);
 
     private static string Canonical(string? email) => (email ?? "").Trim().ToLowerInvariant();
 }

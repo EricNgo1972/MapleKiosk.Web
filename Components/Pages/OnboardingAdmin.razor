@@ -225,6 +225,18 @@
             <label class="adm-switch"><input type="checkbox" checked="@c.IncludesWebsite" @onchange="e => SetIncludesWebsite(c, e)" /> Includes a website</label>
         </div>
 
+        <div class="adm-field">
+            <span>App tenant ID</span>
+            <small>The customer's MapleKiosk app install (e.g. tenant-spc001). A phone line bought on /phone-line rings this app; empty = not set up yet.</small>
+            <span class="adm-inline">
+                <input @bind="_editTenantId" @bind:event="oninput" placeholder="tenant-…" aria-label="App tenant ID" />
+                @if ((_editTenantId ?? "").Trim() != (c.TenantId ?? ""))
+                {
+                    <button type="button" class="btn btn-primary onb-small" disabled="@_busy" @onclick="() => SaveTenantId(c)">Save</button>
+                }
+            </span>
+        </div>
+
         <div class="adm-field adm-access">
             <span>Access</span>
             <span class="adm-inline">
@@ -281,6 +293,7 @@
     private OnboardingRecord? _current;
     private WebsiteBrief? _brief;
     private string _editEmail = "";
+    private string? _editTenantId;
     private string? _note;
     private bool _confirmEmail;
     private bool _inviteNewOwner = true;
@@ -365,6 +378,7 @@
         if (i >= 0) _records[i] = r;
         _current = r;
         _editEmail = r.ContactEmail;
+        _editTenantId = r.TenantId;
         _note = null;
         _confirmEmail = false;
         _emailError = null;
@@ -430,6 +444,18 @@
     {
         var stored = await PatchAsync(r, x => x.IncludesWebsite = e.Value is true);
         _brief = stored.IncludesWebsite ? await Store.GetBriefAsync(r.Token) : null;
+    }
+
+    private async Task SaveTenantId(OnboardingRecord r)
+    {
+        _busy = true;
+        try
+        {
+            var id = (_editTenantId ?? "").Trim();
+            var stored = await PatchAsync(r, x => x.TenantId = id.Length == 0 ? null : id);
+            _editTenantId = stored.TenantId;
+        }
+        finally { _busy = false; }
     }
 
     private void AskEmailChange()

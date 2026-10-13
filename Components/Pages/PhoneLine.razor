@@ -10,8 +10,8 @@
 @inject NavigationManager Nav
 @inject PhoneLineService PhoneLines
 
-@* A salon owner buys their salon's phone number: signs in (central OAuth proves the email), picks one of the
-   salons that email owns, chooses a number and subscribes. Nothing is bought until Stripe confirms the payment.
+@* A customer buys their salon's phone number: signs in (central OAuth proves the email), picks one of the
+   businesses on that email's customer record, chooses a number and subscribes. Nothing is bought until Stripe confirms the payment.
    Every rule is PhoneLineService's; this page only collects the three choices. The salon app's "Get a phone
    number" links to /store/phone-line (MapleKiosk VoicePhoneLine.ShopUrl). *@
 
@@ -73,21 +73,25 @@
                         <div class="pl-choices">
                             @foreach (var s in _salons)
                             {
-                                var usable = s.CanTakeCalls && s.ActiveNumber is null;
-                                <button type="button" class="pl-choice @(s.TenantId == _tenantId ? "is-selected" : null)" disabled="@(!usable)"
+                                var usable = s.TenantId is not null && s.CanTakeCalls && s.ActiveNumber is null;
+                                <button type="button" class="pl-choice @(usable && s.TenantId == _tenantId ? "is-selected" : null)" disabled="@(!usable)"
                                         @onclick="() => _tenantId = s.TenantId">
                                     <strong>@s.Name</strong>
-                                    @if (s.ActiveNumber is not null)
+                                    @if (s.Address is not null)
+                                    {
+                                        <small>@s.Address</small>
+                                    }
+                                    @if (s.TenantId is null)
+                                    {
+                                        <small>@L["pl.salon.notlinked"]</small>
+                                    }
+                                    else if (s.ActiveNumber is not null)
                                     {
                                         <small>@string.Format(L["pl.salon.has"], PhoneLineService.Pretty(s.ActiveNumber))</small>
                                     }
                                     else if (!s.CanTakeCalls)
                                     {
                                         <small>@L["pl.salon.unreachable"]</small>
-                                    }
-                                    else if (s.Address is not null)
-                                    {
-                                        <small>@s.Address</small>
                                     }
                                 </button>
                             }
@@ -150,7 +154,7 @@
         if (_email is not null && _offer is not null)
         {
             _salons = await PhoneLines.ListSalonsAsync(_email);
-            var usable = _salons.Where(s => s.CanTakeCalls && s.ActiveNumber is null).ToList();
+            var usable = _salons.Where(s => s.TenantId is not null && s.CanTakeCalls && s.ActiveNumber is null).ToList();
             if (usable.Count == 1) _tenantId = usable[0].TenantId;
         }
         _loaded = true;

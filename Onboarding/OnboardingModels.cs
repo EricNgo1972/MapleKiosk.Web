@@ -139,6 +139,10 @@ public sealed class OnboardingRecord
     /// brief sub-page (/onboarding/{token}/website). Set by staff.</summary>
     public bool IncludesWebsite { get; set; }
 
+    /// <summary>The customer's MapleKiosk app install (its tenant id), set by staff. Links this customer to the
+    /// app a phone line bought on /phone-line rings. Empty until the app is set up.</summary>
+    public string? TenantId { get; set; }
+
     public OnboardingAccess Access { get; set; } = OnboardingAccess.Active;
 
     /// <summary>Set by staff ("Lock as final"): the customer's answers become read-only.
@@ -167,6 +171,7 @@ public sealed class OnboardingRecord
         FinalizedAt = stored.FinalizedAt;
         Industry = stored.Industry;
         OrderRef = stored.OrderRef;
+        TenantId = stored.TenantId;
     }
 
     // 128 bits, lowercase hex — safe in a URL and a blob path.

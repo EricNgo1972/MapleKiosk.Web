@@ -48,7 +48,7 @@ public sealed class PhoneLineServiceTests
         _directory.Own(Owner, Tenant);
         _directory.Report(Tenant, "Lotus Nails", "https://lotus.example.com");
 
-        _service = new PhoneLineService(_orders, _catalog, _directory, _telephony, _stripe, NullLogger<PhoneLineService>.Instance);
+        _service = new PhoneLineService(_orders, _catalog, _directory, _directory, _telephony, _stripe, NullLogger<PhoneLineService>.Instance);
         var services = new ServiceCollection().AddSingleton(_service).BuildServiceProvider();
         _fulfilment = new PhoneLineFulfilment(services);
     }
@@ -123,13 +123,17 @@ public sealed class PhoneLineServiceTests
         _directory.Own(Owner, "tenant-b");                              // never reported
         _directory.Own(Owner, "tenant-c");
         _directory.Report("tenant-c", "Plain Http", "http://lan-box:5000"); // Twilio can't dial it
+        _directory.Own(Owner, "tenant-d");
+        _directory.Report("tenant-d", "Test Install", "https://book.maplenails.example"); // reserved name
 
         var salons = await _service.ListSalonsAsync(Owner);
         Assert.False(salons.Single(s => s.TenantId == "tenant-b").CanTakeCalls);
         Assert.False(salons.Single(s => s.TenantId == "tenant-c").CanTakeCalls);
+        Assert.False(salons.Single(s => s.TenantId == "tenant-d").CanTakeCalls);
 
-        var checkout = await _service.StartCheckoutAsync(Owner, "tenant-b", Number, "en", Root);
-        Assert.Equal("pl.err.unreachable", checkout.Error);
+        Assert.Equal("pl.err.unreachable", (await _service.StartCheckoutAsync(Owner, "tenant-b", Number, "en", Root)).Error);
+        Assert.Equal("pl.err.unreachable", (await _service.StartCheckoutAsync(Owner, "tenant-c", Number, "en", Root)).Error);
+        Assert.Equal("pl.err.unreachable", (await _service.StartCheckoutAsync(Owner, "tenant-d", Number, "en", Root)).Error);
         Assert.Empty(_stripe.Orders);
     }
 
@@ -579,19 +583,34 @@ public sealed class PhoneLineServiceTests
             Task.FromResult(Product.Active && Product.Sku == sku ? Product : null);
     }
 
-    private sealed class FakeDirectory : ITenantDirectory
+    [Fact]
+    public async Task A_customer_business_not_yet_linked_to_an_app_is_listed_but_cannot_be_sold_a_line()
     {
-        private readonly List<(string Email, string TenantId)> _owners = new();
+        _directory.Own(Owner, null, "New Salon");
+
+        var salons = await _service.ListSalonsAsync(Owner);
+        var unlinked = salons.Single(s => s.Name == "New Salon");
+        Assert.Null(unlinked.TenantId);
+        Assert.False(unlinked.CanTakeCalls);
+        Assert.Equal("pl.err.notyours", (await _service.StartCheckoutAsync(Owner, "", Number, "en", Root)).Error);
+        Assert.Empty(_stripe.Orders);
+    }
+
+    // The site's customers (onboarding records) and the salons' reported endpoints, in one fake.
+    private sealed class FakeDirectory : ITenantDirectory, IPhoneLineCustomers
+    {
+        private readonly List<(string Email, string? TenantId, string Name)> _owners = new();
         private readonly Dictionary<string, SalonPhoneEndpoint> _endpoints = new();
 
-        public void Own(string email, string tenantId) => _owners.Add((email, tenantId));
+        public void Own(string email, string? tenantId, string? name = null) => _owners.Add((email, tenantId, name ?? tenantId ?? "Salon"));
         public void Forget(string tenantId) => _endpoints.Remove(tenantId);
         public void Report(string tenantId, string name, string root) =>
             _endpoints[tenantId] = new SalonPhoneEndpoint(tenantId, name, root, root + "/voice/in", root + "/voice/fallback",
                 root + "/voice/status", DateTimeOffset.UtcNow);
 
-        public Task<IReadOnlyList<OwnedSalon>> ListOwnedAsync(string ownerEmail, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<OwnedSalon>>(_owners.Where(o => o.Email == ownerEmail).Select(o => new OwnedSalon(o.TenantId, null)).ToList());
+        public Task<IReadOnlyList<CustomerBusiness>> ListAsync(string email, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<CustomerBusiness>>(_owners.Where(o => o.Email == email)
+                .Select((o, i) => new CustomerBusiness($"rec-{i}", o.Name, null, o.TenantId)).ToList());
 
         public Task<SalonPhoneEndpoint?> GetPhoneEndpointAsync(string tenantId, CancellationToken ct = default) =>
             Task.FromResult(_endpoints.GetValueOrDefault(tenantId));
