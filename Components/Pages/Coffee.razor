@@ -30,15 +30,15 @@
                 <p class="gp-hero__sub">@L["cof.hero.sub"]</p>
                 <div class="gp-hero__ctas">
                     <a class="btn btn-primary" href="@TestDrive" target="_blank" rel="noopener">@L["cof.cta.trial"]</a>
-                    <button type="button" class="btn gp-btn-ghost" data-video="@Overview.Id">
-                        @L["cof.hero.watch"] <span>@Overview.Length</span>
+                    <button type="button" class="btn gp-btn-ghost" data-video="@Playlist">
+                        @L["cof.hero.watch"]
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["cof.hero.note"]</p>
                 <a class="hp-link spa-price" href="@PricingPath">@L["spa.cta.pricing"] <span aria-hidden="true">→</span></a>
             </div>
-            <button type="button" class="gp-shot gp-shot--hero" data-video="@Overview.Id"
-                    aria-label="@($"{L["cof.watch"]}: {L["cof.hero.watch"]} ({Overview.Length})")">
+            <button type="button" class="gp-shot gp-shot--hero" data-video="@Playlist"
+                    aria-label="@($"{L["cof.watch"]}: {L["cof.hero.watch"]}")">
                 <img src="img/coffee/hero.jpg" alt="@L["cof.hero.alt"]" width="1280" height="720" />
                 <span class="hp-play" aria-hidden="true"></span>
             </button>
@@ -126,6 +126,9 @@
         new("tips",     "VFIstuRr1d0", "1:06", HowTo: new("sQG1-vK-Zn4", "2:44")),
         new("menu",     "r-MfbErVfjA", "1:05"),
     };
+
+    // The hero plays the whole YouTube playlist in the lightbox (site.js: "list:" = a playlist).
+    private const string Playlist = "list:PLcyXbOgtlNhA"; // MapleCoffee_en
 
     protected override void OnInitialized()
     {
