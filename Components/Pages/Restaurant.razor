@@ -29,8 +29,8 @@
                 <p class="gp-hero__sub">@L["rp.hero.sub"]</p>
                 <div class="gp-hero__ctas">
                     <a class="btn btn-primary" href="javascript:void(0)" data-open-trial>@L["nav.cta"]</a>
-                    <button type="button" class="btn gp-btn-ghost" data-video="@Overview.En" data-video-fr="@Overview.Fr">
-                        @L["rp.hero.watch"] <span @attributes="Len(Overview)">@Length(Overview)</span>
+                    <button type="button" class="btn gp-btn-ghost" data-video="@PlaylistEn" data-video-fr="@PlaylistFr">
+                        @L["rp.hero.watch"]
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["rp.hero.note"]</p>
@@ -41,7 +41,7 @@
                     <button type="button" data-film-lang="fr" lang="fr" aria-pressed="@((Default == "fr").ToString().ToLowerInvariant())">Français</button>
                 </div>
             </div>
-            <button type="button" class="gp-shot gp-shot--hero" data-video="@Overview.En" data-video-fr="@Overview.Fr"
+            <button type="button" class="gp-shot gp-shot--hero" data-video="@PlaylistEn" data-video-fr="@PlaylistFr"
                     aria-label="@($"{L["rp.watch"]}: {L["rp.hero.watch"]}")">
                 <img src="img/restaurant/hero.jpg" alt="@L["rp.hero.alt"]" width="1280" height="720" />
                 <span class="hp-play" aria-hidden="true"></span>
@@ -128,6 +128,11 @@
     private string Length(FilmInfo f) => Default == "fr" ? f.FrLength : f.EnLength;
     // Both lengths on the label, so site.js can swap it when the visitor changes language.
     private static Dictionary<string, object> Len(FilmInfo f) => new() { ["data-len-en"] = f.EnLength, ["data-len-fr"] = f.FrLength };
+
+    // The hero plays the whole YouTube playlist in the visitor's language, in the lightbox (site.js: "list:" =
+    // a playlist): MaplePOS_en and MaplePOS_fr.
+    private const string PlaylistEn = "list:PLSRbUy6KcG6U";
+    private const string PlaylistFr = "list:PLDtkmLGiaJb0";
 
     protected override void OnInitialized()
     {

@@ -34,7 +34,7 @@
 
   // ===== Video lightbox: any [data-video] opens it — a YouTube id, or a site-served
   // file path ("/media/....mp4") played in a native <video> =====
-  // A film can come in several languages: data-video is the cut in data-video-lang (English when
+  // A film (or a playlist, "list:PL…") can come in several languages: data-video is the cut in data-video-lang (English when
   // absent) and data-video-<lang> adds the others. The visitor's pick is remembered; failing that
   // the page's language, then the first cut.
   const FILM_LANGS = { en: 'English', fr: 'Français', vi: 'Tiếng Việt', ru: 'Русский' };
@@ -75,6 +75,12 @@
     openVideo(cuts[lang], trigger.getAttribute('data-start'), langs.length > 1 ? { cuts: cuts, lang: lang } : null,
       trigger.hasAttribute('data-video-tall'));
   }
+  // "list:PL…" is a whole YouTube playlist, played in the same player; anything else is one video.
+  function embedPath(id) {
+    return id.indexOf('list:') === 0
+      ? 'videoseries?list=' + encodeURIComponent(id.slice(5))
+      : encodeURIComponent(id) + '?';
+  }
   // tall = a vertical (9:16) film, e.g. a YouTube Short.
   function openVideo(id, start, alt, tall) {
     closeVideo();
@@ -92,8 +98,8 @@
       '<div class="vbox__frame' + (tall ? ' vbox__frame--tall' : '') + '">' + (isFile(id)
         ? '<video src="' + encodeURI(id) + (start ? '#t=' + (parseInt(start, 10) || 0) : '') +
           '" controls autoplay playsinline preload="auto" title="MapleKiosk video"></video>'
-        : '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) +
-          '?autoplay=1&rel=0&modestbranding=1&hl=' + lang +
+        : '<iframe src="https://www.youtube-nocookie.com/embed/' + embedPath(id) +
+          '&autoplay=1&rel=0&modestbranding=1&hl=' + lang +
           (start ? '&start=' + (parseInt(start, 10) || 0) : '') + '" title="MapleKiosk video"' +
           ' allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>') + '</div>';
     box.addEventListener('click', (e) => {

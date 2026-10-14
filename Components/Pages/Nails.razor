@@ -30,8 +30,8 @@
                 <p class="gp-hero__sub">@L["spa.hero.sub"]</p>
                 <div class="gp-hero__ctas">
                     <a class="btn btn-primary" href="@TestDrive" target="_blank" rel="noopener">@L["spa.cta.trial"]</a>
-                    <button type="button" class="btn gp-btn-ghost" @attributes="Cuts(Overview)">
-                        @L["spa.hero.watch"] <span @attributes="Len(Overview)">@Length(Overview)</span>
+                    <button type="button" class="btn gp-btn-ghost" @attributes="Playlists">
+                        @L["spa.hero.watch"]
                     </button>
                 </div>
                 <p class="gp-hero__note">@L["spa.hero.note"]</p>
@@ -42,7 +42,7 @@
                     <button type="button" data-film-lang="ru" lang="ru" aria-pressed="@((Default == "ru").ToString().ToLowerInvariant())">Русский</button>
                 </div>
             </div>
-            <button type="button" class="gp-shot gp-shot--hero" @attributes="Cuts(Overview)"
+            <button type="button" class="gp-shot gp-shot--hero" @attributes="Playlists"
                     aria-label="@($"{L["spa.watch"]}: {L["spa.hero.watch"]}")">
                 <img src="img/nails/hero.jpg" alt="@L["spa.hero.alt"]" width="1280" height="720" />
                 <span class="hp-play" aria-hidden="true"></span>
@@ -149,6 +149,14 @@
     private static Dictionary<string, object> Len(FilmInfo f) => f.Vi is null
         ? new() { ["data-len-ru"] = f.RuLength }
         : new() { ["data-len-vi"] = f.ViLength!, ["data-len-ru"] = f.RuLength };
+
+    // The hero plays the whole YouTube playlist in the visitor's language, in the lightbox (site.js: "list:" =
+    // a playlist): MapleSPA_vn, MapleSPA _ru and MapleSPA_en.
+    private static readonly Dictionary<string, object> Playlists = new()
+    {
+        ["data-video"] = "list:PLcZPSrx-Gm5c", ["data-video-lang"] = "vi",
+        ["data-video-ru"] = "list:PLFRENlV4DHg8", ["data-video-en"] = "list:PLSIwGE-UIF1w"
+    };
 
     protected override void OnInitialized()
     {

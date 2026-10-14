@@ -48,6 +48,7 @@ public sealed class CheckoutService
             // Bought only on /phone-line, which ties the order to a salon and a number; from a cart it would be
             // paid for with neither.
             if (product.IsPhoneLine) return Fail(method, $"{product.Name} is sold on the phone-line page only.");
+            if (product.IsCredits) return Fail(method, "Credits are bought in the service that uses them.");
             var quantity = group.Sum(i => Math.Max(1, i.Quantity));
             if (quantity > MaxQuantity) return Fail(method, $"At most {MaxQuantity} of {product.Name}.");
             picks.Add((product, quantity));
