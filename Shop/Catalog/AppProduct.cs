@@ -124,6 +124,13 @@ public sealed class AppProduct
     /// <summary>The salon phone line: sold only on /phone-line, never by the cart or a quote.</summary>
     public bool IsPhoneLine => Category == CatalogDefaults.PhoneLineCategory;
 
+    /// <summary>Platform credits: sold only by the services that spend them, never by the cart or a quote.</summary>
+    public bool IsCredits => Category == CatalogDefaults.CreditsCategory;
+
+    /// <summary>Sold on a page of its own (the phone line) or by another service (credits), so the shop, the
+    /// pricing pages and their checkout leave it out.</summary>
+    public bool IsSoldElsewhere => IsPhoneLine || IsCredits;
+
     /// <summary>The key of the pricing pages' translated copy: the SKU without its category prefix
     /// ("setup-server" → "server", read as pr.setup.server.*).</summary>
     public string CopyKey => Sku.StartsWith(Category + "-", StringComparison.Ordinal) ? Sku[(Category.Length + 1)..] : Sku;

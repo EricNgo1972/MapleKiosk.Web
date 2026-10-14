@@ -12,6 +12,12 @@ public static class CatalogDefaults
     /// and the number to the order: the shop, the cart and the quotes never list or accept it.</summary>
     public const string PhoneLineCategory = "phone";
 
+    /// <summary>Platform credits, bought in packs and spent by other MapleKiosk services (the Pass Designer uses one per
+    /// wallet pass issued). Sold only by those services, which read the active items of this category and charge
+    /// their synced Stripe Price: the shop, the cart and the quotes never list or accept them. The SKU's suffix is
+    /// the number of credits (credits-50 → 50 credits).</summary>
+    public const string CreditsCategory = "credits";
+
     public static readonly CatalogCategory[] Categories =
     {
         new() { Key = "setup", Name = "One-time setup",   PickOne = false, Sort = 1 },
@@ -22,6 +28,7 @@ public static class CatalogDefaults
                 Names = new() { ["fr"] = "Cartes-cadeaux imprimées", ["vi"] = "Thẻ quà tặng in sẵn", ["ru"] = "Печатные подарочные карты" } },
         new() { Key = PhoneLineCategory, Name = "Phone line", PickOne = true, Sort = 6,
                 Names = new() { ["fr"] = "Ligne téléphonique", ["vi"] = "Số điện thoại", ["ru"] = "Телефонная линия" } },
+        new() { Key = CreditsCategory, Name = "Credits", PickOne = true, Sort = 7 },
     };
 
     private static AppProduct Item(string category, string key, string name, decimal price, string interval, int sort,
@@ -29,6 +36,15 @@ public static class CatalogDefaults
     {
         Sku = $"{category}-{key}", Category = category, Name = name, Price = price, BillingInterval = interval,
         Sort = sort, Recommended = recommended, Description = description, Details = details, Active = true
+    };
+
+    private static AppProduct Credits(int count, decimal price, int sort) => new()
+    {
+        Sku = $"{CreditsCategory}-{count}", Category = CreditsCategory,
+        Name = count == 1 ? "1 credit" : $"{count} credits", Price = price,
+        BillingInterval = BillingIntervals.OneTime, Sort = sort, Active = false,
+        Description = count == 1 ? "One credit for MapleKiosk services, such as issuing an Apple Wallet pass."
+            : $"{count} credits for MapleKiosk services, such as issuing Apple Wallet passes."
     };
 
     // Printed gift cards: the SKU's suffix is the number of cards (gift-3000 → 3,000), which /gift-cards
@@ -107,5 +123,11 @@ public static class CatalogDefaults
             BillingInterval = BillingIntervals.Monthly, Sort = 1, Active = false,
             Description = "A local phone number for your salon, answered by your AI assistant. Calls included."
         },
+
+        // Arrive inactive: check them at /shop/admin, sync to Stripe, then make them active.
+        Credits(1, 1m, sort: 1),
+        Credits(5, 5m, sort: 2),
+        Credits(10, 9m, sort: 3),
+        Credits(50, 40m, sort: 4),
     };
 }
