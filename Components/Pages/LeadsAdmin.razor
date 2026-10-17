@@ -4,10 +4,11 @@
 @using System.Security.Claims
 @inject TrialSignupService Signups
 
-@* Every "Book a demo" request, newest first, from the site database — written before Azure and the email,
-   so a lead shows here even when the email never arrives. Staff move each one through new → contacted →
-   won/lost (or spam), keep notes, and see a red tag when the sales email failed. "Import from Azure" copies
-   the older clientrequest rows in once (ids az-…, so a second import adds nothing). *@
+@* Every "Book a demo" request, from the site database — written before Azure and the email, so a lead shows
+   here even when the email never arrives. An inbox: the list (search, status tabs) on the left, the picked lead
+   on the right with one-tap email/call, its status (new → contacted → won/lost, or spam), notes, and what
+   happened to it. On a phone the lead opens over the list. "Import from Azure" copies the older
+   clientrequest rows in once (ids az-…, so a second import adds nothing). *@
 
 <PageTitle>Lead requests — MapleKiosk</PageTitle>
 
@@ -21,71 +22,192 @@
 <main class="adm">
     @* Cloudflare's email obfuscation would show addresses as "[email protected]"; this page is staff-only. *@
     @((MarkupString)"<!--email_off-->")
-    <div class="container adm__wrap">
+    <div class="container ld">
         @if (Signups.Leads is null)
         {
-            <p class="onb-error">The site database can't be opened — new requests are only saved to Azure and emailed.</p>
+            <p class="adm-banner">The site database can't be opened — new requests are only saved to Azure and emailed.</p>
         }
 
-        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px">
+        <div class="ld-head">
+            <div>
+                <h1 class="ld-head__title">Lead requests</h1>
+                <p class="ld-head__sub">
+                    @if (Count(LeadStatus.New) is var fresh && fresh > 0)
+                    {
+                        <span><b>@fresh new</b> waiting for a reply</span>
+                    }
+                    else
+                    {
+                        <span>All caught up</span>
+                    }
+                    @if (_leads is { Count: > 0 })
+                    {
+                        <span> · latest @Ago(_leads.Max(l => l.Form.SubmittedAt))</span>
+                    }
+                </p>
+            </div>
+            <input class="ld-search" type="search" placeholder="Search company, name, email, phone, city…"
+                   @bind="_query" @bind:event="oninput" />
+        </div>
+
+        <nav class="ld-tabs" aria-label="Filter by status">
             @foreach (var (key, label) in Tabs)
             {
-                <button type="button" class="btn @(_tab == key ? "btn-primary" : "btn-ghost") onb-small" @onclick="() => _tab = key">
-                    @label (@Count(key))
+                <button type="button" class="ld-tab @(_tab == key ? "is-on" : "")" @onclick="() => _tab = key">
+                    @label <span class="ld-tab__n">@Count(key)</span>
                 </button>
+            }
+        </nav>
+
+        <div class="ld-body @(_opened && Selected is not null ? "has-pick" : "")">
+            <section class="ld-list" aria-label="Leads">
+                @if (_leads is null)
+                {
+                    <p class="ld-empty">Loading…</p>
+                }
+                else if (!Shown.Any())
+                {
+                    <div class="ld-empty">
+                        <p><b>@(string.IsNullOrWhiteSpace(_query) ? EmptyText : "No match.")</b></p>
+                        @if (!string.IsNullOrWhiteSpace(_query))
+                        {
+                            <button type="button" class="adm-link" @onclick="() => _query = null">Clear search</button>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <ul>
+                        @foreach (var l in Shown)
+                        {
+                            var f = l.Form;
+                            <li>
+                                <button type="button" class="ld-item @(l.Id == _picked ? "is-on" : "")" @onclick="() => Open(l.Id)">
+                                    <span class="ld-avatar" style="--tone:@Tone(f.BusinessType)">@Initials(f.CompanyName)</span>
+                                    <span class="ld-item__main">
+                                        <span class="ld-item__top">
+                                            <strong>@f.CompanyName</strong>
+                                            <time>@Ago(f.SubmittedAt)</time>
+                                        </span>
+                                        <span class="ld-item__sub">@Join(f.ContactName, f.BusinessType)</span>
+                                        <span class="ld-item__tags">
+                                            <span class="ld-pill ld-pill--@l.Status">@Label(l.Status)</span>
+                                            @if (l.EmailError is not null)
+                                            {
+                                                <span class="ld-pill ld-pill--warn">Email failed</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(l.Notes))
+                                            {
+                                                <span class="ld-item__note" title="@l.Notes">✎ @l.Notes</span>
+                                            }
+                                        </span>
+                                    </span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </section>
+
+            <section class="ld-detail" aria-label="Lead">
+                @if (Selected is not { } lead)
+                {
+                    <div class="ld-empty ld-empty--detail">
+                        <p><b>Pick a lead</b></p>
+                        <p>Its details, status and notes show here.</p>
+                    </div>
+                }
+                else
+                {
+                    var f = lead.Form;
+                    <button type="button" class="ld-back" @onclick="() => _opened = false">← All leads</button>
+
+                    <div class="ld-card">
+                        <div class="ld-card__head">
+                            <span class="ld-avatar ld-avatar--lg" style="--tone:@Tone(f.BusinessType)">@Initials(f.CompanyName)</span>
+                            <div class="ld-card__title">
+                                <h2>@f.CompanyName</h2>
+                                <div class="ld-chips">
+                                    <span class="ld-chip">@f.BusinessType</span>
+                                    @if (!string.IsNullOrWhiteSpace(f.Product))
+                                    {
+                                        <span class="ld-chip ld-chip--hot">@f.Product only</span>
+                                    }
+                                    <span class="ld-chip">@Language(f.Culture)</span>
+                                    @if (lead.Id.StartsWith("az-", StringComparison.Ordinal))
+                                    {
+                                        <span class="ld-chip ld-chip--quiet">Imported</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="ld-actions">
+                            <a class="btn btn-primary ld-btn" href="@MailTo(f)">✉ Email @FirstName(f.ContactName)</a>
+                            <a class="btn btn-ghost ld-btn" href="tel:@f.Phone">☎ Call @f.Phone</a>
+                        </div>
+
+                        <div class="ld-block">
+                            <h3>Status</h3>
+                            <div class="ld-status" role="radiogroup" aria-label="Status">
+                                @foreach (var s in LeadStatus.All)
+                                {
+                                    <button type="button" role="radio" aria-checked="@(lead.Status == s)" disabled="@_busy"
+                                            class="ld-status__opt ld-status__opt--@s @(lead.Status == s ? "is-on" : "")"
+                                            @onclick="() => StatusAsync(lead, s)">@Label(s)</button>
+                                }
+                            </div>
+                        </div>
+
+                        <dl class="ld-facts">
+                            <div><dt>Contact</dt><dd>@(string.IsNullOrWhiteSpace(f.ContactName) ? "—" : f.ContactName)</dd></div>
+                            <div><dt>Email</dt><dd><a href="mailto:@f.Email">@f.Email</a></dd></div>
+                            <div><dt>Phone</dt><dd><a href="tel:@f.Phone">@f.Phone</a></dd></div>
+                            <div>
+                                <dt>Address</dt>
+                                <dd><a href="@MapUrl(f)" target="_blank" rel="noopener">@f.Address, @f.City @f.PostalCode ↗</a></dd>
+                            </div>
+                        </dl>
+
+                        <div class="ld-block">
+                            <h3>Notes @if (_savedNote == lead.Id) { <span class="ld-saved">Saved ✓</span> }</h3>
+                            <textarea class="ld-notes" rows="4" placeholder="What was said, next step, demo date…"
+                                      value="@lead.Notes" @onchange="e => NotesAsync(lead, e.Value as string)"></textarea>
+                        </div>
+
+                        <div class="ld-block">
+                            <h3>History</h3>
+                            <ol class="ld-timeline">
+                                <li><b>Request received</b><span>@Local(f.SubmittedAt) · @Ago(f.SubmittedAt)</span></li>
+                                @if (lead.EmailError is not null)
+                                {
+                                    <li class="is-bad"><b>Sales email failed</b><span>@lead.EmailError</span></li>
+                                }
+                                else if (lead.EmailSentAt is { } sent)
+                                {
+                                    <li><b>Sales email sent</b><span>@Local(sent)</span></li>
+                                }
+                                @if (lead.ContactedAt is { } at)
+                                {
+                                    <li class="is-good"><b>Followed up by @lead.ContactedBy</b><span>@Local(at) · @Ago(at)</span></li>
+                                }
+                            </ol>
+                        </div>
+                    </div>
+                }
+            </section>
+        </div>
+
+        <footer class="ld-foot">
+            @if (_message is not null)
+            {
+                <span role="status">@_message</span>
             }
             @if (Signups.HasAzure && Signups.Leads is not null)
             {
-                <button type="button" class="btn btn-ghost onb-small" style="margin-left:auto" disabled="@_busy" @onclick="ImportAsync">Import from Azure</button>
+                <button type="button" class="adm-link" disabled="@_busy" @onclick="ImportAsync">Import older requests from Azure</button>
             }
-        </div>
-
-        @if (_leads is null)
-        {
-            <p class="pl-muted">Loading…</p>
-        }
-        else if (!Shown.Any())
-        {
-            <p class="pl-muted">Nothing here.</p>
-        }
-        else
-        {
-            <ul class="adm-list">
-                @foreach (var l in Shown)
-                {
-                    var f = l.Form;
-                    <li>
-                        <div class="adm-row" style="cursor:default;align-items:flex-start">
-                            <span class="adm-row__main">
-                                <strong>@f.CompanyName · @f.BusinessType@(string.IsNullOrWhiteSpace(f.Product) ? "" : $" · {f.Product} only")</strong>
-                                <small>@f.ContactName · <a href="mailto:@f.Email">@f.Email</a> · <a href="tel:@f.Phone">@f.Phone</a></small>
-                                <small>@f.Address, @f.City @f.PostalCode · @f.Culture.ToUpperInvariant()</small>
-                                <small>Sent @Local(f.SubmittedAt)@(l.ContactedAt is { } at ? $" · followed up {Local(at)} by {l.ContactedBy}" : "")</small>
-                                @if (l.EmailError is not null)
-                                {
-                                    <small class="pl-adm__err">Sales email failed: @l.EmailError</small>
-                                }
-                                <textarea rows="2" placeholder="Notes" style="margin-top:8px;width:100%;font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit"
-                                          value="@l.Notes" @onchange="e => NotesAsync(l, e.Value as string)"></textarea>
-                            </span>
-                            <span class="adm-row__side">
-                                <select disabled="@_busy" value="@l.Status" @onchange="e => StatusAsync(l, e.Value as string)"
-                                        style="font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit">
-                                    @foreach (var s in LeadStatus.All)
-                                    {
-                                        <option value="@s">@Label(s)</option>
-                                    }
-                                </select>
-                            </span>
-                        </div>
-                    </li>
-                }
-            </ul>
-        }
-        @if (_message is not null)
-        {
-            <p class="pl-note" role="status">@_message</p>
-        }
+        </footer>
     </div>
 </main>
 
@@ -100,8 +222,14 @@
 
     private List<LeadRequest>? _leads;
     private string _tab = LeadStatus.New;
+    private string? _query;
+    private string? _picked;
+    private bool _opened; // tapped open, not just selected first — on a phone only then does the lead cover the list
+    private string? _savedNote;
     private bool _busy;
     private string? _message;
+
+    private LeadRequest? Selected => _leads?.FirstOrDefault(l => l.Id == _picked);
 
     private static bool InTab(LeadRequest l, string tab) => tab switch
     {
@@ -110,19 +238,41 @@
         _ => l.Status == tab,
     };
 
+    private bool Matches(LeadRequest l)
+    {
+        if (string.IsNullOrWhiteSpace(_query)) return true;
+        var f = l.Form;
+        return new[] { f.CompanyName, f.ContactName, f.Email, f.Phone, f.City, f.BusinessType, l.Notes }
+            .Any(v => v?.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+    }
+
     private int Count(string tab) => _leads?.Count(l => InTab(l, tab)) ?? 0;
-    private IEnumerable<LeadRequest> Shown => (_leads ?? []).Where(l => InTab(l, _tab));
+    private IEnumerable<LeadRequest> Shown => (_leads ?? []).Where(l => InTab(l, _tab) && Matches(l));
 
-    private static string Label(string status) => char.ToUpperInvariant(status[0]) + status[1..];
-    private static string Local(DateTimeOffset at) => TimeZoneInfo.ConvertTime(at, Eastern).ToString("yyyy-MM-dd HH:mm");
+    private string EmptyText => _tab switch
+    {
+        LeadStatus.New => "No new requests — all followed up.",
+        LeadStatus.Spam => "No spam caught.",
+        _ => "Nothing here yet.",
+    };
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _picked = Shown.FirstOrDefault()?.Id;
+    }
+
+    private void Open(string id)
+    {
+        _picked = id;
+        _opened = true;
+    }
 
     private async Task LoadAsync() => _leads = Signups.Leads is null ? [] : await Signups.Leads.ListAsync();
 
-    private async Task StatusAsync(LeadRequest lead, string? status)
+    private async Task StatusAsync(LeadRequest lead, string status)
     {
-        if (Signups.Leads is null || status is null || status == lead.Status) return;
+        if (Signups.Leads is null || status == lead.Status) return;
         _busy = true;
         try
         {
@@ -141,7 +291,8 @@
     {
         if (Signups.Leads is null) return;
         await Signups.Leads.SetNotesAsync(lead.Id, notes);
-        lead.Notes = notes;
+        lead.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        _savedNote = lead.Id;
     }
 
     private async Task ImportAsync()
@@ -162,4 +313,55 @@
             _busy = false;
         }
     }
+
+    private static string Label(string status) => char.ToUpperInvariant(status[0]) + status[1..];
+
+    private static string Local(DateTimeOffset at) => TimeZoneInfo.ConvertTime(at, Eastern).ToString("ddd MMM d, yyyy · HH:mm");
+
+    private static string Ago(DateTimeOffset at)
+    {
+        var d = DateTimeOffset.UtcNow - at;
+        return d.TotalMinutes < 1 ? "just now"
+            : d.TotalHours < 1 ? $"{(int)d.TotalMinutes} min ago"
+            : d.TotalDays < 1 ? $"{(int)d.TotalHours} h ago"
+            : d.TotalDays < 2 ? "yesterday"
+            : d.TotalDays < 30 ? $"{(int)d.TotalDays} days ago"
+            : TimeZoneInfo.ConvertTime(at, Eastern).ToString("MMM d, yyyy");
+    }
+
+    private static string Initials(string name)
+    {
+        var words = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return words.Length == 0 ? "?" : string.Concat(words.Take(2).Select(w => char.ToUpperInvariant(w[0])));
+    }
+
+    private static string FirstName(string name) =>
+        name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+
+    private static string Join(params string?[] parts) => string.Join(" · ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    // The trade colours used across the site (.hp in site.css).
+    private static string Tone(string businessType) => businessType switch
+    {
+        "Nail Salon" => "#8f6fcf",
+        "Restaurant" => "#8a7f72",
+        "Garage" => "#1f2a33",
+        "Retail" => "#e07b4a",
+        "Startup" => "#2f7d6d",
+        _ => "#6b645c",
+    };
+
+    private static string Language(string culture) => culture switch
+    {
+        "fr" => "Français",
+        "vi" => "Tiếng Việt",
+        "ru" => "Русский",
+        _ => "English",
+    };
+
+    private static string MailTo(TrialSignup f) =>
+        $"mailto:{f.Email}?subject={Uri.EscapeDataString($"Your MapleKiosk demo — {f.CompanyName}")}";
+
+    private static string MapUrl(TrialSignup f) =>
+        "https://www.google.com/maps/search/?api=1&query=" + Uri.EscapeDataString($"{f.Address}, {f.City} {f.PostalCode}");
 }

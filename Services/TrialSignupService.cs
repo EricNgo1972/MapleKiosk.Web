@@ -152,7 +152,6 @@ public class TrialSignupService
             var lead = new LeadRequest
             {
                 Id = "az-" + e.RowKey,
-                Notes = "Imported from Azure",
                 Form = new TrialSignup
                 {
                     SubmittedAt = e.SubmittedAt == default ? e.Timestamp ?? DateTimeOffset.UtcNow : e.SubmittedAt,
