@@ -120,8 +120,9 @@ public sealed class PhoneLineService
             if (tenantId is not null)
             {
                 endpoint = await _directory.GetPhoneEndpointAsync(tenantId, ct).ConfigureAwait(false);
+                // A test order's line was never bought: it holds nothing.
                 active = (await _orders.ListPhoneLinesAsync(tenantId, ct).ConfigureAwait(false))
-                    .FirstOrDefault(o => o.PhoneLineStatus is PhoneLineStatus.Active or PhoneLineStatus.Releasing)?.PhoneLineNumber;
+                    .FirstOrDefault(o => !o.IsTest && o.PhoneLineStatus is PhoneLineStatus.Active or PhoneLineStatus.Releasing)?.PhoneLineNumber;
             }
             salons.Add(new PhoneLineSalon(business.Key, tenantId, business.Name, business.Address, Reachable(endpoint), active));
         }
@@ -159,8 +160,9 @@ public sealed class PhoneLineService
     /// </summary>
     /// <param name="email">The SIGNED-IN email (from the auth cookie), never one typed on the page.</param>
     /// <param name="siteRoot">This site's root, e.g. https://www.maplekiosk.ca/ — where Stripe sends the buyer back.</param>
+    /// <param name="test">An admin in Stripe test mode: checkout on the test account, and no number is bought.</param>
     public async Task<PhoneLineCheckout> StartCheckoutAsync(string email, string tenantId, string number, string culture,
-        string siteRoot, CancellationToken ct = default)
+        string siteRoot, CancellationToken ct = default, bool test = false)
     {
         var canonical = Canonical(email);
         var phone = (number ?? "").Trim();
@@ -194,7 +196,8 @@ public sealed class PhoneLineService
             Culture = lang,
             PhoneLineTenantId = salon.TenantId!,
             PhoneLineNumber = phone,
-            PhoneLineStatus = PhoneLineStatus.None
+            PhoneLineStatus = PhoneLineStatus.None,
+            IsTest = test
         };
 
         var root = siteRoot.TrimEnd('/') + "/" + (lang == "en" ? "" : lang + "/");
@@ -259,8 +262,16 @@ public sealed class PhoneLineService
         var tenantId = order.PhoneLineTenantId!;
         try
         {
+            // Paid on the Stripe test account: the flow completes, but no money changed hands, so Twilio isn't called.
+            if (order.IsTest)
+            {
+                _logger.LogWarning("Phone line: TEST order {OrderRef} for tenant {TenantId}; {Number} marked active without buying it.",
+                    order.OrderRef, tenantId, number);
+                return await FinishAsync(order, PhoneLineStatus.Active, number, null, null, ct);
+            }
+
             var other = (await _orders.ListPhoneLinesAsync(tenantId, ct).ConfigureAwait(false))
-                .FirstOrDefault(o => o.OrderRef != order.OrderRef && PhoneLineStatus.HoldsNumber(o.PhoneLineStatus));
+                .FirstOrDefault(o => o.OrderRef != order.OrderRef && !o.IsTest && PhoneLineStatus.HoldsNumber(o.PhoneLineStatus));
             if (other is not null)
                 return await FinishAsync(order, PhoneLineStatus.Failed, number, null,
                     $"Tenant {tenantId} already has a line on order {other.OrderRef} ({other.PhoneLineNumber}, {other.PhoneLineStatus}).", ct);
@@ -372,6 +383,13 @@ public sealed class PhoneLineService
             if (order.PhoneLineStatus != PhoneLineStatus.Active || order.PhoneLineReleaseAt is not { } at || at > now
                 || !SubscriptionStates.HasEnded(order.SubscriptionStatus))
                 continue;
+            if (order.IsTest)
+            {
+                // Nothing was bought, so there's nothing to hand back.
+                if (await _orders.ClaimReleaseAsync(order.OrderRef, ct).ConfigureAwait(false))
+                    await _orders.FinishPhoneLineAsync(order.OrderRef, PhoneLineStatus.Released, null, null, null, ct).ConfigureAwait(false);
+                continue;
+            }
             if (string.IsNullOrWhiteSpace(order.PhoneLineSid))
             {
                 _logger.LogError("Phone line: order {OrderRef} is due for release but has no Twilio number id.", order.OrderRef);

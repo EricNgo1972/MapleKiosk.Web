@@ -22,12 +22,18 @@ public sealed class AppStoreConfig
 
     public Task<string> GetApiKeyAsync() => GetAsync("APPSTORE_API_KEY", "ApiKey");
     public Task<string> GetCatalogJsonAsync() => GetAsync("APPSTORE_CATALOG", "Catalog");
-    public Task<string> GetStripeSecretKeyAsync() => GetAsync("APPSTORE_STRIPE_SECRET_KEY", "StripeSecretKey");
-    public Task<string> GetStripeAutomaticTaxAsync() => GetAsync("APPSTORE_STRIPE_AUTOMATIC_TAX", "StripeAutomaticTax");
+    // Each Stripe setting has a test-mode twin (StripeTest*, APPSTORE_STRIPE_TEST_*) for the sandbox account that an
+    // admin's test mode (StripeTestMode) checks out against; test = false is the live account real customers pay.
+    public Task<string> GetStripeSecretKeyAsync(bool test = false) => Stripe(test, "SECRET_KEY", "SecretKey");
+    public Task<string> GetStripeAutomaticTaxAsync(bool test = false) => Stripe(test, "AUTOMATIC_TAX", "AutomaticTax");
     /// <summary>The Stripe customer portal's login link (Stripe dashboard → Settings → Billing → Customer portal),
     /// where subscribers cancel or change card themselves. Empty = no "manage subscription" link is shown.</summary>
-    public Task<string> GetStripePortalUrlAsync() => GetAsync("APPSTORE_STRIPE_PORTAL_URL", "StripePortalUrl");
-    public Task<string> GetStripeWebhookSecretAsync() => GetAsync("APPSTORE_STRIPE_WEBHOOK_SECRET", "StripeWebhookSecret");
+    public Task<string> GetStripePortalUrlAsync(bool test = false) => Stripe(test, "PORTAL_URL", "PortalUrl");
+    public Task<string> GetStripeWebhookSecretAsync(bool test = false) => Stripe(test, "WEBHOOK_SECRET", "WebhookSecret");
+
+    private Task<string> Stripe(bool test, string envSuffix, string rowSuffix) => test
+        ? GetAsync("APPSTORE_STRIPE_TEST_" + envSuffix, "StripeTest" + rowSuffix)
+        : GetAsync("APPSTORE_STRIPE_" + envSuffix, "Stripe" + rowSuffix);
     public Task<string> GetVietQrBankCodeAsync() => GetAsync("APPSTORE_VIETQR_BANK_CODE", "VietQrBankCode");
     public Task<string> GetVietQrAccountNumberAsync() => GetAsync("APPSTORE_VIETQR_ACCOUNT_NUMBER", "VietQrAccountNumber");
     public Task<string> GetVietQrAccountNameAsync() => GetAsync("APPSTORE_VIETQR_ACCOUNT_NAME", "VietQrAccountName");
@@ -43,6 +49,14 @@ public sealed class AppStoreConfig
     }
 
     public const string DefaultTeamInbox = "team@maplekiosk.ca";
+
+    /// <summary>Drops the cached values, so rows added to the keyvalue table since (test keys, say) are read again.</summary>
+    public void Forget()
+    {
+        _lock.Wait();
+        try { _cache.Clear(); }
+        finally { _lock.Release(); }
+    }
 
     private async Task<string> GetAsync(string envVar, string rowKey)
     {

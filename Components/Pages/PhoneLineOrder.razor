@@ -136,7 +136,7 @@
         _email = user.FindFirst(ClaimTypes.Email)?.Value;
         _isStaff = user.IsInRole(AppAuthValidator.AdminRole);
         await LoadAsync();
-        var portal = await Config.GetStripePortalUrlAsync();
+        var portal = await Config.GetStripePortalUrlAsync(_order?.IsTest == true);
         _manageUrl = string.IsNullOrWhiteSpace(portal) ? null : portal;
         _loaded = true;
     }

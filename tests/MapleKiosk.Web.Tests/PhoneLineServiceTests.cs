@@ -138,6 +138,26 @@ public sealed class PhoneLineServiceTests
     }
 
     [Fact]
+    public async Task A_stripe_test_mode_order_completes_without_buying_a_number_or_holding_the_salon()
+    {
+        var checkout = await _service.StartCheckoutAsync(Owner, Tenant, Number, "en", Root, test: true);
+        Assert.True(checkout.Success, checkout.Error);
+        Assert.True((await _orders.GetAsync(checkout.OrderRef!))!.IsTest);
+
+        await PayAsync(checkout.OrderRef!);
+
+        Assert.Empty(_telephony.Bought);
+        var order = (await _orders.GetAsync(checkout.OrderRef!))!;
+        Assert.Equal(PhoneLineStatus.Active, order.PhoneLineStatus);
+        Assert.Null(order.PhoneLineSid);
+
+        // The salon can still buy its real line, and that one is bought.
+        Assert.Null((await _service.ListSalonsAsync(Owner)).Single().ActiveNumber);
+        await PayAsync(await PlaceAsync());
+        Assert.Single(_telephony.Bought);
+    }
+
+    [Fact]
     public async Task A_salon_with_an_active_line_cannot_buy_a_second()
     {
         await PayAsync(await PlaceAsync());

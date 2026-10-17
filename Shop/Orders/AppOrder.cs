@@ -60,6 +60,10 @@ public sealed class AppOrder
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
 
+    /// <summary>Placed by an admin in Stripe test mode (<c>Payments.StripeTestMode</c>): checked out against the
+    /// Stripe test account, so nothing was charged and nothing real (a phone number) is bought for it.</summary>
+    public bool IsTest { get; set; }
+
     /// <summary>Set once a recurring order is paid: Stripe owns the subscription from then on (renewals,
     /// card retries, cancellation via the customer portal) and the webhook mirrors its state here.</summary>
     public string? StripeCustomerId { get; set; }

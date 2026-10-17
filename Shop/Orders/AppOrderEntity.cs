@@ -30,6 +30,7 @@ public sealed class AppOrderEntity : ITableEntity
     public string? Culture { get; set; }
     public string? ProviderTxnId { get; set; }
     public string? ProviderRef { get; set; }
+    public bool IsTest { get; set; }
     public string? StripeCustomerId { get; set; }
     public string? StripeSubscriptionId { get; set; }
     public string? SubscriptionStatus { get; set; }
@@ -68,6 +69,7 @@ public sealed class AppOrderEntity : ITableEntity
         Culture = o.Culture,
         ProviderTxnId = o.ProviderTxnId,
         ProviderRef = o.ProviderRef,
+        IsTest = o.IsTest,
         StripeCustomerId = o.StripeCustomerId,
         StripeSubscriptionId = o.StripeSubscriptionId,
         SubscriptionStatus = o.SubscriptionStatus,
@@ -103,6 +105,7 @@ public sealed class AppOrderEntity : ITableEntity
         Culture = string.IsNullOrWhiteSpace(Culture) ? "en" : Culture,
         ProviderTxnId = ProviderTxnId,
         ProviderRef = ProviderRef,
+        IsTest = IsTest,
         StripeCustomerId = StripeCustomerId,
         StripeSubscriptionId = StripeSubscriptionId,
         SubscriptionStatus = SubscriptionStatus,

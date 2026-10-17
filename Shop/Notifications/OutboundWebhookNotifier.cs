@@ -43,7 +43,8 @@ public sealed class OutboundWebhookNotifier : IOrderPaidSink
             currency = n.Currency,
             method = n.Method,
             providerTxnId = n.ProviderTxnId,
-            paidAt = n.PaidAt
+            paidAt = n.PaidAt,
+            isTest = n.IsTest
         }, JsonOptions);
 
         var secret = await _config.GetOutboundWebhookSecretAsync().ConfigureAwait(false);

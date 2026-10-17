@@ -5,10 +5,12 @@
 @page "/store/phone-line"
 @rendermode InteractiveServer
 @using System.Security.Claims
+@using MapleKiosk.Web.Shop.Payments
 @using MapleKiosk.Web.Shop.PhoneLines
 @inject LocalizationService L
 @inject NavigationManager Nav
 @inject PhoneLineService PhoneLines
+@inject StripeTestMode TestMode
 
 @* A customer buys their salon's phone number: signs in (central OAuth proves the email), picks one of the
    businesses on that email's customer record, chooses a number and subscribes. Nothing is bought until Stripe confirms the payment.
@@ -132,6 +134,7 @@
     private bool _loaded;
     private bool _busy;
     private string? _email;
+    private bool _test; // an admin in Stripe test mode: the test account, and no number is bought
     private PhoneLineOffer? _offer;
     private IReadOnlyList<PhoneLineSalon>? _salons;
     private string? _tenantId;
@@ -149,6 +152,7 @@
         var user = (await AuthState).User;
         var email = user.Identity?.IsAuthenticated == true ? user.FindFirst(ClaimTypes.Email)?.Value : null;
         _email = string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
+        _test = TestMode.IsOn(user);
 
         _offer = await PhoneLines.GetOfferAsync();
         if (_email is not null && _offer is not null)
@@ -167,7 +171,7 @@
         _error = null;
         try
         {
-            var result = await PhoneLines.StartCheckoutAsync(_email, _tenantId, _number, L.Culture, Nav.BaseUri);
+            var result = await PhoneLines.StartCheckoutAsync(_email, _tenantId, _number, L.Culture, Nav.BaseUri, test: _test);
             if (result.Success && result.CheckoutUrl is not null)
             {
                 Nav.NavigateTo(result.CheckoutUrl, forceLoad: true);

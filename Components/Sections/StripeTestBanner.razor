@@ -1,0 +1,23 @@
+@using MapleKiosk.Web.Shop.Payments
+@inject StripeTestMode TestMode
+
+@* Shown on every page to an admin whose checkouts go to the Stripe test account (switched on /shop/admin),
+   so a test purchase is never mistaken for a real one. Nobody else ever sees it. *@
+
+@if (_on)
+{
+    <div class="stripe-test-banner" role="status">
+        <strong>STRIPE TEST MODE</strong> — your checkouts aren't charged. Card 4242 4242 4242 4242, any future date, any CVC.
+        <a href="/shop/admin">Turn off</a>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    private bool _on;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null) _on = TestMode.IsOn((await AuthState).User);
+    }
+}

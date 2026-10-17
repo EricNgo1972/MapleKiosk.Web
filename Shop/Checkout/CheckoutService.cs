@@ -30,7 +30,8 @@ public sealed class CheckoutService
         _vietQr = vietQr;
     }
 
-    public async Task<CheckoutResult> CreateAsync(CreateCheckoutRequest request, CancellationToken ct = default)
+    /// <param name="test">An admin in Stripe test mode (<see cref="StripeTestMode"/>): card checkout on the test account.</param>
+    public async Task<CheckoutResult> CreateAsync(CreateCheckoutRequest request, CancellationToken ct = default, bool test = false)
     {
         var items = request.Items?.Where(i => !string.IsNullOrWhiteSpace(i.Sku)).ToList() ?? new List<CheckoutItem>();
         if (items.Count == 0) return Fail(request.Method, "Cart is empty.");
@@ -91,7 +92,8 @@ public sealed class CheckoutService
             Interval = cycles.FirstOrDefault() ?? Catalog.BillingIntervals.OneTime,
             TrialDays = trialDays,
             CustomerEmail = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
-            Culture = request.Culture is "fr" or "vi" or "ru" ? request.Culture : "en"
+            Culture = request.Culture is "fr" or "vi" or "ru" ? request.Culture : "en",
+            IsTest = test && !isVietQr
         };
 
         if (isVietQr)
@@ -133,7 +135,7 @@ public sealed class CheckoutService
             OrderRef = order.OrderRef, Status = order.Status.ToString(),
             Total = order.Total, Currency = order.Currency,
             Interval = order.Interval, TrialDays = order.TrialDays,
-            ManageUrl = BillingIntervals.IsRecurring(order.Interval) ? NullIfEmpty(await _config.GetStripePortalUrlAsync().ConfigureAwait(false)) : null
+            ManageUrl = BillingIntervals.IsRecurring(order.Interval) ? NullIfEmpty(await _config.GetStripePortalUrlAsync(order.IsTest).ConfigureAwait(false)) : null
         };
     }
 

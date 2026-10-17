@@ -39,7 +39,7 @@
                     <li class="pl-adm">
                         <div class="adm-row">
                             <span class="adm-row__main">
-                                <strong>@o.Company · @PhoneLineService.Pretty(o.PhoneLineNumber)</strong>
+                                <strong>@o.Company · @PhoneLineService.Pretty(o.PhoneLineNumber)@(o.IsTest ? " · TEST (nothing bought)" : "")</strong>
                                 <small>@o.OrderRef · @o.CustomerEmail · tenant @o.PhoneLineTenantId · @o.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
                                 @if (!string.IsNullOrWhiteSpace(o.PhoneLineSid))
                                 {

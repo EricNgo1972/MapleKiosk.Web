@@ -4,6 +4,7 @@ using MapleKiosk.Web.Shop.Catalog;
 using MapleKiosk.Web.Shop.Checkout;
 using MapleKiosk.Web.Shop.Config;
 using MapleKiosk.Web.Shop.Orders;
+using MapleKiosk.Web.Shop.Payments;
 using MapleKiosk.Web.Shop.Payments.VietQr;
 using MapleKiosk.Web.Shop.PhoneLines;
 using Stripe;
@@ -37,15 +38,17 @@ public static class AppStoreEndpoints
 
         // "Buy online" on a /{product}/pricing quote: public (guests), same-origin, no API key.
         // Prices are re-resolved from the catalog; the browser only sends the SKUs picked.
-        group.MapPost("/quote", async (QuoteCheckoutRequest req, HttpRequest http, QuoteCheckoutService quotes, CancellationToken ct) =>
+        group.MapPost("/quote", async (QuoteCheckoutRequest req, HttpRequest http, QuoteCheckoutService quotes, StripeTestMode testMode,
+            CancellationToken ct) =>
         {
-            var result = await quotes.CreateAsync(req, $"{http.Scheme}://{http.Host}{http.PathBase}", ct);
+            var result = await quotes.CreateAsync(req, $"{http.Scheme}://{http.Host}{http.PathBase}", ct, testMode.IsOn(http.HttpContext.User));
             return result.Success ? Results.Ok(result) : Results.BadRequest(result);
         });
 
         // The /shop page's cart (site.js) checking out: public and same-origin like /quote. Card only; the
         // server prices the SKUs and picks where Stripe returns to, so the browser can't redirect anywhere.
-        group.MapPost("/shop", async (ShopCheckoutRequest req, HttpRequest http, CheckoutService checkout, CancellationToken ct) =>
+        group.MapPost("/shop", async (ShopCheckoutRequest req, HttpRequest http, CheckoutService checkout, StripeTestMode testMode,
+            CancellationToken ct) =>
         {
             var email = req.Email?.Trim();
             if (string.IsNullOrEmpty(email) || email.Length > 120 || !email.Contains('@') || email.Contains(' '))
@@ -61,7 +64,7 @@ public static class AppStoreEndpoints
                 Culture = culture,
                 SuccessUrl = $"{root}shop/success",
                 CancelUrl = $"{root}{(culture == "en" ? "" : culture + "/")}shop?checkout=cancelled"
-            }, ct);
+            }, ct, testMode.IsOn(http.HttpContext.User));
             return result.Success ? Results.Ok(result) : Results.BadRequest(result);
         });
 
@@ -105,10 +108,12 @@ public static class AppStoreEndpoints
         using (var reader = new StreamReader(request.Body)) json = await reader.ReadToEndAsync();
         var signature = request.Headers["Stripe-Signature"].FirstOrDefault() ?? "";
 
-        Event stripeEvent;
-        try { stripeEvent = EventUtility.ConstructEvent(json, signature, secret); }
-        catch (StripeException ex) { log.LogWarning(ex, "Stripe webhook signature verification failed."); return Results.BadRequest(); }
+        // The live and test accounts both post here, each signing with its own endpoint secret.
+        var stripeEvent = Verify(json, signature, secret) ?? Verify(json, signature, await config.GetStripeWebhookSecretAsync(test: true));
+        if (stripeEvent is null) { log.LogWarning("Stripe webhook signature verification failed."); return Results.BadRequest(); }
 
+        // Which account the event came from; orders only accept events from their own (AppOrderService checks).
+        var test = !stripeEvent.Livemode;
         var ct = request.HttpContext.RequestAborted;
         if (stripeEvent.Type is EventTypes.CheckoutSessionCompleted or EventTypes.CheckoutSessionAsyncPaymentSucceeded)
         {
@@ -118,12 +123,12 @@ public static class AppStoreEndpoints
                 && session.PaymentStatus is "paid" or "no_payment_required")
             {
                 await orders.MarkPaidAsync(session.ClientReferenceId, session.PaymentIntentId ?? session.SubscriptionId ?? session.Id,
-                    ct, session.CustomerId, session.SubscriptionId);
+                    ct, session.CustomerId, session.SubscriptionId, test);
 
                 // Stripe's own invoices, renewal emails and portal then speak the buyer's language around the
                 // (English) item names. Best effort: the order is already confirmed.
                 if (!string.IsNullOrEmpty(session.CustomerId) && session.Metadata?.GetValueOrDefault("lang") is "fr" or "vi" or "ru" or "en")
-                    await SetCustomerLanguageAsync(config, session.CustomerId, session.Metadata["lang"], log, ct);
+                    await SetCustomerLanguageAsync(config, test, session.CustomerId, session.Metadata["lang"], log, ct);
             }
         }
         else if (stripeEvent.Type is EventTypes.CustomerSubscriptionCreated or EventTypes.CustomerSubscriptionUpdated
@@ -137,7 +142,7 @@ public static class AppStoreEndpoints
             {
                 var periodEnd = sub.Items?.Data?.Select(i => (DateTime?)i.CurrentPeriodEnd).Max();
                 await orders.UpdateSubscriptionAsync(orderRef, sub.Id, sub.CustomerId, sub.Status,
-                    periodEnd is { } end ? new DateTimeOffset(DateTime.SpecifyKind(end, DateTimeKind.Utc)) : null, ct);
+                    periodEnd is { } end ? new DateTimeOffset(DateTime.SpecifyKind(end, DateTimeKind.Utc)) : null, ct, test);
                 // A phone line whose billing ended for good gets its number's release scheduled (never throws).
                 await phoneLines.OnSubscriptionChangedAsync(orderRef, DateTimeOffset.UtcNow, ct);
             }
@@ -146,11 +151,19 @@ public static class AppStoreEndpoints
         return Results.Ok();
     }
 
-    private static async Task SetCustomerLanguageAsync(AppStoreConfig config, string customerId, string lang, ILogger log, CancellationToken ct)
+    private static Event? Verify(string json, string signature, string secret)
+    {
+        if (string.IsNullOrEmpty(secret)) return null;
+        try { return EventUtility.ConstructEvent(json, signature, secret); }
+        catch (StripeException) { return null; }
+    }
+
+    private static async Task SetCustomerLanguageAsync(AppStoreConfig config, bool test, string customerId, string lang, ILogger log,
+        CancellationToken ct)
     {
         try
         {
-            var client = new StripeClient(await config.GetStripeSecretKeyAsync());
+            var client = new StripeClient(await config.GetStripeSecretKeyAsync(test));
             await new CustomerService(client).UpdateAsync(customerId, new CustomerUpdateOptions { PreferredLocales = [lang] }, cancellationToken: ct);
         }
         catch (StripeException ex)
@@ -181,7 +194,7 @@ public static class AppStoreEndpoints
             return Results.Ok();
         }
 
-        await orders.MarkPaidAsync(credit.Reference, credit.ProviderTxnId, ct);
+        await orders.MarkPaidAsync(credit.Reference, credit.ProviderTxnId, ct, test: false);
         return Results.Ok();
     }
 

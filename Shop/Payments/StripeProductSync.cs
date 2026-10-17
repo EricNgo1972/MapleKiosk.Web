@@ -63,18 +63,20 @@ public sealed class StripeProductSync
     private static string Safe(string sku)
         => new(sku.ToLowerInvariant().Select(c => char.IsAsciiLetterOrDigit(c) || c == '-' ? c : '_').ToArray());
 
-    public async Task<bool> IsConfiguredAsync() => !string.IsNullOrEmpty(await _config.GetStripeSecretKeyAsync().ConfigureAwait(false));
+    // test = the Stripe test account (StripeTestMode); the catalog is the same in both, under the same ids.
+    public async Task<bool> IsConfiguredAsync(bool test = false) => !string.IsNullOrEmpty(await _config.GetStripeSecretKeyAsync(test).ConfigureAwait(false));
 
-    private async Task<StripeClient?> ClientAsync()
+    private async Task<StripeClient?> ClientAsync(bool test)
     {
-        var key = await _config.GetStripeSecretKeyAsync().ConfigureAwait(false);
+        var key = await _config.GetStripeSecretKeyAsync(test).ConfigureAwait(false);
         return string.IsNullOrEmpty(key) ? null : new StripeClient(key);
     }
 
     /// <summary>Compares each item with Stripe without changing anything.</summary>
-    public async Task<IReadOnlyList<StripeItemStatus>> GetStatusAsync(IReadOnlyList<StripeItem> items, CancellationToken ct = default)
+    public async Task<IReadOnlyList<StripeItemStatus>> GetStatusAsync(IReadOnlyList<StripeItem> items, CancellationToken ct = default,
+        bool test = false)
     {
-        var client = await ClientAsync().ConfigureAwait(false);
+        var client = await ClientAsync(test).ConfigureAwait(false);
         if (client is null) return items.Select(i => new StripeItemStatus(i, StripeSyncState.NotConfigured, null, null, null)).ToList();
 
         // Two batched lookups (prices by lookup key, products by id) rather than one call per item.
@@ -104,9 +106,9 @@ public sealed class StripeProductSync
 
     /// <summary>Creates or updates the item's Product and makes sure its lookup key points at a Price
     /// with the right amount, currency and interval. An inactive item archives its Product.</summary>
-    public async Task<StripeSyncResult> SyncAsync(StripeItem item, CancellationToken ct = default)
+    public async Task<StripeSyncResult> SyncAsync(StripeItem item, CancellationToken ct = default, bool test = false)
     {
-        var client = await ClientAsync().ConfigureAwait(false);
+        var client = await ClientAsync(test).ConfigureAwait(false);
         if (client is null) return new StripeSyncResult(false, null, null, "Stripe is not configured.");
 
         var productId = ProductIdFor(item.Sku);
@@ -193,11 +195,12 @@ public sealed class StripeProductSync
 
     /// <summary>The live Price ids for these SKUs whose amount/currency/interval still match, for
     /// checkout. Anything missing or stale is left out (checkout then prices that line inline).</summary>
-    public async Task<IReadOnlyDictionary<string, string>> ResolvePriceIdsAsync(IEnumerable<StripeItem> items, CancellationToken ct = default)
+    public async Task<IReadOnlyDictionary<string, string>> ResolvePriceIdsAsync(IEnumerable<StripeItem> items, CancellationToken ct = default,
+        bool test = false)
     {
         var list = items.ToList();
         var resolved = new Dictionary<string, string>();
-        var client = await ClientAsync().ConfigureAwait(false);
+        var client = await ClientAsync(test).ConfigureAwait(false);
         if (client is null || list.Count == 0) return resolved;
         try
         {

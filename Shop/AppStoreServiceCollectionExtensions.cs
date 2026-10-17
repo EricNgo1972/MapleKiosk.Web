@@ -31,6 +31,7 @@ public static class AppStoreServiceCollectionExtensions
         services.AddSingleton<BlobImageUploader>();
         services.AddSingleton<CatalogTranslator>();
         services.AddSingleton<AppOrderService>();
+        services.AddSingleton<StripeTestMode>();
         services.AddSingleton<StripeProductSync>();
         services.AddSingleton<StripeCheckoutCreator>();
         services.AddSingleton<IStripeCheckout>(sp => sp.GetRequiredService<StripeCheckoutCreator>());

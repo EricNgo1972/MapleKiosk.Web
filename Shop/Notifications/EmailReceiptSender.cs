@@ -27,7 +27,9 @@ public sealed class EmailReceiptSender : IOrderPaidSink
     public async Task OnOrderPaidAsync(OrderPaidNotification n, CancellationToken ct = default)
     {
         var inbox = await _config.GetOrderInboxAsync().ConfigureAwait(false);
-        var portal = await _config.GetStripePortalUrlAsync().ConfigureAwait(false);
+        var portal = await _config.GetStripePortalUrlAsync(n.IsTest).ConfigureAwait(false);
+        // A Stripe test-mode order (an admin trying the flow): same mail, flagged, so nobody ships or books it.
+        var test = n.IsTest ? "[TEST] " : "";
 
         // The buyer reads it in their language, with the catalog's translated item names; the order itself
         // keeps the English names (as Stripe has them), which the team's copy shows.
@@ -35,7 +37,7 @@ public sealed class EmailReceiptSender : IOrderPaidSink
         {
             var t = Words(n.Culture);
             var names = await LocalNamesAsync(n, ct).ConfigureAwait(false);
-            await _email.SendAsync(n.CustomerEmail!, string.Format(t("rcpt.subject"), n.OrderRef),
+            await _email.SendAsync(n.CustomerEmail!, test + string.Format(t("rcpt.subject"), n.OrderRef),
                 BuildHtml(n, forTeam: false, portal, t, names)).ConfigureAwait(false);
         }
 
@@ -43,7 +45,7 @@ public sealed class EmailReceiptSender : IOrderPaidSink
         if (!string.IsNullOrWhiteSpace(inbox))
         {
             var en = Words("en");
-            await _email.SendAsync(inbox!, $"[order] {string.Format(en("rcpt.subject"), n.OrderRef)}",
+            await _email.SendAsync(inbox!, $"{test}[order] {string.Format(en("rcpt.subject"), n.OrderRef)}",
                 BuildHtml(n, forTeam: true, portal, en, null)).ConfigureAwait(false);
         }
 
@@ -78,6 +80,9 @@ public sealed class EmailReceiptSender : IOrderPaidSink
     {
         var sb = new StringBuilder();
         sb.Append("<div style='font-family:Arial,Helvetica,sans-serif;color:#111'>");
+        if (n.IsTest)
+            sb.Append("<p style='background:#fff3cd;color:#664d03;padding:8px 12px;border-radius:6px'>" +
+                      "<strong>TEST ORDER</strong> — paid in Stripe test mode. No money was charged.</p>");
         sb.Append($"<h2>{Enc(t("rcpt.title"))} 🍁</h2>");
         sb.Append($"<p>{Enc(t("rcpt.body"))}</p>");
         sb.Append("<table style='border-collapse:collapse'>");

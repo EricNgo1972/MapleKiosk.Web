@@ -16,4 +16,5 @@ public sealed record OrderPaidNotification(
     string? CustomerName = null,
     string? CustomerPhone = null,
     string? Source = null,
-    string Culture = "en");
+    string Culture = "en",
+    bool IsTest = false);

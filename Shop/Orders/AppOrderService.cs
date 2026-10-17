@@ -59,9 +59,11 @@ public sealed class AppOrderService : IPhoneLineOrders
 
     /// <summary>THE choke-point. Idempotently flips the order to Paid and fires
     /// the three signals. Returns true only for the single winning transition.
-    /// A subscription order also records the Stripe customer and subscription it created.</summary>
+    /// A subscription order also records the Stripe customer and subscription it created.
+    /// <paramref name="test"/> is whether the payment came from the Stripe test account (null = not Stripe): a test
+    /// payment never confirms a live order, nor a live payment a test one.</summary>
     public async Task<bool> MarkPaidAsync(string orderRef, string? providerTxnId, CancellationToken ct = default,
-        string? stripeCustomerId = null, string? stripeSubscriptionId = null)
+        string? stripeCustomerId = null, string? stripeSubscriptionId = null, bool? test = null)
     {
         if (_table is null) return false;
 
@@ -71,6 +73,13 @@ public sealed class AppOrderService : IPhoneLineOrders
             if (entity is null)
             {
                 _logger.LogWarning("MarkPaid: order {OrderRef} not found.", orderRef);
+                return false;
+            }
+
+            if (test is { } t && t != entity.IsTest)
+            {
+                _logger.LogError("MarkPaid: order {OrderRef} is {Mode} but the payment came from the Stripe {Account} account; ignored.",
+                    orderRef, entity.IsTest ? "a test order" : "live", t ? "test" : "live");
                 return false;
             }
 
@@ -107,13 +116,19 @@ public sealed class AppOrderService : IPhoneLineOrders
     /// <summary>Mirrors a Stripe subscription change (renewed, card failing, cancelled...) onto its order.
     /// Stripe does the billing; this only keeps the order's view current. Last write wins.</summary>
     public async Task UpdateSubscriptionAsync(string orderRef, string subscriptionId, string? customerId, string status,
-        DateTimeOffset? currentPeriodEnd, CancellationToken ct = default)
+        DateTimeOffset? currentPeriodEnd, CancellationToken ct = default, bool test = false)
     {
         if (_table is null) return;
         var entity = await LoadAsync(orderRef, ct).ConfigureAwait(false);
         if (entity is null)
         {
             _logger.LogWarning("Subscription {SubscriptionId}: order {OrderRef} not found.", subscriptionId, orderRef);
+            return;
+        }
+        if (entity.IsTest != test)
+        {
+            _logger.LogError("Subscription {SubscriptionId} is from the Stripe {Account} account but order {OrderRef} isn't; ignored.",
+                subscriptionId, test ? "test" : "live", orderRef);
             return;
         }
 
@@ -282,7 +297,7 @@ public sealed class AppOrderService : IPhoneLineOrders
         var note = new OrderPaidNotification(
             order.OrderRef, order.Total, order.Currency, order.Method,
             order.CustomerEmail, order.ProviderTxnId, order.PaidAt ?? DateTimeOffset.UtcNow,
-            order.Lines, order.Company, order.CustomerName, order.CustomerPhone, order.Source, order.Culture);
+            order.Lines, order.Company, order.CustomerName, order.CustomerPhone, order.Source, order.Culture, order.IsTest);
 
         try { OrderPaid?.Invoke(note); }
         catch (Exception ex) { _logger.LogError(ex, "OrderPaid handler threw for {OrderRef}", note.OrderRef); }

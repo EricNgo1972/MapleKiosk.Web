@@ -8,6 +8,7 @@
 @inject CatalogStore Store
 @inject BlobImageUploader Uploader
 @inject StripeProductSync Stripe
+@inject StripeTestMode TestMode
 @inject AppStoreConfig Config
 @inject NavigationManager Nav
 @inject CatalogTranslator Translator
@@ -30,15 +31,30 @@
         <div class="cat-actions" style="align-items:center">
             <span class="stp-mode stp-mode--@_mode.ToLowerInvariant().Replace(' ', '-')">Stripe: @_mode</span>
             <button class="btn btn-ghost" disabled="@(_busy || _mode == "not configured")" @onclick="SyncAll">Sync all to Stripe</button>
+            <button class="btn @(_test ? "btn-primary" : "btn-ghost")" disabled="@_busy" @onclick="ToggleTestMode"
+                    title="Only your own checkouts use the Stripe test account; everyone else keeps paying live.">
+                Test mode: @(_test ? "ON" : "off")
+            </button>
             @if (_progress is not null) { <span style="color:var(--muted)">@_progress</span> }
         </div>
         @if (!Store.IsConfigured)
         {
             <p class="mshop-error">Catalog storage is not configured (STORAGE_CONNECTION_STRING): showing the defaults, read-only.</p>
         }
+        @if (_test)
+        {
+            <p class="cat-notice">
+                <strong>Test mode is on for you.</strong> Your checkouts (shop, quotes, phone line) go to the Stripe test account
+                — pay with card 4242 4242 4242 4242, any future date, any CVC. Your orders are marked TEST, their emails say so,
+                and no phone number is bought. Everyone else still pays live. A restart turns it off.
+                Statuses and "Sync all" below are for the test account; saving an item syncs it to both.
+            </p>
+        }
         @if (_mode == "not configured")
         {
-            <p class="mshop-error">No Stripe key: set AppStore/StripeSecretKey in the keyvalue table (or APPSTORE_STRIPE_SECRET_KEY). Items save without syncing.</p>
+            <p class="mshop-error">@(_test
+                ? "No Stripe test key: set AppStore/StripeTestSecretKey (and StripeTestWebhookSecret) in the keyvalue table, then turn test mode off and on again."
+                : "No Stripe key: set AppStore/StripeSecretKey in the keyvalue table (or APPSTORE_STRIPE_SECRET_KEY). Items save without syncing.")</p>
         }
         @if (_notice is not null) { <p class="cat-notice">@_notice</p> }
         @if (_error is not null) { <p class="mshop-error">@_error</p> }
@@ -280,6 +296,9 @@
     private IReadOnlyList<AppProduct> _items = [];
     private Dictionary<string, StripeItemStatus> _stripe = new();
     private string _mode = "…";
+    private bool _test; // this admin's Stripe test mode (StripeTestMode)
+
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
 
     private static readonly string[] Langs = ["en", .. CatalogLanguages.Translated];
 
@@ -303,7 +322,21 @@
     private bool _stripeLoading;
 
     // The catalog first (from memory, instant), then where each item stands in Stripe (a few API calls).
-    protected override async Task OnInitializedAsync() => await ReloadCatalogAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        _test = TestMode.IsOn((await AuthState).User);
+        await ReloadCatalogAsync();
+    }
+
+    private async Task ToggleTestMode()
+    {
+        _notice = _error = null;
+        TestMode.Set((await AuthState).User, !_test);
+        _test = TestMode.IsOn((await AuthState).User);
+        Config.Forget(); // pick up test keys added to the keyvalue table since they were last read
+        _stripe = new();
+        await ReloadStripeAsync();
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -357,9 +390,10 @@
         _stripeLoading = true;
         try
         {
-            var key = await Config.GetStripeSecretKeyAsync();
+            var key = await Config.GetStripeSecretKeyAsync(_test);
             _mode = string.IsNullOrEmpty(key) ? "not configured" : key.Contains("_live_") ? "live" : "test";
-            _stripe = (await Stripe.GetStatusAsync(_items.Select(i => StripeItem.From(i, Nav.BaseUri)).ToList())).ToDictionary(s => s.Item.Sku);
+            _stripe = (await Stripe.GetStatusAsync(_items.Select(i => StripeItem.From(i, Nav.BaseUri)).ToList(), test: _test))
+                .ToDictionary(s => s.Item.Sku);
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _stripeLoading = false; }
@@ -463,11 +497,22 @@
     }
 
     // " Synced to Stripe." / a Stripe error / nothing when Stripe isn't set up.
+    // Both accounts carry the same catalog, so an item saved or deleted goes to the test account too (when it's set up).
     private async Task<string> SyncAsync(AppProduct p)
     {
-        if (!await Stripe.IsConfiguredAsync()) return "";
-        var r = await Stripe.SyncAsync(StripeItem.From(p, Nav.BaseUri));
-        return r.Success ? (p.Active ? " Synced to Stripe." : " Archived in Stripe.") : $" Stripe sync failed: {r.Error}";
+        var item = StripeItem.From(p, Nav.BaseUri);
+        var said = "";
+        if (await Stripe.IsConfiguredAsync())
+        {
+            var r = await Stripe.SyncAsync(item);
+            said = r.Success ? (p.Active ? " Synced to Stripe." : " Archived in Stripe.") : $" Stripe sync failed: {r.Error}";
+        }
+        if (await Stripe.IsConfiguredAsync(test: true))
+        {
+            var t = await Stripe.SyncAsync(item, test: true);
+            if (!t.Success) said += $" Stripe test sync failed: {t.Error}";
+        }
+        return said;
     }
 
     private async Task SyncAll()
@@ -480,7 +525,7 @@
         {
             _progress = $"Syncing {n + 1} / {todo.Count}…";
             StateHasChanged();
-            var r = await Stripe.SyncAsync(todo[n]);
+            var r = await Stripe.SyncAsync(todo[n], test: _test);
             if (!r.Success) errors.Add($"{todo[n].Name}: {r.Error}");
         }
         _progress = null;

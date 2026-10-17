@@ -35,9 +35,16 @@ public sealed class StripeCheckoutCreator : IStripeCheckout
 
     public async Task<Result> CreateAsync(AppOrder order, string successUrl, string cancelUrl, CancellationToken ct = default, string? locale = null)
     {
-        var secretKey = await _config.GetStripeSecretKeyAsync().ConfigureAwait(false);
+        // A test order (StripeTestMode) checks out on the Stripe test account: same flow, nothing charged.
+        var secretKey = await _config.GetStripeSecretKeyAsync(order.IsTest).ConfigureAwait(false);
         if (string.IsNullOrEmpty(secretKey))
-            return new Result(false, null, null, "Stripe is not configured.");
+            return new Result(false, null, null, order.IsTest ? "Stripe test mode is not configured." : "Stripe is not configured.");
+        // Never charge a card for an order marked test: the test slot must hold a test key.
+        if (order.IsTest && !secretKey.Contains("_test_", StringComparison.Ordinal))
+        {
+            _logger.LogError("Test order {OrderRef} refused: AppStore/StripeTestSecretKey is not a test key.", order.OrderRef);
+            return new Result(false, null, null, "Stripe test mode is misconfigured.");
+        }
 
         // Any recurring line → subscription mode (each recurring line gets a Recurring price;
         // one-time lines, like a quote's setup, are charged once on the first invoice).
@@ -48,7 +55,7 @@ public sealed class StripeCheckoutCreator : IStripeCheckout
         // A line whose Product/Price was synced to Stripe (/shop/admin) and still matches bills that
         // Price, so Stripe reports it by product; anything else is priced inline as before.
         var priceIds = await _products.ResolvePriceIdsAsync(order.Lines.Select(l => new StripeItem(
-            l.Sku, l.Name, null, l.UnitPrice, order.Currency, l.Interval ?? order.Interval, true)), ct).ConfigureAwait(false);
+            l.Sku, l.Name, null, l.UnitPrice, order.Currency, l.Interval ?? order.Interval, true)), ct, order.IsTest).ConfigureAwait(false);
 
         var lineItems = order.Lines.Select(l =>
         {
@@ -101,7 +108,7 @@ public sealed class StripeCheckoutCreator : IStripeCheckout
         }
 
         // Stripe Tax (GST/QST/HST...) once it's set up in the Stripe dashboard: AppStore/StripeAutomaticTax = true.
-        if (string.Equals(await _config.GetStripeAutomaticTaxAsync().ConfigureAwait(false), "true", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(await _config.GetStripeAutomaticTaxAsync(order.IsTest).ConfigureAwait(false), "true", StringComparison.OrdinalIgnoreCase))
         {
             options.AutomaticTax = new SessionAutomaticTaxOptions { Enabled = true };
             options.BillingAddressCollection = "required";
@@ -117,7 +124,8 @@ public sealed class StripeCheckoutCreator : IStripeCheckout
             var session = await service.CreateAsync(options, new RequestOptions { IdempotencyKey = order.OrderRef }, ct)
                 .ConfigureAwait(false);
 
-            _logger.LogInformation("App Store Stripe session created: {OrderRef} -> {SessionId}", order.OrderRef, session.Id);
+            _logger.LogInformation("App Store Stripe {Account} session created: {OrderRef} -> {SessionId}",
+                order.IsTest ? "TEST" : "live", order.OrderRef, session.Id);
             return new Result(true, session.Url, session.Id, null);
         }
         catch (StripeException ex)

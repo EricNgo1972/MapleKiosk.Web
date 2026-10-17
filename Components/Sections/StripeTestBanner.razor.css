@@ -1,0 +1,6 @@
+.stripe-test-banner {
+    position: sticky; top: 0; z-index: 1000;
+    padding: 8px 16px; text-align: center; font-size: 14px;
+    background: #ffd84d; color: #3d2f00;
+}
+.stripe-test-banner a { color: inherit; text-decoration: underline; margin-left: 8px; }

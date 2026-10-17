@@ -38,7 +38,8 @@ public sealed class QuoteCheckoutService
         _stripe = stripe;
     }
 
-    public async Task<CheckoutResult> CreateAsync(QuoteCheckoutRequest req, string baseUri, CancellationToken ct = default)
+    /// <param name="test">An admin in Stripe test mode (<see cref="StripeTestMode"/>): checkout on the test account.</param>
+    public async Task<CheckoutResult> CreateAsync(QuoteCheckoutRequest req, string baseUri, CancellationToken ct = default, bool test = false)
     {
         var trade = SiteProducts.All.FirstOrDefault(p => p.Slug == req.Product && p.Group == ProductGroup.Trade);
         if (trade is null) return Fail("Unknown product.");
@@ -88,7 +89,8 @@ public sealed class QuoteCheckoutService
             CustomerName = Clip(req.Name, 80),
             CustomerPhone = Clip(req.Phone, 40),
             Source = $"quote:{trade.Slug}",
-            Culture = culture
+            Culture = culture,
+            IsTest = test
         };
 
         var prefix = culture == "en" ? "" : culture + "/";
