@@ -18,6 +18,10 @@
             <EditForm Model="Model" OnValidSubmit="HandleSubmit" OnInvalidSubmit="() => _reopen = true" FormName="trial-signup" Enhance>
                 <DataAnnotationsValidator />
                 <InputText type="hidden" @bind-Value="Model.Product" />
+                @* Honeypot: off-screen and skipped by keyboard and autofill, so only bots fill it (kept as spam). *@
+                <div style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+                    <label>Website <InputText @bind-Value="Model.Website" tabindex="-1" autocomplete="off" /></label>
+                </div>
 
                 <div class="field">
                     <label>@L["trial.f.company"]</label>

@@ -1,0 +1,165 @@
+@page "/admin/leads"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+@rendermode InteractiveServer
+@using System.Security.Claims
+@inject TrialSignupService Signups
+
+@* Every "Book a demo" request, newest first, from the site database — written before Azure and the email,
+   so a lead shows here even when the email never arrives. Staff move each one through new → contacted →
+   won/lost (or spam), keep notes, and see a red tag when the sales email failed. "Import from Azure" copies
+   the older clientrequest rows in once (ids az-…, so a second import adds nothing). *@
+
+<PageTitle>Lead requests — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/admin" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title"><a href="/admin" style="color:inherit;text-decoration:none">Admin</a> / Lead requests</span>
+    </div>
+</header>
+
+<main class="adm">
+    @* Cloudflare's email obfuscation would show addresses as "[email protected]"; this page is staff-only. *@
+    @((MarkupString)"<!--email_off-->")
+    <div class="container adm__wrap">
+        @if (Signups.Leads is null)
+        {
+            <p class="onb-error">The site database can't be opened — new requests are only saved to Azure and emailed.</p>
+        }
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px">
+            @foreach (var (key, label) in Tabs)
+            {
+                <button type="button" class="btn @(_tab == key ? "btn-primary" : "btn-ghost") onb-small" @onclick="() => _tab = key">
+                    @label (@Count(key))
+                </button>
+            }
+            @if (Signups.HasAzure && Signups.Leads is not null)
+            {
+                <button type="button" class="btn btn-ghost onb-small" style="margin-left:auto" disabled="@_busy" @onclick="ImportAsync">Import from Azure</button>
+            }
+        </div>
+
+        @if (_leads is null)
+        {
+            <p class="pl-muted">Loading…</p>
+        }
+        else if (!Shown.Any())
+        {
+            <p class="pl-muted">Nothing here.</p>
+        }
+        else
+        {
+            <ul class="adm-list">
+                @foreach (var l in Shown)
+                {
+                    var f = l.Form;
+                    <li>
+                        <div class="adm-row" style="cursor:default;align-items:flex-start">
+                            <span class="adm-row__main">
+                                <strong>@f.CompanyName · @f.BusinessType@(string.IsNullOrWhiteSpace(f.Product) ? "" : $" · {f.Product} only")</strong>
+                                <small>@f.ContactName · <a href="mailto:@f.Email">@f.Email</a> · <a href="tel:@f.Phone">@f.Phone</a></small>
+                                <small>@f.Address, @f.City @f.PostalCode · @f.Culture.ToUpperInvariant()</small>
+                                <small>Sent @Local(f.SubmittedAt)@(l.ContactedAt is { } at ? $" · followed up {Local(at)} by {l.ContactedBy}" : "")</small>
+                                @if (l.EmailError is not null)
+                                {
+                                    <small class="pl-adm__err">Sales email failed: @l.EmailError</small>
+                                }
+                                <textarea rows="2" placeholder="Notes" style="margin-top:8px;width:100%;font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit"
+                                          value="@l.Notes" @onchange="e => NotesAsync(l, e.Value as string)"></textarea>
+                            </span>
+                            <span class="adm-row__side">
+                                <select disabled="@_busy" value="@l.Status" @onchange="e => StatusAsync(l, e.Value as string)"
+                                        style="font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:inherit">
+                                    @foreach (var s in LeadStatus.All)
+                                    {
+                                        <option value="@s">@Label(s)</option>
+                                    }
+                                </select>
+                            </span>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+        @if (_message is not null)
+        {
+            <p class="pl-note" role="status">@_message</p>
+        }
+    </div>
+</main>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = default!;
+
+    private static readonly TimeZoneInfo Eastern = TimeZoneInfo.FindSystemTimeZoneById("America/Toronto");
+
+    // "closed" groups won and lost; "all" leaves out spam.
+    private static readonly (string Key, string Label)[] Tabs =
+        [(LeadStatus.New, "New"), (LeadStatus.Contacted, "Contacted"), ("closed", "Won / lost"), (LeadStatus.Spam, "Spam"), ("all", "All")];
+
+    private List<LeadRequest>? _leads;
+    private string _tab = LeadStatus.New;
+    private bool _busy;
+    private string? _message;
+
+    private static bool InTab(LeadRequest l, string tab) => tab switch
+    {
+        "all" => l.Status != LeadStatus.Spam,
+        "closed" => l.Status is LeadStatus.Won or LeadStatus.Lost,
+        _ => l.Status == tab,
+    };
+
+    private int Count(string tab) => _leads?.Count(l => InTab(l, tab)) ?? 0;
+    private IEnumerable<LeadRequest> Shown => (_leads ?? []).Where(l => InTab(l, _tab));
+
+    private static string Label(string status) => char.ToUpperInvariant(status[0]) + status[1..];
+    private static string Local(DateTimeOffset at) => TimeZoneInfo.ConvertTime(at, Eastern).ToString("yyyy-MM-dd HH:mm");
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() => _leads = Signups.Leads is null ? [] : await Signups.Leads.ListAsync();
+
+    private async Task StatusAsync(LeadRequest lead, string? status)
+    {
+        if (Signups.Leads is null || status is null || status == lead.Status) return;
+        _busy = true;
+        try
+        {
+            var user = (await AuthState).User;
+            var by = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "staff";
+            await Signups.Leads.SetStatusAsync(lead.Id, status, by);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task NotesAsync(LeadRequest lead, string? notes)
+    {
+        if (Signups.Leads is null) return;
+        await Signups.Leads.SetNotesAsync(lead.Id, notes);
+        lead.Notes = notes;
+    }
+
+    private async Task ImportAsync()
+    {
+        _busy = true;
+        try
+        {
+            var added = await Signups.ImportFromAzureAsync();
+            _message = added == 0 ? "Nothing new in Azure." : $"Imported {added} request(s) from Azure.";
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _message = $"Import failed: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

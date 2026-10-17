@@ -71,10 +71,11 @@ public class EmailService
         return new EmailAddress(FallbackAddress, string.IsNullOrWhiteSpace(name) ? FallbackName : name);
     }
 
-    public async Task SendAsync(string to, string subject, string htmlBody)
+    /// <summary>Sends; null when SendGrid took it, else why not (never throws).</summary>
+    public async Task<string?> SendAsync(string to, string subject, string htmlBody)
     {
         var (client, from) = await _setup;
-        if (client is null) return;
+        if (client is null) return "SendGrid is not configured";
 
         try
         {
@@ -92,16 +93,19 @@ public class EmailService
                 var body = await response.Body.ReadAsStringAsync();
                 _logger.LogError("SendGrid send failed to {To}: {Status} — {Body}",
                     to, response.StatusCode, body);
+                return $"SendGrid {(int)response.StatusCode}: {body}";
             }
             else
             {
                 _logger.LogInformation("Email sent to {To} — {Subject} ({Status})",
                     to, subject, response.StatusCode);
+                return null;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {To}", to);
+            return ex.Message;
         }
     }
 }

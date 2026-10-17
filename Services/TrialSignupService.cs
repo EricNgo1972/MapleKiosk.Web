@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Net;
 using Azure;
 using Azure.Data.Tables;
+using MapleKiosk.Web.Assistant;
 
 namespace MapleKiosk.Web.Services;
 
@@ -38,6 +39,9 @@ public class TrialSignup
     // Set when the visitor signed up from a stand-alone product's page (e.g. "AI Voice Agent").
     [StringLength(60)]
     public string? Product { get; set; }
+
+    // Honeypot: hidden from people, so only a bot fills it in.
+    public string? Website { get; set; }
 }
 
 internal class ClientRequestEntity : ITableEntity
@@ -60,28 +64,44 @@ internal class ClientRequestEntity : ITableEntity
     public string? Product { get; set; }
 }
 
+/// <summary>
+/// The "Book a demo" form. Each request is kept three ways, in this order, so no single failure loses it:
+/// the site's SQLite database (<see cref="LeadStore"/>, read by /admin/leads; local disk, needs no secrets),
+/// the <c>clientrequest</c> Azure table, then the email to sales and the visitor. A filled honeypot
+/// (<see cref="TrialSignup.Website"/>) is a bot: kept as spam, no email.
+/// </summary>
 public class TrialSignupService
 {
     private const string TableName = "clientrequest";
     private const string SalesInbox = "sales@maplekiosk.ca";
 
-    private readonly List<TrialSignup> _signups = new();
     private readonly ILogger<TrialSignupService> _logger;
     private readonly EmailService _email;
     private readonly DemoLinkStore _demos;
     private readonly TableClient? _table;
 
-    public TrialSignupService(ILogger<TrialSignupService> logger, IConfiguration config, EmailService email, DemoLinkStore demos)
+    public TrialSignupService(ILogger<TrialSignupService> logger, IConfiguration config, EmailService email, DemoLinkStore demos,
+        IWebHostEnvironment env)
     {
         _logger = logger;
         _email = email;
         _demos = demos;
+
+        try
+        {
+            Leads = new LeadStore(new SiteDb(Path.Combine(ChatLog.DataFolder(env), "maplekiosk.db")));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "The site database can't be opened — demo requests go to Azure and email only.");
+        }
+
         var connection = Environment.GetEnvironmentVariable("STORAGE_CONNECTION_STRING")
                          ?? config["STORAGE_CONNECTION_STRING"];
 
         if (string.IsNullOrWhiteSpace(connection))
         {
-            _logger.LogWarning("STORAGE_CONNECTION_STRING not set — trial signups will only be kept in memory.");
+            _logger.LogWarning("STORAGE_CONNECTION_STRING not set — demo requests are kept in the site database and emailed only.");
             return;
         }
 
@@ -97,18 +117,72 @@ public class TrialSignupService
         }
     }
 
-    public IReadOnlyList<TrialSignup> All => _signups;
+    /// <summary>The leads in the site database; null when it can't be opened (/admin/leads says so).</summary>
+    public LeadStore? Leads { get; }
+
+    public bool HasAzure => _table is not null;
 
     public async Task CreateAsync(TrialSignup signup)
     {
         signup.SubmittedAt = DateTimeOffset.UtcNow;
-        _signups.Add(signup);
+        var spam = !string.IsNullOrWhiteSpace(signup.Website);
 
-        _logger.LogInformation("Trial signup: {Company} | {Email} | {Type} | {Product}",
-            signup.CompanyName, signup.Email, signup.BusinessType, signup.Product);
+        _logger.LogInformation("Trial signup{Spam}: {Company} | {Email} | {Type} | {Product}",
+            spam ? " (honeypot — spam)" : "", signup.CompanyName, signup.Email, signup.BusinessType, signup.Product);
 
-        if (_table is null) return;
+        // Each channel is on its own: one failing never skips the next.
+        var id = LeadStore.NewId(signup.SubmittedAt);
+        var saved = Leads is not null && await TryAsync("save lead to the site database", () =>
+            Leads.AddAsync(new LeadRequest { Id = id, Form = signup, Status = spam ? LeadStatus.Spam : LeadStatus.New }));
+        if (spam) return;
 
+        if (_table is not null) await SaveAsync(signup);
+
+        var error = await SendNotificationEmailsAsync(signup);
+        if (saved) await TryAsync("record the sales email", () => Leads!.MarkEmailedAsync(id, error));
+    }
+
+    /// <summary>Copies the Azure <c>clientrequest</c> rows into the site database once; returns how many were new.</summary>
+    public async Task<int> ImportFromAzureAsync()
+    {
+        if (_table is null || Leads is null) return 0;
+        var added = 0;
+        await foreach (var e in _table.QueryAsync<ClientRequestEntity>())
+        {
+            var lead = new LeadRequest
+            {
+                Id = "az-" + e.RowKey,
+                Notes = "Imported from Azure",
+                Form = new TrialSignup
+                {
+                    SubmittedAt = e.SubmittedAt == default ? e.Timestamp ?? DateTimeOffset.UtcNow : e.SubmittedAt,
+                    CompanyName = e.CompanyName, Address = e.Address, City = e.City, PostalCode = e.PostalCode,
+                    BusinessType = e.BusinessType, Product = e.Product, ContactName = e.ContactName,
+                    Email = e.Email, Phone = e.Phone, Culture = e.Culture,
+                },
+            };
+            if (await Leads.AddAsync(lead)) added++;
+        }
+        return added;
+    }
+
+    /// <summary>Runs <paramref name="action"/>; false (logged) when it throws.</summary>
+    private async Task<bool> TryAsync(string what, Func<Task> action)
+    {
+        try
+        {
+            await action();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to {What}.", what);
+            return false;
+        }
+    }
+
+    private async Task SaveAsync(TrialSignup signup)
+    {
         var entity = new ClientRequestEntity
         {
             PartitionKey = string.IsNullOrWhiteSpace(signup.BusinessType) ? "signup" : signup.BusinessType,
@@ -128,21 +202,20 @@ public class TrialSignupService
 
         try
         {
-            await _table.AddEntityAsync(entity);
+            await _table!.AddEntityAsync(entity);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to write signup for {Company} to Azure Table.", signup.CompanyName);
         }
-
-        await SendNotificationEmailsAsync(signup);
     }
 
-    private async Task SendNotificationEmailsAsync(TrialSignup s)
+    /// <summary>Emails sales and the visitor; returns why the sales email failed, or null.</summary>
+    private async Task<string?> SendNotificationEmailsAsync(TrialSignup s)
     {
         // Sales email — always English, internal consumption.
         var salesHtml = $"""
-            <h2>New MapleKiosk trial signup</h2>
+            <h2>New MapleKiosk demo request</h2>
             <table cellpadding="6" style="font-family:Arial,sans-serif;font-size:14px">
               <tr><td><b>Company</b></td><td>{WebUtility.HtmlEncode(s.CompanyName)}</td></tr>
               {(string.IsNullOrWhiteSpace(s.Product) ? "" : $"<tr><td><b>Product</b></td><td>{WebUtility.HtmlEncode(s.Product)} only</td></tr>")}
@@ -183,8 +256,9 @@ public class TrialSignupService
             """;
 
         var salesTask  = _email.SendAsync(SalesInbox,
-            string.IsNullOrWhiteSpace(s.Product) ? $"New trial signup: {s.CompanyName}" : $"New trial signup ({s.Product}): {s.CompanyName}", salesHtml);
+            string.IsNullOrWhiteSpace(s.Product) ? $"New demo request: {s.CompanyName}" : $"New demo request ({s.Product}): {s.CompanyName}", salesHtml);
         var clientTask = _email.SendAsync(s.Email, T("email.client.subject"), clientHtml);
         await Task.WhenAll(salesTask, clientTask);
+        return await salesTask;
     }
 }

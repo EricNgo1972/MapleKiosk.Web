@@ -22,7 +22,7 @@ public static class Translations
             ["hero.title.a"]   = "Run your business smarter,",
             ["hero.title.b"]   = "with AI that pays off.",
             ["hero.sub"]       = "MapleKiosk gives small and medium businesses a family of everyday apps — POS, booking, inventory, accounting and asset maintenance — plus AI integration services that put chatbots, automation and custom AI agents to work for your team. Powerful technology, small-business pricing.",
-            ["hero.cta1"]      = "Start free trial",
+            ["hero.cta1"]      = "Book a demo",
             ["hero.cta2"]      = "Explore the apps →",
 
             // Logo strip
@@ -170,9 +170,9 @@ public static class Translations
             ["foot.made"]       = "Made in Canada 🍁",
 
             // Trial form
-            ["trial.eyebrow"] = "Start free trial",
-            ["trial.title"]   = "Create your MapleKiosk account.",
-            ["trial.sub"]     = "14 days free. No credit card required — we'll email your login details to the address below.",
+            ["trial.eyebrow"] = "Book a demo",
+            ["trial.title"]   = "See MapleKiosk in your business.",
+            ["trial.sub"]     = "Free, no commitment. Tell us about your business and we'll contact you within one business day to set up your demo.",
             ["trial.f.company"]   = "Company name",
             ["trial.f.address"]   = "Address",
             ["trial.f.city"]      = "City",
@@ -195,18 +195,18 @@ public static class Translations
             ["trial.f.ph.contact"] = "Jane Tremblay",
             ["trial.f.ph.email"]   = "you@company.com",
             ["trial.f.ph.phone"]   = "+1 514 555 0199",
-            ["trial.submit"]      = "Create account",
-            ["trial.submitting"]  = "Creating account…",
-            ["trial.fine"]        = "By creating an account you agree to our Terms and Privacy Policy.",
+            ["trial.submit"]      = "Request my demo",
+            ["trial.submitting"]  = "Sending…",
+            ["trial.fine"]        = "By sending this request you agree to our Terms and Privacy Policy.",
             ["trial.v.postal"]    = "Enter a valid Canadian (A1A 1A1) or US (12345 or 12345-6789) postal code.",
             ["trial.success.title"] = "Welcome to MapleKiosk, {0}!",
             ["trial.success.body"]  = "We've received your account request. Check {0} in the next few minutes for your login and onboarding details.",
             ["trial.success.again"] = "Submit another",
 
             // Client thank-you email
-            ["email.client.subject"] = "Thank you for registering with MapleKiosk",
-            ["email.client.h1"]      = "Welcome to MapleKiosk, {0}!",
-            ["email.client.p1"]      = "Thank you for registering for your free trial. Your account is being set up — our team will reach out shortly to help you get started.",
+            ["email.client.subject"] = "We received your MapleKiosk demo request",
+            ["email.client.h1"]      = "Thanks, {0}!",
+            ["email.client.p1"]      = "We received your demo request. Our team will contact you within one business day to set up a time that works for you.",
             ["email.client.p2"]      = "In the meantime, you can try our demo app right now:",
             ["email.client.btn"]     = "Open the {0} demo",
             ["email.client.alt"]     = "Or paste this link into your browser:",
@@ -952,8 +952,8 @@ public static class Translations
 
             // Thank-you page
             ["ty.title"]   = "Thank you!",
-            ["ty.body"]    = "We received your account request. Check your email in the next few minutes for your login and onboarding details.",
-            ["ty.promise"] = "Questions? Write to us — we reply within one business day.",
+            ["ty.body"]    = "We received your demo request. We'll contact you within one business day to book a time — check your email for a confirmation.",
+            ["ty.promise"] = "Questions before then? Write to us anytime.",
             ["ty.cta"]     = "Back to the home page",
 
             // Onboarding (post-deposit setup form)
@@ -1167,7 +1167,7 @@ public static class Translations
             ["hero.title.a"]   = "Gérez votre commerce plus intelligemment,",
             ["hero.title.b"]   = "avec une IA qui rapporte.",
             ["hero.sub"]       = "MapleKiosk offre aux PME une famille d'applications du quotidien — point de vente, réservations, inventaire, comptabilité et entretien des équipements — en plus de services d'intégration d'IA qui mettent chatbots, automatisation et agents IA sur mesure au service de votre équipe. Une technologie puissante, à un prix pensé pour les petites entreprises.",
-            ["hero.cta1"]      = "Essai gratuit",
+            ["hero.cta1"]      = "Réserver une démo",
             ["hero.cta2"]      = "Découvrir les applications →",
 
             // Logo strip
@@ -1315,9 +1315,9 @@ public static class Translations
             ["foot.made"]       = "Fait au Canada 🍁",
 
             // Trial form
-            ["trial.eyebrow"] = "Essai gratuit",
-            ["trial.title"]   = "Créez votre compte MapleKiosk.",
-            ["trial.sub"]     = "14 jours gratuits. Sans carte de crédit — nous enverrons vos identifiants à l'adresse ci-dessous.",
+            ["trial.eyebrow"] = "Réserver une démo",
+            ["trial.title"]   = "Voyez MapleKiosk dans votre commerce.",
+            ["trial.sub"]     = "Gratuit, sans engagement. Parlez-nous de votre commerce et nous vous contacterons en un jour ouvrable pour planifier votre démo.",
             ["trial.f.company"]   = "Nom de l'entreprise",
             ["trial.f.address"]   = "Adresse",
             ["trial.f.city"]      = "Ville",
@@ -1340,18 +1340,18 @@ public static class Translations
             ["trial.f.ph.contact"] = "Jeanne Tremblay",
             ["trial.f.ph.email"]   = "vous@entreprise.com",
             ["trial.f.ph.phone"]   = "+1 514 555 0199",
-            ["trial.submit"]      = "Créer le compte",
-            ["trial.submitting"]  = "Création du compte…",
-            ["trial.fine"]        = "En créant un compte, vous acceptez nos Conditions et notre Politique de confidentialité.",
+            ["trial.submit"]      = "Demander ma démo",
+            ["trial.submitting"]  = "Envoi…",
+            ["trial.fine"]        = "En envoyant cette demande, vous acceptez nos Conditions et notre Politique de confidentialité.",
             ["trial.v.postal"]    = "Saisissez un code postal canadien (A1A 1A1) ou américain (12345 ou 12345-6789) valide.",
             ["trial.success.title"] = "Bienvenue chez MapleKiosk, {0} !",
             ["trial.success.body"]  = "Nous avons reçu votre demande. Surveillez {0} dans les prochaines minutes pour vos identifiants et l'intégration.",
             ["trial.success.again"] = "Soumettre un autre",
 
             // Client thank-you email
-            ["email.client.subject"] = "Merci de vous être inscrit chez MapleKiosk",
-            ["email.client.h1"]      = "Bienvenue chez MapleKiosk, {0} !",
-            ["email.client.p1"]      = "Merci de vous être inscrit à notre essai gratuit. Votre compte est en cours de création — notre équipe vous contactera bientôt pour vous accompagner.",
+            ["email.client.subject"] = "Nous avons reçu votre demande de démo MapleKiosk",
+            ["email.client.h1"]      = "Merci, {0} !",
+            ["email.client.p1"]      = "Nous avons reçu votre demande de démo. Notre équipe vous contactera en un jour ouvrable pour fixer un moment qui vous convient.",
             ["email.client.p2"]      = "En attendant, vous pouvez essayer notre application de démonstration dès maintenant :",
             ["email.client.btn"]     = "Ouvrir la démo {0}",
             ["email.client.alt"]     = "Ou collez ce lien dans votre navigateur :",
@@ -2090,8 +2090,8 @@ public static class Translations
 
             // Thank-you page
             ["ty.title"]   = "Merci!",
-            ["ty.body"]    = "Nous avons reçu votre demande de compte. Surveillez votre courriel dans les prochaines minutes pour vos identifiants et l'intégration.",
-            ["ty.promise"] = "Des questions? Écrivez-nous — nous répondons en un jour ouvrable.",
+            ["ty.body"]    = "Nous avons reçu votre demande de démo. Nous vous contacterons en un jour ouvrable pour fixer un moment — un courriel de confirmation vous attend.",
+            ["ty.promise"] = "Des questions d'ici là? Écrivez-nous en tout temps.",
             ["ty.cta"]     = "Retour à l'accueil",
 
             // Onboarding (post-deposit setup form)
@@ -2305,7 +2305,7 @@ public static class Translations
             ["hero.title.a"]   = "Vận hành thông minh hơn,",
             ["hero.title.b"]   = "với AI thật sự đáng đồng tiền.",
             ["hero.sub"]       = "MapleKiosk mang đến cho doanh nghiệp nhỏ và vừa một bộ ứng dụng dùng hằng ngày — điểm bán hàng, đặt lịch, tồn kho, kế toán và bảo trì thiết bị — cùng dịch vụ tích hợp AI đưa chatbot, tự động hoá và AI agent tuỳ chỉnh vào phục vụ đội ngũ của bạn. Công nghệ mạnh mẽ, giá dành cho doanh nghiệp nhỏ.",
-            ["hero.cta1"]      = "Dùng thử miễn phí",
+            ["hero.cta1"]      = "Đặt lịch demo",
             ["hero.cta2"]      = "Khám phá các ứng dụng →",
 
             // Logo strip
@@ -2453,9 +2453,9 @@ public static class Translations
             ["foot.made"]       = "Made in Canada 🍁",
 
             // Trial form
-            ["trial.eyebrow"] = "Dùng thử miễn phí",
-            ["trial.title"]   = "Tạo tài khoản MapleKiosk của bạn.",
-            ["trial.sub"]     = "14 ngày miễn phí. Không cần thẻ tín dụng — chúng tôi sẽ gửi thông tin đăng nhập đến địa chỉ bên dưới.",
+            ["trial.eyebrow"] = "Đặt lịch demo",
+            ["trial.title"]   = "Xem MapleKiosk hoạt động tại cửa hàng của bạn.",
+            ["trial.sub"]     = "Miễn phí, không ràng buộc. Cho chúng tôi biết về cửa hàng của bạn, chúng tôi sẽ liên hệ trong một ngày làm việc để sắp xếp buổi demo.",
             ["trial.f.company"]   = "Tên doanh nghiệp",
             ["trial.f.address"]   = "Địa chỉ",
             ["trial.f.city"]      = "Thành phố",
@@ -2478,18 +2478,18 @@ public static class Translations
             ["trial.f.ph.contact"] = "Nguyễn Thị Lan",
             ["trial.f.ph.email"]   = "ban@congty.com",
             ["trial.f.ph.phone"]   = "+1 514 555 0199",
-            ["trial.submit"]      = "Tạo tài khoản",
-            ["trial.submitting"]  = "Đang tạo tài khoản…",
-            ["trial.fine"]        = "Khi tạo tài khoản, bạn đồng ý với Điều khoản và Chính sách bảo mật.",
+            ["trial.submit"]      = "Gửi yêu cầu demo",
+            ["trial.submitting"]  = "Đang gửi…",
+            ["trial.fine"]        = "Khi gửi yêu cầu, bạn đồng ý với Điều khoản và Chính sách bảo mật.",
             ["trial.v.postal"]    = "Nhập mã bưu chính Canada (A1A 1A1) hoặc Mỹ (12345 hoặc 12345-6789) hợp lệ.",
             ["trial.success.title"] = "Chào mừng đến MapleKiosk, {0}!",
             ["trial.success.body"]  = "Chúng tôi đã nhận được yêu cầu của bạn. Vui lòng kiểm tra {0} trong vài phút tới để xem thông tin đăng nhập và hướng dẫn.",
             ["trial.success.again"] = "Gửi yêu cầu khác",
 
             // Client thank-you email
-            ["email.client.subject"] = "Cảm ơn bạn đã đăng ký MapleKiosk",
-            ["email.client.h1"]      = "Chào mừng đến MapleKiosk, {0}!",
-            ["email.client.p1"]      = "Cảm ơn bạn đã đăng ký dùng thử miễn phí. Tài khoản của bạn đang được thiết lập — đội ngũ của chúng tôi sẽ sớm liên hệ để hỗ trợ bạn bắt đầu.",
+            ["email.client.subject"] = "Chúng tôi đã nhận yêu cầu demo MapleKiosk của bạn",
+            ["email.client.h1"]      = "Cảm ơn {0}!",
+            ["email.client.p1"]      = "Chúng tôi đã nhận được yêu cầu demo của bạn. Đội ngũ của chúng tôi sẽ liên hệ trong một ngày làm việc để hẹn thời gian phù hợp với bạn.",
             ["email.client.p2"]      = "Trong lúc chờ, bạn có thể dùng thử ứng dụng demo ngay bây giờ:",
             ["email.client.btn"]     = "Mở bản demo {0}",
             ["email.client.alt"]     = "Hoặc dán liên kết này vào trình duyệt:",
@@ -3228,8 +3228,8 @@ public static class Translations
 
             // Thank-you page
             ["ty.title"]   = "Cảm ơn bạn!",
-            ["ty.body"]    = "Chúng tôi đã nhận được yêu cầu của bạn. Vui lòng kiểm tra email trong vài phút tới để xem thông tin đăng nhập và hướng dẫn.",
-            ["ty.promise"] = "Có câu hỏi? Hãy viết cho chúng tôi — chúng tôi trả lời trong một ngày làm việc.",
+            ["ty.body"]    = "Chúng tôi đã nhận được yêu cầu demo của bạn. Chúng tôi sẽ liên hệ trong một ngày làm việc để hẹn thời gian — vui lòng kiểm tra email xác nhận.",
+            ["ty.promise"] = "Có câu hỏi trước đó? Hãy viết cho chúng tôi bất cứ lúc nào.",
             ["ty.cta"]     = "Về trang chủ",
 
             // Onboarding (post-deposit setup form)
@@ -3443,7 +3443,7 @@ public static class Translations
             ["hero.title.a"]   = "Управляйте бизнесом умнее —",
             ["hero.title.b"]   = "с ИИ, который окупается.",
             ["hero.sub"]       = "MapleKiosk даёт малому и среднему бизнесу семью повседневных приложений — касса, запись, склад, бухгалтерия и обслуживание оборудования — плюс услуги по внедрению ИИ, которые ставят чат-ботов, автоматизацию и кастомных ИИ-агентов на службу вашей команде. Мощные технологии по ценам для малого бизнеса.",
-            ["hero.cta1"]      = "Бесплатная пробная",
+            ["hero.cta1"]      = "Заказать демо",
             ["hero.cta2"]      = "Смотреть приложения →",
 
             // Logo strip
@@ -3591,9 +3591,9 @@ public static class Translations
             ["foot.made"]       = "Сделано в Канаде 🍁",
 
             // Trial form
-            ["trial.eyebrow"] = "Бесплатная пробная",
-            ["trial.title"]   = "Создайте аккаунт MapleKiosk.",
-            ["trial.sub"]     = "14 дней бесплатно. Без кредитной карты — мы отправим данные для входа на указанный адрес.",
+            ["trial.eyebrow"] = "Заказать демо",
+            ["trial.title"]   = "Посмотрите MapleKiosk в работе.",
+            ["trial.sub"]     = "Бесплатно и без обязательств. Расскажите о вашем бизнесе — мы свяжемся с вами в течение одного рабочего дня, чтобы назначить демо.",
             ["trial.f.company"]   = "Название компании",
             ["trial.f.address"]   = "Адрес",
             ["trial.f.city"]      = "Город",
@@ -3616,18 +3616,18 @@ public static class Translations
             ["trial.f.ph.contact"] = "Анна Иванова",
             ["trial.f.ph.email"]   = "you@company.com",
             ["trial.f.ph.phone"]   = "+1 514 555 0199",
-            ["trial.submit"]      = "Создать аккаунт",
-            ["trial.submitting"]  = "Создаём аккаунт…",
-            ["trial.fine"]        = "Создавая аккаунт, вы принимаете наши Условия и Политику конфиденциальности.",
+            ["trial.submit"]      = "Запросить демо",
+            ["trial.submitting"]  = "Отправляем…",
+            ["trial.fine"]        = "Отправляя заявку, вы принимаете наши Условия и Политику конфиденциальности.",
             ["trial.v.postal"]    = "Введите корректный канадский (A1A 1A1) или американский (12345 либо 12345-6789) почтовый индекс.",
             ["trial.success.title"] = "Добро пожаловать в MapleKiosk, {0}!",
             ["trial.success.body"]  = "Мы получили вашу заявку. Проверьте {0} в ближайшие минуты — там будут данные для входа и инструкции.",
             ["trial.success.again"] = "Отправить ещё одну",
 
             // Client thank-you email
-            ["email.client.subject"] = "Спасибо за регистрацию в MapleKiosk",
-            ["email.client.h1"]      = "Добро пожаловать в MapleKiosk, {0}!",
-            ["email.client.p1"]      = "Спасибо, что зарегистрировались на бесплатную пробную версию. Ваш аккаунт настраивается — наша команда скоро свяжется с вами, чтобы помочь начать.",
+            ["email.client.subject"] = "Мы получили вашу заявку на демо MapleKiosk",
+            ["email.client.h1"]      = "Спасибо, {0}!",
+            ["email.client.p1"]      = "Мы получили вашу заявку на демо. Наша команда свяжется с вами в течение одного рабочего дня, чтобы выбрать удобное время.",
             ["email.client.p2"]      = "А пока вы можете попробовать наше демо-приложение прямо сейчас:",
             ["email.client.btn"]     = "Открыть демо {0}",
             ["email.client.alt"]     = "Или вставьте эту ссылку в браузер:",
@@ -4357,8 +4357,8 @@ public static class Translations
 
             // Thank-you page
             ["ty.title"]   = "Спасибо!",
-            ["ty.body"]    = "Мы получили вашу заявку. Проверьте почту в ближайшие минуты — там будут данные для входа и инструкции.",
-            ["ty.promise"] = "Есть вопросы? Напишите нам — мы отвечаем в течение одного рабочего дня.",
+            ["ty.body"]    = "Мы получили вашу заявку на демо. Мы свяжемся с вами в течение одного рабочего дня, чтобы назначить время, — проверьте почту, там письмо с подтверждением.",
+            ["ty.promise"] = "Есть вопросы? Напишите нам в любое время.",
             ["ty.cta"]     = "Вернуться на главную",
 
             // Restaurant page (MaplePOS)
