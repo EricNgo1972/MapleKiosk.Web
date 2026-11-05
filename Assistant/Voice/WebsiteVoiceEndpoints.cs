@@ -28,7 +28,7 @@ public static class WebsiteVoiceEndpoints
     public const string Route = "/assistant/voice/ws";
 
     /// <summary>A cost guard: every open session bills Gemini for as long as it stays open.</summary>
-    private const int MaxConcurrentSessions = 2;
+    internal const int MaxConcurrentSessions = 2;
 
     public const string BusinessName = "MapleKiosk";
 
@@ -37,6 +37,9 @@ public static class WebsiteVoiceEndpoints
         services.AddSingleton<IVoiceToolBrokerFactory, EmptyVoiceToolBrokerFactory>();
         services.AddSingleton<IVoiceAgentServiceFactory, VoiceAgentServiceFactory>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IVoiceAgentProvider, GeminiLiveVoiceAgentProvider>());
+        // The phone line's setup page (/voice-phone) talks to Twilio through this.
+        services.AddHttpClient();
+        services.AddSingleton<PhoneHookupTwilio>();
         return services;
     }
 
@@ -45,6 +48,8 @@ public static class WebsiteVoiceEndpoints
         // Cast so it binds as a route handler (whose IResult is written), not as a bare RequestDelegate.
         endpoints.Map(Route, (Func<HttpContext, Task<IResult>>)RunAsync)
             .RequireAuthorization(p => p.RequireRole(AppAuthValidator.AdminRole));
+        // MapleKiosk's own phone line: the same agent, answering a Twilio number (Twilio/WebsitePhoneEndpoints.cs).
+        endpoints.MapWebsitePhone();
         return endpoints;
     }
 
@@ -95,7 +100,7 @@ public static class WebsiteVoiceEndpoints
                 VoiceSessionContext.Empty,
                 lang,
                 BusinessName,
-                await GroundingAsync(services, logger, context.RequestAborted),
+                await GroundingAsync(services, logger, ConversationChannel.DesktopVoice, context.RequestAborted),
                 context.RequestAborted);
         }
         catch (Exception ex)
@@ -136,12 +141,13 @@ public static class WebsiteVoiceEndpoints
     /// What MapleKiosk sells, for the agent to be held to. Read once per conversation; a read that fails
     /// leaves the agent ungrounded rather than failing to open — the platform's rule.
     /// </summary>
-    private static async Task<string?> GroundingAsync(IServiceProvider services, ILogger logger, CancellationToken ct)
+    internal static async Task<string?> GroundingAsync(IServiceProvider services, ILogger logger,
+        ConversationChannel channel, CancellationToken ct)
     {
         try
         {
             return await services.GetRequiredService<IAssistantGrounding>()
-                .ForCustomerAsync(ConversationChannel.DesktopVoice, ct).ConfigureAwait(false);
+                .ForCustomerAsync(channel, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
