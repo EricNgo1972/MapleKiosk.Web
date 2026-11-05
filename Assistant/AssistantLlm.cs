@@ -5,7 +5,7 @@ namespace MapleKiosk.Web.Assistant;
 
 /// <summary>
 /// The assistant's chat client, from <see cref="AssistantSettings.ResolveLlmAsync"/>: the admin's own
-/// settings (/chats → Settings), else env LLM_*, else the platform's shared LLM-AzureOpenAI rows. Resolved
+/// settings (/admin/assistant), else env LLM_*, else the platform's shared LLM-AzureOpenAI rows. Resolved
 /// on first use and again after an admin saves (<see cref="Invalidate"/>); an unconfigured result is
 /// retried every few minutes so rows added by hand are picked up without a restart.
 /// </summary>
@@ -35,7 +35,7 @@ public sealed class AssistantLlm
             _client = LlmChatClientFactory.Create(new LlmOptions(options.Provider, options.Endpoint, options.Model, options.ApiKey));
             _resolvedAtUtc = DateTime.UtcNow;
             if (_client is StubChatClient)
-                _logger.LogWarning("Assistant: no language model configured (/chats → Settings, env LLM_*, or keyvalue LLM-AzureOpenAI/*) — answering with the stub.");
+                _logger.LogWarning("Assistant: no language model configured (/admin/assistant, env LLM_*, or keyvalue LLM-AzureOpenAI/*) — answering with the stub.");
             else
                 _logger.LogInformation("Assistant: using {Provider} model {Model}.", options.Provider, options.Model);
             return _client;

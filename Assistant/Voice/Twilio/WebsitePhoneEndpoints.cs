@@ -10,13 +10,13 @@ namespace MapleKiosk.Web.Assistant.Voice;
 /// call (no transfer to staff, outbound calls, recordings, WhatsApp or SIP gateway).
 /// <list type="bullet">
 ///   <item><c>POST /twilio/voice/incoming</c> — the number's voice webhook. Signature-checked; answers with
-///   TwiML that parks the call on the media socket, or an apology when the line is off or full.</item>
+///   TwiML that parks the call on the media socket, or an apology when there is no Gemini key or the line is full.</item>
 ///   <item><c>GET /twilio/voice/stream/{ticket}</c> — the media socket Twilio dials next, gated by a
 ///   single-use ticket the webhook minted two minutes before at most.</item>
 ///   <item><c>POST /twilio/voice/status</c> — call-status callback, logged. Signature-checked.</item>
 ///   <item><c>POST /twilio/voice/fallback</c> — the backup webhook: a fixed apology, no dependencies.</item>
 /// </list>
-/// Setup (which number, on/off, language) is on /voice-phone; see <see cref="PhoneHookup"/>.
+/// The number is wired by hand in the Twilio console (steps on /admin/assistant); see <see cref="PhoneHookup"/>.
 /// </summary>
 public static class WebsitePhoneEndpoints
 {
@@ -60,21 +60,9 @@ public static class WebsitePhoneEndpoints
         var callSid = form["CallSid"].ToString();
         var to = form["To"].ToString();
 
-        var hookup = await PhoneHookup.ReadAsync();
-        if (!hookup.Enabled || !hookup.HasNumber)
-        {
-            logger.LogWarning("Voice/phone: call {CallSid} refused — the phone line is switched off on /voice-phone.", callSid);
-            return Twiml(TwilioTwiml.SayAndHangUp(Unavailable));
-        }
-        if (PhoneHookup.Digits(to) != PhoneHookup.Digits(hookup.Number))
-        {
-            logger.LogWarning("Voice/phone: call {CallSid} to {To} refused — /voice-phone is set up for {Number}.",
-                callSid, to, hookup.Number);
-            return Twiml(TwilioTwiml.SayAndHangUp(Unavailable));
-        }
         if (string.IsNullOrWhiteSpace((await AssistantSettings.ResolveVoiceAsync()).GeminiApiKey))
         {
-            logger.LogError("Voice/phone: call {CallSid} refused — no Gemini API key (/chats → Settings).", callSid);
+            logger.LogError("Voice/phone: call {CallSid} refused — no Gemini API key (/admin/assistant).", callSid);
             return Twiml(TwilioTwiml.SayAndHangUp(Unavailable));
         }
         // Checked here as well as at the socket so a full house is told so in words, not connected then dropped.
@@ -124,8 +112,8 @@ public static class WebsitePhoneEndpoints
             return Results.Unauthorized();
         }
 
-        var hookup = await PhoneHookup.ReadAsync();
-        var profile = PhoneProfile(await AssistantSettings.ResolveVoiceAsync(), hookup.Language);
+        var language = await PhoneHookup.LanguageAsync();
+        var profile = PhoneProfile(await AssistantSettings.ResolveVoiceAsync(), language);
 
         if (!VoiceSessionLimiter.TryAcquire(profile.MaxConcurrentSessions))
         {
@@ -140,7 +128,7 @@ public static class WebsitePhoneEndpoints
             var channel = await TwilioMediaStreamChannel.OpenAsync(socket, logger, context.RequestAborted);
             if (channel is null) return Results.Empty;
 
-            logger.LogInformation("Voice/phone: call {CallSid} connected ({Language}).", call.CallSid, hookup.Language);
+            logger.LogInformation("Voice/phone: call {CallSid} connected ({Language}).", call.CallSid, language);
 
             var sessionContext = VoiceSessionContext.From(new Dictionary<string, string?>
             {
@@ -154,14 +142,14 @@ public static class WebsitePhoneEndpoints
                 new ChatLogVoiceConversationStore(
                     services.GetRequiredService<ChatLog>(), null, "phone",
                     ChatLogVoiceConversationStore.PhoneDevice, call.Caller),
-                new MapleKioskVoicePersona(hookup.Language, phone: true),
+                new MapleKioskVoicePersona(language, phone: true),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
                 services.GetRequiredService<IVoiceToolBrokerFactory>(),
                 profile,
                 VoiceToolAudience.Customer,
                 sessionContext,
-                hookup.Language,
+                language,
                 WebsiteVoiceEndpoints.BusinessName,
                 await WebsiteVoiceEndpoints.GroundingAsync(services, logger, ConversationChannel.Phone, context.RequestAborted),
                 context.RequestAborted);

@@ -14,7 +14,7 @@ namespace MapleKiosk.Web.Assistant;
 /// four trades, the AI voice agent), the catalog's prices (/shop/admin), the pricing pages' wording — so the assistant and the
 /// website cannot disagree. Copy no page shows any more (the old SaaS/on-premise price table, the old FAQ)
 /// is left out on purpose. Facts the site doesn't carry yet (a phone number, hours) are added by the team in
-/// the keyvalue row Assistant/Knowledge (/chats → Settings; or env ASSISTANT_KNOWLEDGE), read every few minutes.</para>
+/// the keyvalue row Assistant/Knowledge (/admin/assistant; or env ASSISTANT_KNOWLEDGE), read every few minutes.</para>
 /// </summary>
 public sealed class SiteKnowledge : IAssistantGrounding
 {
@@ -78,12 +78,26 @@ public sealed class SiteKnowledge : IAssistantGrounding
         sb.AppendLine("- MapleKiosk is point-of-sale and front-desk software built one trade at a time, by Kiosque Érable Inc., a Canadian company in Longueuil, Québec.");
         sb.AppendLine("- " + Tr("hp.co.title") + " " + Tr("hp.co.text"));
         sb.AppendLine("- Address: 507 Rue Montcalm, Longueuil, Québec J4J 2L3, Canada.");
-        sb.AppendLine("- Email: sales@maplekiosk.ca (sales and general questions). Privacy questions: dev@maplekiosk.ca.");
+        sb.AppendLine("- Email: sales@maplekiosk.ca (sales and general questions). Customers needing help: support@maplekiosk.ca. Privacy questions: dev@maplekiosk.ca.");
         sb.AppendLine("- Website: www.maplekiosk.ca, in English, French, Vietnamese and Russian.");
         sb.AppendLine("- Phone: no phone number is published on the website yet. Give the email instead.");
         sb.AppendLine("- To get started: the “Book a demo” button, on every page, opens a short form; the team follows up by email. Or write to sales@maplekiosk.ca.");
         sb.AppendLine("- Free test drives, no sign-up: MapleSPA at https://nails.maplekiosk.ca, MapleCoffee at https://coffee.maplekiosk.ca.");
         sb.AppendLine("- Legal pages: privacy policy /privacy, terms /terms.");
+        sb.AppendLine();
+
+        sb.AppendLine("## Hardware MapleKiosk sells");
+        sb.AppendLine("- MapleKiosk sells a Linux server and a Wi-Fi router that connects its hardware.");
+        sb.AppendLine("- Optional: Android tablets, a kitchen display (KDS), and Android boxes for a TV wall.");
+        sb.AppendLine("- A payment terminal may be offered too, but this isn't confirmed: don't promise one.");
+        sb.AppendLine("- Except for prices listed under Pricing, hardware prices, models and delivery times aren't known here: offer to pass a message to the team.");
+        sb.AppendLine();
+
+        sb.AppendLine("## After the order");
+        sb.AppendLine("- After paying, the customer gets a receipt by email.");
+        sb.AppendLine("- MapleKiosk then emails them a link to their setup form, which they open by signing in with Google or Microsoft using that email address. Don't say how soon this email arrives.");
+        sb.AppendLine("- The form covers their business details, opening hours, online presence, access to their accounts, files (services and staff), and any hardware they already own. They can do it at their own pace. MapleKiosk never asks for their passwords.");
+        sb.AppendLine("- Next, the team sets up their system, usually within 3 to 5 business days. Then the team walks them through it on a short call, trains their staff, and they go live.");
         sb.AppendLine();
 
         sb.AppendLine("## What the home page says (/)");

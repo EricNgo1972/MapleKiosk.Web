@@ -1,0 +1,228 @@
+@page "/admin/assistant"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+@rendermode InteractiveServer
+@using MapleKiosk.Web.Assistant
+@using MapleKiosk.Web.Assistant.Voice
+@inject AssistantLlm Llm
+@inject SiteKnowledge Knowledge
+
+@*
+    The website assistant's whole setup on one page: 1. the chat model (LLM), 2. the voice model (Gemini Live),
+    3. how to point MapleKiosk's Twilio number at the voice assistant (by hand, in the Twilio console).
+    Everything is kept in the keyvalue table, partition Assistant.
+*@
+
+<PageTitle>Assistant setup — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/admin" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title"><a href="/admin" style="color:inherit;text-decoration:none">Admin</a> / Assistant setup</span>
+        <a href="/chats" class="btn btn-ghost onb-small adm-top__action">Chats</a>
+    </div>
+</header>
+
+<main class="adm">
+    <div class="container adm__wrap">
+        @if (_loading)
+        {
+            <p class="onb__muted">Loading…</p>
+        }
+        else
+        {
+            <div class="adm-form">
+                @* ---- 1. LLM ---- *@
+                <h2>1. Chat model (LLM)</h2>
+                <p class="onb__muted">Answers the chat bubble on every page. Left on “Shared rows”, it uses the platform's LLM-AzureOpenAI rows.</p>
+                <div class="adm-field">
+                    <span>Provider</span>
+                    <div class="wb-chips">
+                        @foreach (var p in AssistantSettings.Providers)
+                        {
+                            <button type="button" class="wb-chip @(_llmProvider == p ? "is-on" : "")" @onclick="() => _llmProvider = p">@p</button>
+                        }
+                        <button type="button" class="wb-chip @(_llmProvider == "" ? "is-on" : "")" @onclick="@(() => _llmProvider = "")">Shared rows</button>
+                    </div>
+                    <small>In use now: @_inUse</small>
+                </div>
+                <label>Endpoint
+                    <input @bind="_llmEndpoint" placeholder="https://my-resource.openai.azure.com (Azure, self-hosted) — optional for others" />
+                </label>
+                <label>Model
+                    <input @bind="_llmModel" placeholder="gpt-4.1-mini (for Azure: the deployment name)" />
+                </label>
+                <label>API key
+                    <input type="password" autocomplete="new-password" @bind="_llmKey" placeholder="@(_llmKeyMask == "" ? "Not set" : $"Saved: {_llmKeyMask} — leave blank to keep")" />
+                    @if (_llmKeyMask != "")
+                    {
+                        <span class="adm-switch"><input type="checkbox" @bind="_clearLlmKey" /> Remove the saved key</span>
+                    }
+                </label>
+                <div class="adm-sheet__actions cht-test">
+                    @if (_testMessage is not null)
+                    {
+                        <span class="adm-banner @(_testOk ? "adm-banner--ok" : "")">@_testMessage</span>
+                    }
+                    <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="TestLlm">Test connection</button>
+                </div>
+                <label>Extra facts for the assistant
+                    <textarea rows="5" @bind="_knowledge" placeholder="Phone: +1 … (Mon–Fri 9–5)&#10;Promotions, opening hours, anything the website doesn't say yet."></textarea>
+                    <small>Added to what the website says, and wins over it. Used by the chat and the voice assistant.</small>
+                </label>
+                <label>Person in charge (email)
+                    <input type="email" @bind="_messageInbox" placeholder="@AssistantSettings.DefaultMessageInbox" />
+                    <small>Gets customers' messages and chat leads. Blank uses the address shown.</small>
+                </label>
+
+                @* ---- 2. Voice ---- *@
+                <hr class="cht-hr" />
+                <h2>2. Voice model (Gemini Live)</h2>
+                <p class="onb__muted">Speaks on <a href="/voice-test">/voice-test</a> and answers the phone line (step 3).</p>
+                <label>Gemini API key
+                    <input type="password" autocomplete="new-password" @bind="_geminiKey" placeholder="@(_geminiKeyMask == "" ? "Not set" : $"Saved: {_geminiKeyMask} — leave blank to keep")" />
+                    @if (_geminiKeyMask != "")
+                    {
+                        <span class="adm-switch"><input type="checkbox" @bind="_clearGeminiKey" /> Remove the saved key</span>
+                    }
+                </label>
+                <label>Model
+                    <select @bind="_geminiModel">
+                        <option value="">Default (@AssistantSettings.DefaultGeminiModel)</option>
+                        @foreach (var m in Choices(VoiceCatalog.GeminiModels, _geminiModel))
+                        {
+                            <option value="@m.Value">@m.Value@(m.Note is null ? "" : $" — {m.Note}")</option>
+                        }
+                    </select>
+                </label>
+                <label>Voice
+                    <select @bind="_geminiVoice">
+                        <option value="">Default (@AssistantSettings.DefaultGeminiVoice)</option>
+                        @foreach (var v in Choices(VoiceCatalog.GeminiVoices, _geminiVoice))
+                        {
+                            <option value="@v.Value">@v.Value</option>
+                        }
+                    </select>
+                </label>
+                <label>Phone greeting language
+                    <select @bind="_phoneLanguage">
+                        @foreach (var lang in PhoneHookup.Languages)
+                        {
+                            <option value="@lang">@MapleKioskVoicePersona.Language(lang)</option>
+                        }
+                    </select>
+                    <small>The language a phone call opens in; the assistant follows the caller if they speak another.</small>
+                </label>
+            </div>
+
+            @if (_error is not null) { <p class="onb-error">@_error</p> }
+            @if (_saved) { <p class="adm-banner adm-banner--ok">Saved.</p> }
+            <div class="adm-sheet__actions">
+                <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="SaveAsync">@(_busy ? "Saving…" : "Save")</button>
+            </div>
+
+            @* ---- 3. Twilio, by hand ---- *@
+            <hr class="cht-hr" />
+            <h2>3. Phone line (Twilio number)</h2>
+            <p class="onb__muted">To have a phone number answered by the voice assistant, set it up once in the Twilio console:</p>
+            <ol class="ast-steps">
+                <li>Sign in to <strong>console.twilio.com</strong> with the <strong>platform account</strong> (the one in keyvalue
+                    <code>Twilio/AccountSid</code>@(_twilioSid == "" ? "" : $", {_twilioSid}")). Calls on any other account are refused,
+                    because the site checks Twilio's signature with that account's auth token.
+                    @if (_twilioSid == "")
+                    {
+                        <strong class="onb-error"> Not set yet: add Twilio/AccountSid and Twilio/AuthToken to the keyvalue table.</strong>
+                    }
+                </li>
+                <li>Go to <strong>Phone Numbers → Manage → Active numbers</strong> and open the number (buy one first if needed: Voice-capable, Canada or US).</li>
+                <li>Under <strong>Voice Configuration</strong>, set <em>Configure with</em> to <strong>Webhook, TwiML Bin, Function…</strong>, then:
+                    <div class="adm-field"><span>A call comes in — Webhook, HTTP POST</span><code>@PhoneHookup.IncomingUrl</code></div>
+                    <div class="adm-field"><span>Primary handler fails — Webhook, HTTP POST</span><code>@PhoneHookup.FallbackUrl</code></div>
+                    <div class="adm-field"><span>Call status changes — HTTP POST</span><code>@PhoneHookup.StatusUrl</code></div>
+                </li>
+                <li>Press <strong>Save configuration</strong>, then call the number. The call shows on <a href="/chats">/chats</a> as “Phone call”, with the caller's number.</li>
+                <li>To stop it, clear “A call comes in” on the number (or point it elsewhere). Calls are also refused politely when no Gemini key is set or two conversations are already open.</li>
+            </ol>
+        }
+    </div>
+</main>
+
+@code {
+    private bool _loading = true, _busy, _saved, _clearLlmKey, _clearGeminiKey, _testOk;
+    private string _llmProvider = "", _llmEndpoint = "", _llmModel = "", _llmKey = "", _llmKeyMask = "", _inUse = "";
+    private string _geminiKey = "", _geminiKeyMask = "", _geminiModel = "", _geminiVoice = "", _knowledge = "", _messageInbox = "";
+    private string _phoneLanguage = "en", _twilioSid = "";
+    private string? _error, _testMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var (llm, voice, knowledge) = await AssistantSettings.ReadOwnAsync();
+        _llmProvider = llm.Provider; _llmEndpoint = llm.Endpoint; _llmModel = llm.Model; _llmKeyMask = AssistantSettings.Mask(llm.ApiKey);
+        _geminiKeyMask = AssistantSettings.Mask(voice.GeminiApiKey); _geminiModel = voice.Model; _geminiVoice = voice.Voice;
+        _knowledge = knowledge;
+        var inbox = await AssistantSettings.MessageInboxAsync();
+        _messageInbox = inbox == AssistantSettings.DefaultMessageInbox ? "" : inbox;
+        _phoneLanguage = await PhoneHookup.LanguageAsync();
+        _twilioSid = (await PhoneHookup.CredentialsAsync())?.Sid ?? "";
+        await RefreshInUseAsync();
+        _loading = false;
+    }
+
+    private async Task RefreshInUseAsync()
+    {
+        var now = await AssistantSettings.ResolveLlmAsync();
+        _inUse = string.IsNullOrWhiteSpace(now.Model) ? "nothing configured" : $"{now.Provider} · {now.Model}";
+    }
+
+    private async Task TestLlm()
+    {
+        _busy = true;
+        _testMessage = null;
+        StateHasChanged();
+        // Test what would be saved: a blank key means "keep the stored one".
+        var (stored, _, _) = await AssistantSettings.ReadOwnAsync();
+        var setup = _llmProvider == ""
+            ? await AssistantSettings.ResolveLlmAsync()
+            : new LlmSetup(_llmProvider, _llmEndpoint.Trim(), _llmModel.Trim(), _llmKey.Trim() is { Length: > 0 } k ? k : _clearLlmKey ? "" : stored.ApiKey);
+        (_testOk, _testMessage) = await AssistantLlm.TestAsync(setup, CancellationToken.None);
+        _busy = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _error = null;
+        _saved = false;
+        try
+        {
+            await AssistantSettings.SaveAsync(
+                new LlmSetup(_llmProvider, _llmEndpoint.Trim(), _llmModel.Trim(), _llmKey.Trim()),
+                new VoiceSetup(_geminiKey.Trim(), _geminiModel.Trim(), _geminiVoice.Trim()),
+                _knowledge.Trim(), _clearLlmKey, _clearGeminiKey);
+            await AssistantSettings.SaveMessageInboxAsync(_messageInbox);
+            await PhoneHookup.SaveLanguageAsync(_phoneLanguage);
+            Llm.Invalidate();
+            Knowledge.Invalidate();
+
+            // Show what is stored now: masks for the keys, the boxes emptied.
+            var (llm, voice, _) = await AssistantSettings.ReadOwnAsync();
+            _llmKey = _geminiKey = "";
+            _clearLlmKey = _clearGeminiKey = false;
+            _llmKeyMask = AssistantSettings.Mask(llm.ApiKey);
+            _geminiKeyMask = AssistantSettings.Mask(voice.GeminiApiKey);
+            await RefreshInUseAsync();
+            _saved = true;
+        }
+        catch (Exception ex)
+        {
+            _error = "Couldn't save: " + ex.Message;
+        }
+        _busy = false;
+    }
+
+    // The catalog, plus a saved value that isn't in it (typed into the keyvalue row by hand) — kept and
+    // shown, never silently swapped for the first choice.
+    private static IEnumerable<VoiceOption> Choices(VoiceOption[] catalog, string current) =>
+        string.IsNullOrWhiteSpace(current) || catalog.Any(o => o.Value == current)
+            ? catalog
+            : catalog.Append(new VoiceOption(current, "saved"));
+}

@@ -1434,6 +1434,8 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
 .cht-hr{border:0;border-top:1px solid var(--border);margin:4px 0}
 .cht-test{justify-content:space-between;align-items:center;margin-top:0}
 .cht-test .adm-banner{margin:0;flex:1}
+.ast-steps{display:grid;gap:12px;padding-left:20px;margin:8px 0 0}
+.ast-steps code{word-break:break-all}
 .adm-form textarea{padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:14px;resize:vertical}
 
 /* Voice test (Components/Pages/VoiceTest.razor, js/voice-test.js) — hidden admin page */
@@ -1498,7 +1500,7 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
 }
 @media (max-width:480px){ .gc-packs{grid-template-columns:1fr} }
 
-/* ===================== Phone line (/phone-line, /phone-line/order, /admin/phone-lines) ===================== */
+/* ===================== Phone line (/phone-line, /phone-line/order) ===================== */
 .pl__wrap{max-width:760px;margin:0 auto;padding:48px 0}
 .pl__wrap h1{font-size:clamp(32px,4.5vw,48px);margin:0 0 12px}
 .pl__lead{color:var(--muted);font-size:18px;margin:0 0 24px}

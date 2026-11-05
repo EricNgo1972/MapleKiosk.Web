@@ -9,7 +9,7 @@ public sealed record LlmSetup(string Provider, string Endpoint, string Model, st
 public sealed record VoiceSetup(string GeminiApiKey, string Model, string Voice);
 
 /// <summary>
-/// What an admin sets for the assistant on /chats → Settings, kept in the shared keyvalue table under the
+/// What an admin sets for the assistant on /admin/assistant, kept in the shared keyvalue table under the
 /// partition <c>Assistant</c> (rows LlmProvider, LlmEndpoint, LlmModel, LlmApiKey, GeminiApiKey, GeminiModel,
 /// GeminiVoice, Knowledge). The site's own rows win; anything left blank falls back to env vars
 /// (LLM_*, GEMINI_API_KEY) and then to the platform's shared LLM-AzureOpenAI rows, so the assistant works
@@ -25,6 +25,20 @@ public static class AssistantSettings
 
     /// <summary>Providers the factory knows, as the admin picks them.</summary>
     public static readonly string[] Providers = { "AzureOpenAI", "OpenAI", "Gemini", "Anthropic", "OpenRouter", "OpenAICompatible" };
+
+    /// <summary>Who gets customers' messages and chat leads until the team has one person per topic.</summary>
+    public const string DefaultMessageInbox = "ericngo0305@gmail.com";
+
+    /// <summary>The person in charge: row Assistant/MessageInbox (/admin/assistant), else the default.</summary>
+    public static async Task<string> MessageInboxAsync()
+    {
+        var own = (await KeyValueTable.ReadAsync(Partition, "MessageInbox")).Trim();
+        return own == "" ? DefaultMessageInbox : own;
+    }
+
+    /// <summary>Saves the person in charge; blank goes back to the default.</summary>
+    public static Task SaveMessageInboxAsync(string inbox) =>
+        KeyValueTable.WriteAsync(Partition, "MessageInbox", inbox.Trim());
 
     /// <summary>Only the admin's own rows — what the settings page shows and edits.</summary>
     public static async Task<(LlmSetup Llm, VoiceSetup Voice, string Knowledge)> ReadOwnAsync() =>

@@ -78,7 +78,7 @@ public sealed class CatalogTranslator
     {
         var client = await _llm.GetAsync();
         if (client is StubChatClient)
-            return (null, "No AI model is set up (Chats → Settings), so translations can't be drafted. You can still type them.");
+            return (null, "No AI model is set up (Admin → Assistant setup), so translations can't be drafted. You can still type them.");
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(60));

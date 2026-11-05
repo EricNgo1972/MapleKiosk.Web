@@ -11,7 +11,8 @@ namespace MapleKiosk.Web.Assistant;
 /// <para>The visitor's browser keeps the conversation and sends the recent turns with each message (capped
 /// like the gateway's history window); every exchange is also recorded in <see cref="ChatLog"/> for the
 /// team (/chats). Same-origin only, and rate-limited per visitor and per day, since every message costs a
-/// model call. The one tool, save_guest_contact, keeps the name and contact a guest chooses to give.</para>
+/// model call. Two tools: save_guest_contact keeps the name and contact a guest chooses to give, and
+/// take_message passes a customer's message to the person in charge.</para>
 /// </summary>
 public static class AssistantEndpoints
 {
@@ -37,6 +38,7 @@ public static class AssistantEndpoints
         services.AddSingleton<VisitorLimiter>();
         services.AddSingleton<ChatLog>();
         services.AddSingleton<GuestContactTool>();
+        services.AddSingleton<CustomerMessageTool>();
         return services;
     }
 
@@ -53,7 +55,8 @@ public static class AssistantEndpoints
 
     private static async Task<IResult> MessageAsync(
         MessageRequest req, HttpContext http, AssistantLlm llm, IAssistantGrounding grounding,
-        VisitorLimiter limiter, ChatLog chats, GuestContactTool contactTool, ILoggerFactory loggers, CancellationToken ct)
+        VisitorLimiter limiter, ChatLog chats, GuestContactTool contactTool, CustomerMessageTool messageTool,
+        ILoggerFactory loggers, CancellationToken ct)
     {
         var log = loggers.CreateLogger("Assistant");
 
@@ -104,7 +107,7 @@ public static class AssistantEndpoints
             var options = new ChatOptions { MaxOutputTokens = MaxReplyTokens };
             if (client is not StubChatClient)
             {
-                options.Tools = [contactTool.For(id, lang, page)];
+                options.Tools = [contactTool.For(id, lang, page), messageTool.For(id, lang, page)];
                 client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 2).Build();
             }
             var response = await client.GetResponseAsync(messages, options, ct);

@@ -15,7 +15,7 @@ namespace MapleKiosk.Web.Assistant.Voice;
 ///   <item>The kiosk's single-use session ticket: the page is admin-only, so the socket is gated by the auth
 ///   cookie on the upgrade (same origin) and the Admin role instead.</item>
 ///   <item>The voice profile store (CSLA/IKeyValueStore) and CompanySettings: the profile is built per call
-///   from <see cref="AssistantSettings.ResolveVoiceAsync"/> (/chats → Settings), the business is "MapleKiosk".</item>
+///   from <see cref="AssistantSettings.ResolveVoiceAsync"/> (/admin/assistant), the business is "MapleKiosk".</item>
 ///   <item>The MCP tool broker and the ChatAudit trail: the agent has no tools beyond the relay's own
 ///   end_call (<see cref="EmptyVoiceToolBroker"/>), so there is nothing to audit.</item>
 ///   <item>Deepgram and the stub provider: Gemini Live only; an unset key fails with a message naming the setting.</item>
@@ -37,9 +37,6 @@ public static class WebsiteVoiceEndpoints
         services.AddSingleton<IVoiceToolBrokerFactory, EmptyVoiceToolBrokerFactory>();
         services.AddSingleton<IVoiceAgentServiceFactory, VoiceAgentServiceFactory>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IVoiceAgentProvider, GeminiLiveVoiceAgentProvider>());
-        // The phone line's setup page (/voice-phone) talks to Twilio through this.
-        services.AddHttpClient();
-        services.AddSingleton<PhoneHookupTwilio>();
         return services;
     }
 
@@ -118,7 +115,7 @@ public static class WebsiteVoiceEndpoints
     }
 
     /// <summary>
-    /// The profile the vendored provider reads, from what an admin set on /chats → Settings. A blank key is
+    /// The profile the vendored provider reads, from what an admin set on /admin/assistant. A blank key is
     /// passed through on purpose: the provider refuses it with a message naming the setting, and the relay
     /// sends that to the page instead of a silently closed socket.
     /// </summary>

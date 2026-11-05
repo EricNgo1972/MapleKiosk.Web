@@ -55,7 +55,7 @@ internal sealed class GeminiLiveVoiceAgentService : IVoiceAgentService
         {
             // Site: worded for where this site keeps the key (the platform names the profile field).
             throw new InvalidOperationException(
-                "Voice is not set up — set the Gemini API key in /chats → Settings.");
+                "Voice is not set up — set the Gemini API key in /admin/assistant.");
         }
 
         var session = new GeminiLiveSession(

@@ -12,8 +12,6 @@ namespace MapleKiosk.Web.Assistant;
 /// </summary>
 public sealed class GuestContactTool
 {
-    private const string SalesInbox = "sales@maplekiosk.ca";
-
     private readonly ChatLog _chats;
     private readonly EmailService _email;
     private readonly ILogger<GuestContactTool> _logger;
@@ -52,7 +50,7 @@ public sealed class GuestContactTool
 
         try
         {
-            await _email.SendAsync(SalesInbox, $"Website chat lead: {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}", Html(id, lang, page, c));
+            await _email.SendAsync(await AssistantSettings.MessageInboxAsync(), $"Website chat lead: {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}", Html(id, lang, page, c));
         }
         catch (Exception ex)
         {

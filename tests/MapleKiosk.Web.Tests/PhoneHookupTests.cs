@@ -30,12 +30,8 @@ public sealed class PhoneHookupTests
         Assert.Equal(expected, WebsitePhoneEndpoints.GuestNumber(from, to));
 
     [Fact]
-    public void Only_this_sites_incoming_url_counts_as_connected()
-    {
-        Assert.True(PhoneHookup.PointsHere("https://www.maplekiosk.ca/twilio/voice/incoming"));
-        Assert.False(PhoneHookup.PointsHere("https://salon.example.com/twilio/voice/incoming"));
-        Assert.False(PhoneHookup.PointsHere(""));
-    }
+    public void The_webhooks_given_for_twilio_are_the_public_sites() =>
+        Assert.Equal("https://www.maplekiosk.ca/twilio/voice/incoming", PhoneHookup.IncomingUrl);
 
     [Fact]
     public void Numbers_compare_by_digits() =>

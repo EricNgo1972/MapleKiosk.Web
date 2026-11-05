@@ -7,7 +7,7 @@ namespace MapleKiosk.Web.Assistant.Voice;
 public sealed record VoiceOption(string Value, string? Note = null);
 
 /// <summary>
-/// The Gemini Live models and voices offered in /chats → Settings.
+/// The Gemini Live models and voices offered in /admin/assistant.
 ///
 /// <para>Reference data, kept as the platform keeps it: the page shows these as the choices, and a value
 /// already saved that isn't in the list (a model Google adds tomorrow, typed into the keyvalue row) is kept

@@ -12,7 +12,7 @@ namespace MapleKiosk.Web.Assistant.Voice;
 ///
 /// <para>Site: the platform loads this from its VoiceProfile entity (CSLA, settings table). Here it is built
 /// per conversation from <see cref="AssistantSettings.ResolveVoiceAsync"/> (the Gemini key, model and voice
-/// an admin sets on /chats → Settings) — see <c>WebsiteVoiceEndpoints.ProfileFor</c>. The Deepgram "think"
+/// an admin sets on /admin/assistant) — see <c>WebsiteVoiceEndpoints.ProfileFor</c>. The Deepgram "think"
 /// fields and the entity mapping are dropped.</para>
 /// </summary>
 public sealed class VoiceProfileInfo

@@ -6,10 +6,14 @@ namespace MapleKiosk.Web.Assistant;
 /// <summary>A guest's contact, as they gave it to the assistant.</summary>
 public sealed record GuestContact(string Name, string? Phone, string? Email, string? Business, string? Interest);
 
+/// <summary>A message a customer asked the assistant to pass to the person in charge.</summary>
+public sealed record GuestMessage(string Topic, bool Urgent, string Text, DateTimeOffset At);
+
 /// <summary>One conversation with the website assistant, as the admin list shows it.</summary>
 public sealed record ChatConversation(
     string Id, DateTimeOffset StartedAt, DateTimeOffset LastAt, string Lang, string FirstPage, string LastPage,
-    int Messages, string Preview, string? Country, string? Device, GuestContact? Contact);
+    int Messages, string Preview, string? Country, string? Device, GuestContact? Contact,
+    IReadOnlyList<GuestMessage> TakenMessages);
 
 /// <summary>One message in a conversation.</summary>
 public sealed record ChatLine(string Role, string Text, DateTimeOffset At, string? Page);
@@ -120,6 +124,15 @@ public sealed class ChatLog
             f.ContactAt = DateTimeOffset.UtcNow;
         }, "the contact", ct);
 
+    /// <summary>Keeps a message for the person in charge, with who left it. False when it couldn't be written.</summary>
+    public Task<bool> SaveMessageAsync(string id, GuestContact contact, GuestMessage message, CancellationToken ct = default) =>
+        UpdateAsync(id, f =>
+        {
+            f.Contact = contact with { Interest = f.Contact?.Interest };
+            f.ContactAt = DateTimeOffset.UtcNow;
+            f.TakenMessages.Add(message);
+        }, "a message", ct);
+
     /// <summary>Conversations active in the last <paramref name="days"/> days, newest activity first.</summary>
     public Task<List<ChatConversation>> ListAsync(int days, CancellationToken ct = default)
     {
@@ -143,14 +156,15 @@ public sealed class ChatLog
         public GuestContact? Contact { get; set; }
         public DateTimeOffset? ContactAt { get; set; }
         public List<ChatLine> Lines { get; set; } = new();
+        public List<GuestMessage> TakenMessages { get; set; } = new();
     }
 
     private string FileOf(string id) => Path.Combine(_dir!, id + ".json");
 
     // One writer per conversation; two conversations never wait on each other.
-    private async Task UpdateAsync(string id, Action<ChatFile> change, string what, CancellationToken ct)
+    private async Task<bool> UpdateAsync(string id, Action<ChatFile> change, string what, CancellationToken ct)
     {
-        if (_dir is null) return;
+        if (_dir is null) return false;
         var gate = _locks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
         try
@@ -163,10 +177,12 @@ public sealed class ChatLog
                 await JsonSerializer.SerializeAsync(s, file, Json, ct);
             File.Move(temp, path, overwrite: true);
             _index.Value[id] = Summary(file);
+            return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "ChatLog: could not record {What} of conversation {Id}.", what, id);
+            return false;
         }
         finally
         {
@@ -198,7 +214,7 @@ public sealed class ChatLog
             try
             {
                 var file = JsonSerializer.Deserialize<ChatFile>(File.ReadAllText(path), Json);
-                if (file is { Lines.Count: > 0 }) index[file.Id] = Summary(file);
+                if (file is not null && (file.Lines.Count > 0 || file.TakenMessages.Count > 0)) index[file.Id] = Summary(file);
             }
             catch (Exception ex)
             {
@@ -224,7 +240,8 @@ public sealed class ChatLog
             said is null ? "" : Clip(said.Text, PreviewChars),
             f.Country,
             f.Device,
-            f.Contact);
+            f.Contact,
+            f.TakenMessages);
     }
 
     private static string Clip(string text, int max) => text.Length <= max ? text : text[..max] + "…";

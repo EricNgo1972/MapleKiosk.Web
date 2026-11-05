@@ -5,8 +5,6 @@
 @using MapleKiosk.Web.Assistant
 @using MapleKiosk.Web.Assistant.Voice
 @inject ChatLog Log
-@inject AssistantLlm Llm
-@inject SiteKnowledge Knowledge
 @inject NavigationManager Nav
 
 <PageTitle>Chats — MapleKiosk</PageTitle>
@@ -15,7 +13,7 @@
     <div class="container onb-top__inner">
         <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
         <span class="adm-title"><a href="/admin" style="color:inherit;text-decoration:none">Admin</a> / Chats</span>
-        <button type="button" class="btn btn-ghost onb-small adm-top__action" @onclick="OpenSettings">Settings</button>
+        <a href="/admin/assistant" class="btn btn-ghost onb-small adm-top__action">Settings</a>
     </div>
 </header>
 
@@ -63,6 +61,10 @@
                                 {
                                     <span class="cht-live">Live</span>
                                 }
+                                else if (c.TakenMessages.Count > 0)
+                                {
+                                    <span class="onb-status onb-status--done">@(c.TakenMessages.Any(m => m.Urgent) ? "Urgent message" : "Message")</span>
+                                }
                                 else if (c.Contact is not null)
                                 {
                                     <span class="onb-status onb-status--done">Contact</span>
@@ -78,89 +80,6 @@
     </div>
 </main>
 
-@* ---- Settings: the assistant's model, the voice agent's Gemini key, the team's extra facts ---- *@
-@if (_settings)
-{
-    <div class="adm-scrim" @onclick="() => _settings = false"></div>
-    <div class="adm-sheet adm-sheet--wide" role="dialog" aria-label="Assistant settings">
-        <h2>Assistant settings</h2>
-        <p class="onb__muted">Saved in the keyvalue table (partition Assistant). Anything left blank falls back to the shared LLM-AzureOpenAI rows.</p>
-        <div class="adm-form">
-            <div class="adm-field">
-                <span>Chat model provider</span>
-                <div class="wb-chips">
-                    @foreach (var p in AssistantSettings.Providers)
-                    {
-                        <button type="button" class="wb-chip @(_llmProvider == p ? "is-on" : "")" @onclick="() => _llmProvider = p">@p</button>
-                    }
-                    <button type="button" class="wb-chip @(_llmProvider == "" ? "is-on" : "")" @onclick="@(() => _llmProvider = "")">Shared rows</button>
-                </div>
-                <small>In use now: @_inUse</small>
-            </div>
-            <label>Endpoint
-                <input @bind="_llmEndpoint" placeholder="https://my-resource.openai.azure.com (Azure, self-hosted) — optional for others" />
-            </label>
-            <label>Model
-                <input @bind="_llmModel" placeholder="gpt-4.1-mini (for Azure: the deployment name)" />
-            </label>
-            <label>API key
-                <input type="password" autocomplete="new-password" @bind="_llmKey" placeholder="@(_llmKeyMask == "" ? "Not set" : $"Saved: {_llmKeyMask} — leave blank to keep")" />
-                @if (_llmKeyMask != "")
-                {
-                    <span class="adm-switch"><input type="checkbox" @bind="_clearLlmKey" /> Remove the saved key</span>
-                }
-            </label>
-            <div class="adm-sheet__actions cht-test">
-                @if (_testMessage is not null)
-                {
-                    <span class="adm-banner @(_testOk ? "adm-banner--ok" : "")">@_testMessage</span>
-                }
-                <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="TestLlm">Test connection</button>
-            </div>
-
-            <hr class="cht-hr" />
-            <div class="adm-field"><span>Voice agent (Gemini Live)</span></div>
-            <label>Gemini API key
-                <input type="password" autocomplete="new-password" @bind="_geminiKey" placeholder="@(_geminiKeyMask == "" ? "Not set" : $"Saved: {_geminiKeyMask} — leave blank to keep")" />
-                @if (_geminiKeyMask != "")
-                {
-                    <span class="adm-switch"><input type="checkbox" @bind="_clearGeminiKey" /> Remove the saved key</span>
-                }
-            </label>
-            <label>Model
-                <select @bind="_geminiModel">
-                    <option value="">Default (@AssistantSettings.DefaultGeminiModel)</option>
-                    @foreach (var m in Choices(VoiceCatalog.GeminiModels, _geminiModel))
-                    {
-                        <option value="@m.Value">@m.Value@(m.Note is null ? "" : $" — {m.Note}")</option>
-                    }
-                </select>
-            </label>
-            <label>Voice
-                <select @bind="_geminiVoice">
-                    <option value="">Default (@AssistantSettings.DefaultGeminiVoice)</option>
-                    @foreach (var v in Choices(VoiceCatalog.GeminiVoices, _geminiVoice))
-                    {
-                        <option value="@v.Value">@v.Value</option>
-                    }
-                </select>
-                <small>The prebuilt Gemini Live voices; every model speaks all of them.</small>
-            </label>
-
-            <hr class="cht-hr" />
-            <label>Extra facts for the assistant
-                <textarea rows="5" @bind="_knowledge" placeholder="Phone: +1 … (Mon–Fri 9–5)&#10;Promotions, opening hours, anything the website doesn't say yet."></textarea>
-                <small>Added to what the website says, and wins over it. Used by the chat and the voice agent.</small>
-            </label>
-        </div>
-        @if (_error is not null) { <p class="onb-error">@_error</p> }
-        <div class="adm-sheet__actions">
-            <button type="button" class="btn btn-ghost" @onclick="() => _settings = false">Cancel</button>
-            <button type="button" class="btn btn-primary" disabled="@_busy" @onclick="SaveSettings">@(_busy ? "Saving…" : "Save")</button>
-        </div>
-    </div>
-}
-
 @code {
     private static readonly TimeSpan Refresh = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan LiveWindow = TimeSpan.FromMinutes(3);
@@ -172,12 +91,6 @@
 
     private PeriodicTimer? _timer;
     private CancellationTokenSource _cts = new();
-
-    // Settings sheet
-    private bool _settings, _busy, _clearLlmKey, _clearGeminiKey, _testOk;
-    private string _llmProvider = "", _llmEndpoint = "", _llmModel = "", _llmKey = "", _llmKeyMask = "", _inUse = "";
-    private string _geminiKey = "", _geminiKeyMask = "", _geminiModel = "", _geminiVoice = "", _knowledge = "";
-    private string? _error, _testMessage;
 
     private IEnumerable<ChatConversation> Filtered => _list
         .Where(c => _filter switch { "leads" => c.Contact is not null, "live" => IsLive(c), _ => true })
@@ -211,7 +124,6 @@
         {
             while (_timer is not null && await _timer.WaitForNextTickAsync(ct))
             {
-                if (_settings) continue;
                 await LoadAsync();
                 await InvokeAsync(StateHasChanged);
             }
@@ -226,62 +138,6 @@
         catch { /* keep the last list; storage hiccups shouldn't blank the page */ }
         _loading = false;
     }
-
-    private async Task OpenSettings()
-    {
-        _error = null;
-        _testMessage = null;
-        _clearLlmKey = _clearGeminiKey = false;
-        var (llm, voice, knowledge) = await AssistantSettings.ReadOwnAsync();
-        _llmProvider = llm.Provider; _llmEndpoint = llm.Endpoint; _llmModel = llm.Model; _llmKey = ""; _llmKeyMask = AssistantSettings.Mask(llm.ApiKey);
-        _geminiKey = ""; _geminiKeyMask = AssistantSettings.Mask(voice.GeminiApiKey); _geminiModel = voice.Model; _geminiVoice = voice.Voice;
-        _knowledge = knowledge;
-        var now = await AssistantSettings.ResolveLlmAsync();
-        _inUse = string.IsNullOrWhiteSpace(now.Model) ? "nothing configured" : $"{now.Provider} · {now.Model}";
-        _settings = true;
-    }
-
-    private async Task TestLlm()
-    {
-        _busy = true;
-        _testMessage = null;
-        StateHasChanged();
-        // Test what would be saved: a blank key means "keep the stored one".
-        var (stored, _, _) = await AssistantSettings.ReadOwnAsync();
-        var setup = _llmProvider == ""
-            ? await AssistantSettings.ResolveLlmAsync()
-            : new LlmSetup(_llmProvider, _llmEndpoint.Trim(), _llmModel.Trim(), _llmKey.Trim() is { Length: > 0 } k ? k : _clearLlmKey ? "" : stored.ApiKey);
-        (_testOk, _testMessage) = await AssistantLlm.TestAsync(setup, _cts.Token);
-        _busy = false;
-    }
-
-    private async Task SaveSettings()
-    {
-        _busy = true;
-        _error = null;
-        try
-        {
-            await AssistantSettings.SaveAsync(
-                new LlmSetup(_llmProvider, _llmEndpoint.Trim(), _llmModel.Trim(), _llmKey.Trim()),
-                new VoiceSetup(_geminiKey.Trim(), _geminiModel.Trim(), _geminiVoice.Trim()),
-                _knowledge.Trim(), _clearLlmKey, _clearGeminiKey);
-            Llm.Invalidate();
-            Knowledge.Invalidate();
-            _settings = false;
-        }
-        catch (Exception ex)
-        {
-            _error = "Couldn't save: " + ex.Message;
-        }
-        _busy = false;
-    }
-
-    // The catalog, plus a saved value that isn't in it (typed into the keyvalue row by hand) — kept and
-    // shown, never silently swapped for the first choice.
-    private static IEnumerable<VoiceOption> Choices(VoiceOption[] catalog, string current) =>
-        string.IsNullOrWhiteSpace(current) || catalog.Any(o => o.Value == current)
-            ? catalog
-            : catalog.Append(new VoiceOption(current, "saved"));
 
     private static string Initial(ChatConversation c) =>
         c.Contact?.Name is { Length: > 0 } n ? n[..1].ToUpperInvariant() : "?";

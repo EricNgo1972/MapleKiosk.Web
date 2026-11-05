@@ -50,6 +50,14 @@
                 </div>
             }
 
+            @foreach (var left in conv.TakenMessages)
+            {
+                <div class="cht-card">
+                    <p><strong>@(left.Urgent ? "Urgent message" : "Message")</strong> · @left.Topic · @left.At.ToLocalTime().ToString("MMM d, h:mm tt")</p>
+                    <p style="white-space:pre-wrap">@left.Text</p>
+                </div>
+            }
+
             <dl class="cht-meta">
                 <div><dt>Language</dt><dd>@conv.Lang.ToUpperInvariant()</dd></div>
                 <div><dt>Came in on</dt><dd>@conv.FirstPage</dd></div>

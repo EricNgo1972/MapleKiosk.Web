@@ -23,7 +23,7 @@
         <section class="vt" data-voice-test data-ready="@(_configured ? "true" : "false")" data-lang="en" data-state="idle">
             @if (!_configured)
             {
-                <p class="adm-banner">No Gemini API key yet. Set the Gemini API key in <a href="/chats">/chats</a> → Settings, then reload this page.</p>
+                <p class="adm-banner">No Gemini API key yet. Set the Gemini API key in <a href="/admin/assistant">/admin/assistant</a>, then reload this page.</p>
             }
 
             <div class="vt-langs" role="group" aria-label="Language">
@@ -45,7 +45,7 @@
             </div>
 
             <p class="onb__muted vt-note">
-                Uses Gemini Live (@_model, voice @_voice) with the key from /chats → Settings, grounded in the same
+                Uses Gemini Live (@_model, voice @_voice) with the key from /admin/assistant, grounded in the same
                 knowledge as the chat bubble. Each call is recorded on <a href="/chats">/chats</a> as
                 “Voice (browser)” when it ends. Say goodbye, or press Stop, to end it.
             </p>

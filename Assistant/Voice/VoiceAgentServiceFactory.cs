@@ -30,7 +30,7 @@ internal sealed class VoiceAgentServiceFactory : IVoiceAgentServiceFactory
     public Task<IVoiceAgentService> CreateAsync(VoiceProfileInfo? profile, CancellationToken ct = default)
     {
         if (profile is null)
-            throw new InvalidOperationException("Voice is not set up — set the Gemini API key in /chats → Settings.");
+            throw new InvalidOperationException("Voice is not set up — set the Gemini API key in /admin/assistant.");
 
         var provider = _providers.FirstOrDefault(
             p => p.Kind.Equals(profile.Kind, StringComparison.OrdinalIgnoreCase));
