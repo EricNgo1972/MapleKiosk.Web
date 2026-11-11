@@ -18,12 +18,16 @@ internal sealed class ChatLogVoiceConversationStore : IVoiceConversationStore
     private readonly string _page;
     private readonly string _device;
     private readonly string? _callerPhone;
+    private readonly string? _conversationId;
 
     /// <param name="callerPhone">A phone caller's number (E.164) when the carrier passed it: kept as the
     /// conversation's contact, so every call on /chats can be called back.</param>
+    /// <param name="conversationId">The /chats id the conversation's tools already wrote to (the session
+    /// context's <see cref="VoiceSessionContext.SessionIdKey"/>); the transcript joins them there.</param>
     public ChatLogVoiceConversationStore(ChatLog log, string? country, string page,
-        string device = Device, string? callerPhone = null)
+        string device = Device, string? callerPhone = null, string? conversationId = null)
     {
+        _conversationId = conversationId;
         _log = log;
         _country = country;
         _page = page;
@@ -35,7 +39,7 @@ internal sealed class ChatLogVoiceConversationStore : IVoiceConversationStore
     {
         // The relay's own id is a fresh 32-hex Guid per call — exactly ChatLog's id shape — so the row on
         // /chats and the relay's log lines share one id. IdFor mints a new one if that ever changes.
-        var id = ChatLog.IdFor(record.ConversationId);
+        var id = ChatLog.IdFor(_conversationId ?? record.ConversationId);
 
         // The relay says "agent"; the chat log (and /chats) says "assistant".
         var lines = record.Lines
@@ -45,7 +49,8 @@ internal sealed class ChatLogVoiceConversationStore : IVoiceConversationStore
             .ToList();
 
         await _log.RecordTranscriptAsync(id, lines, record.Language, _country, _device, ct);
-        if (lines.Count > 0 && !string.IsNullOrWhiteSpace(_callerPhone))
+        // A contact a tool saved during the call (a name, a demo) is better than "Phone caller": keep it.
+        if (lines.Count > 0 && !string.IsNullOrWhiteSpace(_callerPhone) && (await _log.GetAsync(id, ct))?.Contact is null)
             await _log.SaveContactAsync(id, new GuestContact("Phone caller", _callerPhone, null, null, null), ct);
     }
 }

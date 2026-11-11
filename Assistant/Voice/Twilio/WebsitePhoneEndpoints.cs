@@ -33,7 +33,7 @@ public static class WebsitePhoneEndpoints
     private static readonly ConcurrentDictionary<string, PhoneTicket> Tickets = new();
     private static readonly TimeSpan TicketLife = TimeSpan.FromMinutes(2);
 
-    private sealed record PhoneTicket(string? Caller, string CallSid, DateTime IssuedUtc);
+    private sealed record PhoneTicket(string? Caller, string CallSid, DateTime IssuedUtc, string? Line = null);
 
     public static IEndpointRouteBuilder MapWebsitePhone(this IEndpointRouteBuilder endpoints)
     {
@@ -77,7 +77,7 @@ public static class WebsitePhoneEndpoints
         }
 
         var caller = GuestNumber(form["From"].ToString(), to);
-        var ticket = Mint(caller, callSid);
+        var ticket = Mint(caller, callSid, to.StartsWith('+') ? to.Trim() : null);
         var request = context.Request;
         var streamUrl = $"{(request.IsHttps ? "wss" : "ws")}://{request.Host}{request.PathBase}{PhoneHookup.StreamRoute}/{ticket}";
 
@@ -133,8 +133,12 @@ public static class WebsitePhoneEndpoints
 
             logger.LogInformation("Voice/phone: call {CallSid} connected ({Language}).", call.CallSid, language);
 
+            var conversationId = Guid.NewGuid().ToString("N");
             var sessionContext = VoiceSessionContext.From(new Dictionary<string, string?>
             {
+                [VoiceSessionContext.SessionIdKey] = conversationId,
+                [WebsiteVoiceToolBroker.LangKey] = language,
+                [WebsiteVoiceToolBroker.LineKey] = call.Line,
                 [VoiceSessionContext.ChannelKey] = VoiceSessionContext.PhoneChannel,
                 [VoiceSessionContext.PhoneKey] = call.Caller,
                 [VoiceSessionContext.CallSidKey] = call.CallSid,
@@ -144,7 +148,7 @@ public static class WebsitePhoneEndpoints
                 channel, logger,
                 new ChatLogVoiceConversationStore(
                     services.GetRequiredService<ChatLog>(), null, "phone",
-                    ChatLogVoiceConversationStore.PhoneDevice, call.Caller),
+                    ChatLogVoiceConversationStore.PhoneDevice, call.Caller, conversationId),
                 new MapleKioskVoicePersona(language, phone: true),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
@@ -186,14 +190,14 @@ public static class WebsitePhoneEndpoints
 
     // ── Tickets ─────────────────────────────────────────────────────────────────────────────────────
 
-    private static string Mint(string? caller, string callSid)
+    private static string Mint(string? caller, string callSid, string? line)
     {
         var now = DateTime.UtcNow;
         foreach (var (key, old) in Tickets)
             if (now - old.IssuedUtc > TicketLife) Tickets.TryRemove(key, out _);
 
         var ticket = Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
-        Tickets[ticket] = new PhoneTicket(caller, callSid, now);
+        Tickets[ticket] = new PhoneTicket(caller, callSid, now, line);
         return ticket;
     }
 

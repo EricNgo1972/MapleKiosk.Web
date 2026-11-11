@@ -65,8 +65,8 @@ public sealed class QuebecVoiceAndSmsTests
         var greeting = new MapleKioskVoicePersona(MapleKioskVoicePersona.Bilingual, phone)
             .GreetingFor(VoiceToolAudience.Customer, "MapleKiosk");
         Assert.StartsWith("Bonjour, hi!", greeting);
-        Assert.Contains("Comment puis-je vous aider?", greeting);
-        Assert.Contains("How can I help you?", greeting);
+        Assert.Contains("À qui ai-je le plaisir de parler?", greeting);
+        Assert.Contains("May I have your name?", greeting);
     }
 
     [Fact]

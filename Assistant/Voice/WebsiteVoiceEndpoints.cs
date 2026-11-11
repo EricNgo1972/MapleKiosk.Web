@@ -34,7 +34,8 @@ public static class WebsiteVoiceEndpoints
 
     public static IServiceCollection AddWebsiteVoice(this IServiceCollection services)
     {
-        services.AddSingleton<IVoiceToolBrokerFactory, EmptyVoiceToolBrokerFactory>();
+        // book_demo, take_message and save_guest_contact — the chat assistant's tools (WebsiteVoiceToolBroker.cs).
+        services.AddSingleton<IVoiceToolBrokerFactory, WebsiteVoiceToolBrokerFactory>();
         services.AddSingleton<IVoiceAgentServiceFactory, VoiceAgentServiceFactory>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IVoiceAgentProvider, GeminiLiveVoiceAgentProvider>());
         return services;
@@ -84,21 +85,26 @@ public static class WebsiteVoiceEndpoints
         {
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
             logger.LogInformation("Voice: conversation open ({Mode}, {Language}).", asPhone ? "phone test" : "website", lang);
+            var conversationId = Guid.NewGuid().ToString("N");
 
             await new VoiceRelay(
                 new BrowserVoiceChannel(socket, logger), logger,
                 new ChatLogVoiceConversationStore(
                     services.GetRequiredService<ChatLog>(),
                     context.Request.Headers["CF-IPCountry"].FirstOrDefault(),
-                    "/voice-test"),
+                    "/voice-test", conversationId: conversationId),
                 new MapleKioskVoicePersona(lang, phone: asPhone),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
                 services.GetRequiredService<IVoiceToolBrokerFactory>(),
                 profile,
                 VoiceToolAudience.Customer,
-                // Nothing known up front; an empty context is desktop voice with kiosk acoustics.
-                VoiceSessionContext.Empty,
+                // Desktop voice with kiosk acoustics; the record id and language are for the tools.
+                VoiceSessionContext.From(new Dictionary<string, string?>
+                {
+                    [VoiceSessionContext.SessionIdKey] = conversationId,
+                    [WebsiteVoiceToolBroker.LangKey] = lang,
+                }),
                 lang,
                 BusinessName,
                 await GroundingAsync(services, logger,

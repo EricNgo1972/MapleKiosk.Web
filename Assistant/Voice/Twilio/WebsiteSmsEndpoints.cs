@@ -82,6 +82,8 @@ public static class WebsiteSmsEndpoints
             services.GetRequiredService<ChatLog>(),
             services.GetRequiredService<GuestContactTool>(),
             services.GetRequiredService<CustomerMessageTool>(),
+            services.GetRequiredService<DemoRequestTool>(),
+            services.GetRequiredService<OrderTool>(),
             logger);
         var stopping = services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
 
@@ -92,7 +94,8 @@ public static class WebsiteSmsEndpoints
 
     private sealed record SmsWork(
         AssistantLlm Llm, IAssistantGrounding Grounding, VisitorLimiter Limiter, ChatLog Chats,
-        GuestContactTool ContactTool, CustomerMessageTool MessageTool, ILogger Logger)
+        GuestContactTool ContactTool, CustomerMessageTool MessageTool, DemoRequestTool DemoTool,
+        OrderTool OrderTool, ILogger Logger)
     {
         public async Task AnswerAsync(string from, string to, string text, CancellationToken ct)
         {
@@ -108,7 +111,7 @@ public static class WebsiteSmsEndpoints
 
                 var id = ConversationId(from);
                 var saidAt = DateTimeOffset.UtcNow;
-                var reply = await ReplyAsync(id, from, text, ct);
+                var reply = await ReplyAsync(id, from, to, text, ct);
 
                 await Chats.RecordAsync(id,
                     new ChatLine("user", text, saidAt, Page),
@@ -129,7 +132,7 @@ public static class WebsiteSmsEndpoints
             }
         }
 
-        private async Task<string> ReplyAsync(string id, string from, string text, CancellationToken ct)
+        private async Task<string> ReplyAsync(string id, string from, string to, string text, CancellationToken ct)
         {
             string? knowledge = null;
             try { knowledge = await Grounding.ForCustomerAsync(ConversationChannel.Phone, ct); }
@@ -145,7 +148,7 @@ public static class WebsiteSmsEndpoints
             foreach (var line in history)
                 messages.Add(new ChatMessage(line.Role == "assistant" ? ChatRole.Assistant : ChatRole.User, line.Text));
             messages.Add(new ChatMessage(ChatRole.System,
-                $"They are texting from {from}: that is their phone number — for take_message use it unless they give another. "
+                $"They are texting from {from}: that is their phone number — for take_message, book_demo and place_order use it unless they give another. "
                 + (history.Count == 0 ? "This is their first text. " : "")
                 + (conversation?.Contact is { Name: not "SMS sender" } c
                     ? $"They already left their contact ({c.Name}): do not ask for it again."
@@ -158,7 +161,8 @@ public static class WebsiteSmsEndpoints
                 var options = new ChatOptions { MaxOutputTokens = MaxReplyTokens };
                 if (client is not StubChatClient)
                 {
-                    options.Tools = [ContactTool.For(id, "fr", Page), MessageTool.For(id, "fr", Page)];
+                    options.Tools = [ContactTool.For(id, "fr", Page), MessageTool.For(id, "fr", Page), DemoTool.For(id, "qc", "SMS", from),
+                        OrderTool.For(id, "qc", OrderTool.Channel.Sms, from, to)];
                     client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 2).Build();
                 }
                 var response = await client.GetResponseAsync(messages, options, ct);
@@ -200,12 +204,13 @@ public static class WebsiteSmsEndpoints
         return s.Length <= MaxReplyChars ? s : s[..(MaxReplyChars - 1)].TrimEnd() + "…";
     }
 
-    private static async Task SendAsync(string from, string to, string body, ILogger logger, CancellationToken ct)
+    /// <summary>Sends one SMS from MapleKiosk's number over Twilio's Messages API; false (logged) when it didn't go.</summary>
+    internal static async Task<bool> SendAsync(string from, string to, string body, ILogger logger, CancellationToken ct)
     {
         if (await PhoneHookup.CredentialsAsync() is not { } creds)
         {
-            logger.LogError("Sms: can't reply — no Twilio/AccountSid or Twilio/AuthToken in the keyvalue table.");
-            return;
+            logger.LogError("Sms: can't send — no Twilio/AccountSid or Twilio/AuthToken in the keyvalue table.");
+            return false;
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post,
@@ -221,12 +226,22 @@ public static class WebsiteSmsEndpoints
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic",
             Convert.ToBase64String(Encoding.ASCII.GetBytes($"{creds.Sid}:{creds.Token}")));
 
-        using var response = await Http.SendAsync(request, ct);
-        if (response.IsSuccessStatusCode)
-            logger.LogInformation("Sms: replied to {To}.", to);
-        else
-            logger.LogError("Sms: Twilio refused the reply to {To} ({Status}): {Body}", to, (int)response.StatusCode,
+        try
+        {
+            using var response = await Http.SendAsync(request, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                logger.LogInformation("Sms: sent to {To}.", to);
+                return true;
+            }
+            logger.LogError("Sms: Twilio refused the message to {To} ({Status}): {Body}", to, (int)response.StatusCode,
                 await response.Content.ReadAsStringAsync(ct));
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(ex, "Sms: sending to {To} failed.", to);
+        }
+        return false;
     }
 
     private static IResult Empty() => Results.Content(TwilioTwiml.Empty, TwilioTwiml.ContentType);

@@ -11,8 +11,8 @@ namespace MapleKiosk.Web.Assistant;
 /// <para>The visitor's browser keeps the conversation and sends the recent turns with each message (capped
 /// like the gateway's history window); every exchange is also recorded in <see cref="ChatLog"/> for the
 /// team (/chats). Same-origin only, and rate-limited per visitor and per day, since every message costs a
-/// model call. Two tools: save_guest_contact keeps the name and contact a guest chooses to give, and
-/// take_message passes a customer's message to the person in charge.</para>
+/// model call. Three tools: save_guest_contact keeps the name and contact a guest chooses to give,
+/// take_message passes a customer's message to the person in charge, and book_demo books a demo (a lead on /admin/leads).</para>
 /// </summary>
 public static class AssistantEndpoints
 {
@@ -39,6 +39,8 @@ public static class AssistantEndpoints
         services.AddSingleton<ChatLog>();
         services.AddSingleton<GuestContactTool>();
         services.AddSingleton<CustomerMessageTool>();
+        services.AddSingleton<DemoRequestTool>();
+        services.AddSingleton<OrderTool>();
         return services;
     }
 
@@ -56,7 +58,7 @@ public static class AssistantEndpoints
     private static async Task<IResult> MessageAsync(
         MessageRequest req, HttpContext http, AssistantLlm llm, IAssistantGrounding grounding,
         VisitorLimiter limiter, ChatLog chats, GuestContactTool contactTool, CustomerMessageTool messageTool,
-        ILoggerFactory loggers, CancellationToken ct)
+        DemoRequestTool demoTool, OrderTool orderTool, ILoggerFactory loggers, CancellationToken ct)
     {
         var log = loggers.CreateLogger("Assistant");
 
@@ -94,7 +96,8 @@ public static class AssistantEndpoints
         messages.Add(new ChatMessage(ChatRole.System,
             $"The visitor is reading the site in {Language(lang)} and is on the page {Path(req.Page)}. " +
             $"On their screen the “Book a demo” button reads “{demo}”. " +
-            $"This is their message number {asked} in this conversation. " +
+            $"This is their message number {asked} in this conversation" +
+            (asked == 1 ? " (the chat window opened by greeting them and asking their name, so a bare name is their answer). " : ". ") +
             (conversation?.Contact is { } c
                 ? $"They already left their contact ({c.Name}): do not ask for it again."
                 : "They have not left a contact yet.")));
@@ -107,8 +110,9 @@ public static class AssistantEndpoints
             var options = new ChatOptions { MaxOutputTokens = MaxReplyTokens };
             if (client is not StubChatClient)
             {
-                options.Tools = [contactTool.For(id, lang, page), messageTool.For(id, lang, page)];
-                client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 2).Build();
+                options.Tools = [contactTool.For(id, lang, page), messageTool.For(id, lang, page), demoTool.For(id, lang, "website chat"),
+                    orderTool.For(id, lang, OrderTool.Channel.Chat)];
+                client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 3).Build();
             }
             var response = await client.GetResponseAsync(messages, options, ct);
             reply = response.Text?.Trim() is { Length: > 0 } r ? r : Unavailable(lang);

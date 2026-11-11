@@ -122,7 +122,20 @@ public class TrialSignupService
 
     public bool HasAzure => _table is not null;
 
-    public async Task CreateAsync(TrialSignup signup)
+    public Task CreateAsync(TrialSignup signup) => CreateAsync(signup, null);
+
+    /// <summary>What happened to a demo request: the lead's id (null when the site database didn't take it) and
+    /// why the sales email failed (null when it was sent).</summary>
+    public sealed record Created(string? LeadId, string? SalesEmailError);
+
+    /// <summary>
+    /// Records a demo request: the lead (/admin/leads), the Azure copy, the sales email and — when there is an
+    /// email address — the client's email. <paramref name="notes"/> go on the lead and in the sales email (the
+    /// AI assistant says where the request came from and when the guest would like the demo).
+    /// </summary>
+    /// <param name="kind">What it is, for the sales email: "demo request" or "order request".</param>
+    /// <param name="clientEmail">False to skip the client's demo confirmation (an order request isn't a demo).</param>
+    public async Task<Created> CreateAsync(TrialSignup signup, string? notes, string kind = "demo request", bool clientEmail = true)
     {
         signup.SubmittedAt = DateTimeOffset.UtcNow;
         var spam = !string.IsNullOrWhiteSpace(signup.Website);
@@ -133,13 +146,14 @@ public class TrialSignupService
         // Each channel is on its own: one failing never skips the next.
         var id = LeadStore.NewId(signup.SubmittedAt);
         var saved = Leads is not null && await TryAsync("save lead to the site database", () =>
-            Leads.AddAsync(new LeadRequest { Id = id, Form = signup, Status = spam ? LeadStatus.Spam : LeadStatus.New }));
-        if (spam) return;
+            Leads.AddAsync(new LeadRequest { Id = id, Form = signup, Status = spam ? LeadStatus.Spam : LeadStatus.New, Notes = notes }));
+        if (spam) return new Created(saved ? id : null, null);
 
         if (_table is not null) await SaveAsync(signup);
 
-        var error = await SendNotificationEmailsAsync(signup);
+        var error = await SendNotificationEmailsAsync(signup, notes, kind, clientEmail);
         if (saved) await TryAsync("record the sales email", () => Leads!.MarkEmailedAsync(id, error));
+        return new Created(saved ? id : null, error);
     }
 
     /// <summary>Copies the Azure <c>clientrequest</c> rows into the site database once; returns how many were new.</summary>
@@ -210,11 +224,11 @@ public class TrialSignupService
     }
 
     /// <summary>Emails sales and the visitor; returns why the sales email failed, or null.</summary>
-    private async Task<string?> SendNotificationEmailsAsync(TrialSignup s)
+    private async Task<string?> SendNotificationEmailsAsync(TrialSignup s, string? notes, string kind = "demo request", bool clientEmail = true)
     {
         // Sales email — always English, internal consumption.
         var salesHtml = $"""
-            <h2>New MapleKiosk demo request</h2>
+            <h2>New MapleKiosk {kind}</h2>
             <table cellpadding="6" style="font-family:Arial,sans-serif;font-size:14px">
               <tr><td><b>Company</b></td><td>{WebUtility.HtmlEncode(s.CompanyName)}</td></tr>
               {(string.IsNullOrWhiteSpace(s.Product) ? "" : $"<tr><td><b>Product</b></td><td>{WebUtility.HtmlEncode(s.Product)} only</td></tr>")}
@@ -227,6 +241,7 @@ public class TrialSignupService
               <tr><td><b>Phone</b></td><td>{WebUtility.HtmlEncode(s.Phone)}</td></tr>
               <tr><td><b>Culture</b></td><td>{s.Culture}</td></tr>
               <tr><td><b>Submitted</b></td><td>{s.SubmittedAt:u}</td></tr>
+              {(string.IsNullOrWhiteSpace(notes) ? "" : $"<tr><td><b>Notes</b></td><td style=\"white-space:pre-wrap\">{WebUtility.HtmlEncode(notes)}</td></tr>")}
             </table>
             """;
 
@@ -255,8 +270,11 @@ public class TrialSignupService
             """;
 
         var salesTask  = _email.SendAsync(SalesInbox,
-            string.IsNullOrWhiteSpace(s.Product) ? $"New demo request: {s.CompanyName}" : $"New demo request ({s.Product}): {s.CompanyName}", salesHtml);
-        var clientTask = _email.SendAsync(s.Email, T("email.client.subject"), clientHtml);
+            string.IsNullOrWhiteSpace(s.Product) ? $"New {kind}: {s.CompanyName}" : $"New {kind} ({s.Product}): {s.CompanyName}", salesHtml);
+        // No address (a demo booked by phone without one): nobody to send the confirmation to.
+        var clientTask = string.IsNullOrWhiteSpace(s.Email) || !clientEmail
+            ? Task.FromResult<string?>(null)
+            : _email.SendAsync(s.Email, T("email.client.subject"), clientHtml);
         await Task.WhenAll(salesTask, clientTask);
         return await salesTask;
     }

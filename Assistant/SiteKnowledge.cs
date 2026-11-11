@@ -156,6 +156,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
         sb.AppendLine("- Every trade (MapleSPA, MapleCoffee, MaplePOS, MapleGarage) has the same packages and the same prices; only the names and features are worded for the trade.");
         sb.AppendLine("- " + Tr("pr.doc.t1") + " " + Tr("pr.doc.t2") + " The visitor picks what they need on the pricing page; the bill adds up (one-time setup, the monthly total, and the first payment = setup + first month). They can print it as a quote (valid 30 days) or buy it online by card right there: the first payment now, monthly plans renewing automatically.");
         sb.AppendLine("- MapleSPA's pricing page also offers the full 4-page salon quote brochure as a PDF (in Vietnamese): /docs/MapleSPA-salon-quote.pdf.");
+        sb.AppendLine("- Order codes are for the assistant's place_order tool only: never show or say them to the visitor.");
         sb.AppendLine("- The AI Voice Agent has no price list of its own on the site: the AI plans below include the AI phone assistant; for the agent on its own, ask sales.");
 
         foreach (var p in SiteProducts.In(ProductGroup.Trade))
@@ -180,7 +181,7 @@ public sealed class SiteKnowledge : IAssistantGrounding
                     var facts = string.Join("; ", new[] { "freq", "format", "maps", "channels", "print", "report" }
                         .Where(f => Pr(k, $"{key}.{f}").Length > 0)
                         .Select(f => $"{Pr(k, $"{cat.Key}.l.{f}")}: {Neutral(Pr(k, $"{key}.{f}"))}"));
-                    sb.AppendLine($"- {name}: {Money(i.Price)}{Every(i)}{(i.Recommended ? " (recommended)" : "")}. {Neutral(about)}{(facts.Length > 0 ? " " + facts + "." : "")}");
+                    sb.AppendLine($"- {name} (order code {i.Sku}): {Money(i.Price)}{Every(i)}{(i.Recommended ? " (recommended)" : "")}. {Neutral(about)}{(facts.Length > 0 ? " " + facts + "." : "")}");
                 }
                 if (Pr(k, $"{cat.Key}.over") is { Length: > 0 } over) sb.AppendLine("- " + over);
             }
