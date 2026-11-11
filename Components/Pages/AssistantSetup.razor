@@ -175,7 +175,11 @@
                             number may need Twilio's A2P 10DLC registration; Canadian numbers don't.
                         </li>
                         <li>Press <strong>Save configuration</strong>, then call the number. The call shows on <a href="/chats">/chats</a> as “Phone call”, with the caller's number.</li>
-                        <li>To stop it, clear “A call comes in” on the number (or point it elsewhere). Calls are also refused politely when no Gemini key is set or two conversations are already open.</li>
+                        <li><strong>To turn Lisa off on the phone:</strong> in the Twilio console, delete the address in “A call comes in” (or put
+                            another one there) and save. Calls then no longer reach her.</li>
+                        <li><strong>When she can't answer:</strong> the caller hears a short apology in French and English (“write to
+                            sales@maplekiosk.ca”) and the call ends. That happens when no Gemini key is saved (section “Voice model”),
+                            or when she is already in two voice conversations at once (phone calls and /voice-test together).</li>
                     </ol>
                 </div>)
             </div>

@@ -36,4 +36,7 @@ internal static class TwilioTwiml
     }
 
     public static string Empty => Prologue + "<Response/>";
+
+    /// <summary>Refuse the call unanswered: the side that placed it sees "busy" and moves on.</summary>
+    public static string Reject => Prologue + "<Response><Reject reason=\"busy\"/></Response>";
 }

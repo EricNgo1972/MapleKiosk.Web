@@ -246,3 +246,18 @@ public sealed class OpeningHoursTests
     public void Lisa_knows_the_hours() =>
         Assert.Contains("Monday to Sunday, 8 AM to 6 PM", LocalClock.Note());
 }
+
+public sealed class TransferLoopTests
+{
+    [Theory]
+    [InlineData("+14509125508", "+14509125508", null, true)]           // caller ID is the line itself
+    [InlineData("+14509125508", "+14509125508", "+14509125508", true)]
+    [InlineData("+14509125508", "+15550001111", "+14509125508", true)] // another number, but from the learned line
+    [InlineData("+14187173979", "+14509125508", "+14509125508", false)] // Eric calling the line: answered
+    [InlineData("anonymous", "+14509125508", "+14509125508", false)]
+    public void Own_calls_forwarded_back_are_spotted(string from, string to, string? line, bool own) =>
+        Assert.Equal(own, WebsitePhoneEndpoints.IsOwnCall(from, to, line));
+
+    [Fact]
+    public void They_are_refused_as_busy() => Assert.Contains("<Reject reason=\"busy\"/>", TwilioTwiml.Reject);
+}

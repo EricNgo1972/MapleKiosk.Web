@@ -79,6 +79,15 @@ public static class WebsitePhoneEndpoints
         try { await PhoneHookup.LearnLineAsync(to); }
         catch (Exception ex) { logger.LogWarning(ex, "Voice/phone: could not remember the line number."); }
 
+        // Lisa's own call coming back: she put a caller through (or rang about a chat guest) from this line, and the
+        // staff phone forwards to this line. Answering would put the caller back on Lisa; refusing makes the transfer
+        // fail at once, so the caller hears "nobody is available, we'll call you back".
+        if (IsOwnCall(form["From"].ToString(), to, await PhoneHookup.LineNumberAsync()))
+        {
+            logger.LogInformation("Voice/phone: call {CallSid} is Lisa's own call forwarded back (the staff phone forwards here) — refused.", callSid);
+            return Twiml(TwilioTwiml.Reject);
+        }
+
         var caller = GuestNumber(form["From"].ToString(), to);
         var ticket = Mint(caller, callSid, to.StartsWith('+') ? to.Trim() : null);
         var request = context.Request;
@@ -241,6 +250,13 @@ public static class WebsitePhoneEndpoints
 
     /// <summary>The caller's number in E.164, or null when withheld — or when it is the line's own number
     /// (a forward that dropped the original caller id says nothing about who is on it).</summary>
+    /// <summary>A call whose caller ID is this line itself: one of Lisa's own outgoing calls, forwarded back.</summary>
+    internal static bool IsOwnCall(string? from, string? to, string? line)
+    {
+        var caller = PhoneHookup.Digits(from);
+        return caller.Length >= 8 && (caller == PhoneHookup.Digits(to) || caller == PhoneHookup.Digits(line));
+    }
+
     internal static string? GuestNumber(string? from, string? to)
     {
         var caller = !string.IsNullOrWhiteSpace(from) && from.StartsWith('+') && from.Length > 3 ? from.Trim() : null;
