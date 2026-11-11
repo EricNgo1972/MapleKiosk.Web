@@ -48,6 +48,10 @@ public sealed class GuestContactTool
         await _chats.SaveContactAsync(id, c, ct);
         _logger.LogInformation("Assistant: a guest left a contact (conversation {Id}).", id);
 
+        StaffAlert.Queue($"new contact {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}"
+                         + $"{(c.Phone is null ? "" : $", {c.Phone}")}{(c.Email is null ? "" : $", {c.Email}")}"
+                         + $"{(c.Interest is null ? "" : $" — {c.Interest}")}.", $"/chats/{id}", null, "", null, _logger);
+
         try
         {
             await _email.SendAsync(await AssistantSettings.MessageInboxAsync(), $"{ChatChannel.SubjectTag(page)}Assistant lead: {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}", Html(id, lang, page, c));

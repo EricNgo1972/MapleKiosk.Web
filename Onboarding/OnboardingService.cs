@@ -99,6 +99,8 @@ public sealed class OnboardingService
         _logger.LogInformation("Onboarding submitted for {Business} ({Token}).", r.BusinessName, r.Token);
 
         var inbox = await _inbox.Value;
+        Assistant.StaffAlert.Queue($"{r.Form.BusinessName} {(isUpdate ? "updated" : "sent")} their setup info.", "/onboarding/admin",
+            _email, $"[onboarding] {r.Form.BusinessName} setup info", null, _logger, alreadyEmailed: inbox);
         if (!string.IsNullOrWhiteSpace(inbox))
         {
             var html = "<div style='font-family:Arial,Helvetica,sans-serif;color:#111'>" +
@@ -127,6 +129,8 @@ public sealed class OnboardingService
         _logger.LogInformation("Website brief sent for {Business} ({Token}).", r.BusinessName, r.Token);
 
         var inbox = await _inbox.Value;
+        Assistant.StaffAlert.Queue($"{r.Form.BusinessName} sent their website brief.", "/onboarding/admin",
+            _email, $"[website brief] {r.Form.BusinessName}", null, _logger, alreadyEmailed: inbox);
         if (string.IsNullOrWhiteSpace(inbox)) return;
         var html = "<div style='font-family:Arial,Helvetica,sans-serif;color:#111'>" +
                    $"<p><a href='{Enc(baseUri.TrimEnd('/'))}/onboarding/admin'>Open in onboarding admin</a></p>" +

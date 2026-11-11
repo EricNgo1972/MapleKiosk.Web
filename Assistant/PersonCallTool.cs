@@ -26,12 +26,14 @@ public sealed class PersonCallTool
     internal static readonly TimeSpan TransferDelay = TimeSpan.FromSeconds(6);
 
     private readonly ChatLog _chats;
+    private readonly EmailService _email;
     private readonly ILogger<PersonCallTool> _logger;
     private readonly ConcurrentDictionary<string, bool> _done = new();
 
-    public PersonCallTool(ChatLog chats, ILogger<PersonCallTool> logger)
+    public PersonCallTool(ChatLog chats, EmailService email, ILogger<PersonCallTool> logger)
     {
         _chats = chats;
+        _email = email;
         _logger = logger;
     }
 
@@ -90,8 +92,10 @@ public sealed class PersonCallTool
         await KeepAsync(id, name, guestPhone, reason, where, ct);
         _done[id] = true;
 
-        // The details by text first: on a transfer they arrive before the phone rings.
+        // The details by text first: on a transfer they arrive before the phone rings. The person in charge gets them by email too.
         var texted = await TwilioApi.SendSmsAsync(line, staff, text, _logger, ct, Services.SmsKind.Alert);
+        StaffAlert.Queue("", null, _email, $"Asked for a person: {who}{(guestPhone is null ? "" : $" ({guestPhone})")} — {where}",
+            $"<p style=\"font-family:Arial,sans-serif;font-size:15px\">{System.Net.WebUtility.HtmlEncode(text)}</p>", _logger, textStaff: false);
 
         if (live)
         {

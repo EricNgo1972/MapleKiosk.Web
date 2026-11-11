@@ -159,10 +159,20 @@ public class TrialSignupService
                 ? Assistant.AutoTexts.OrderRequest(signup.ContactName, signup.Culture)
                 : Assistant.AutoTexts.Demo(signup.ContactName, signup.Culture), _logger);
 
+        // The staff phone gets a text and the person in charge an email (Assistant/StaffAlert.cs) — besides sales@.
+        Assistant.StaffAlert.Queue(
+            $"New {kind}: {Join(signup.ContactName, signup.CompanyName, signup.Phone, signup.Email)}"
+            + (string.IsNullOrWhiteSpace(signup.Product) ? "" : $" — {signup.Product}") + ".",
+            "/admin/leads", _email,
+            string.IsNullOrWhiteSpace(signup.Product) ? $"New {kind}: {signup.CompanyName}" : $"New {kind} ({signup.Product}): {signup.CompanyName}",
+            null, _logger, alreadyEmailed: SalesInbox);
+
         var error = await SendNotificationEmailsAsync(signup, notes, kind, clientEmail);
         if (saved) await TryAsync("record the sales email", () => Leads!.MarkEmailedAsync(id, error));
         return new Created(saved ? id : null, error);
     }
+
+    private static string Join(params string?[] parts) => string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p!.Trim()));
 
     /// <summary>Copies the Azure <c>clientrequest</c> rows into the site database once; returns how many were new.</summary>
     public async Task<int> ImportFromAzureAsync()

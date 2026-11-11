@@ -49,6 +49,11 @@ public sealed class EmailReceiptSender : IOrderPaidSink
                 BuildHtml(n, forTeam: true, portal, en, null)).ConfigureAwait(false);
         }
 
+        // The staff phone gets a text too (Assistant/StaffAlert.cs); the person in charge an email unless they are the order inbox above.
+        if (!n.IsTest)
+            Assistant.StaffAlert.Queue($"paid order {n.OrderRef}{(string.IsNullOrWhiteSpace(n.CustomerEmail) ? "" : $" from {n.CustomerEmail}")}. Call to schedule the setup.",
+                "/shop/admin", _email, $"[order] {n.OrderRef} paid", null, _logger, alreadyEmailed: inbox);
+
         _logger.LogInformation("Order receipt emailed for {OrderRef}.", n.OrderRef);
     }
 

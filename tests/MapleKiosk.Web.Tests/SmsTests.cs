@@ -68,4 +68,14 @@ public sealed class SmsTests : IDisposable
         Assert.StartsWith("MapleKiosk : Merci Marie! Votre demande de démo", AutoTexts.Demo("Marie", "fr"));
         Assert.Contains(" / Hi! Someone from MapleKiosk", AutoTexts.Callback(null, "qc"));
     }
+
+    [Fact]
+    public void Staff_alert_text_is_one_line_capped_and_keeps_the_link()
+    {
+        Assert.Equal("MapleKiosk: New demo request: Marie, Café X.", StaffAlert.Text("New demo request:\n Marie,  Café X.", ""));
+        var link = "https://www.maplekiosk.ca/chats/abc";
+        var t = StaffAlert.Text(new string('a', 1000), link);
+        Assert.Equal(StaffAlert.MaxText, t.Length);
+        Assert.EndsWith("… " + link, t);
+    }
 }

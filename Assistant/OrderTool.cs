@@ -271,6 +271,7 @@ public sealed class OrderTool
 
     private async Task NotifySalesAsync(string subject, string text, string id, CancellationToken ct)
     {
+        StaffAlert.Queue(text, $"/chats/{id}", null, "", null, _logger);
         try
         {
             await _email.SendAsync(await AssistantSettings.MessageInboxAsync(), subject,

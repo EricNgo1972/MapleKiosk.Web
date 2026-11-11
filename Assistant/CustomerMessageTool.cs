@@ -71,6 +71,12 @@ public sealed class CustomerMessageTool
         else
             _logger.LogInformation("Assistant: a customer left a message (conversation {Id}).", id);
 
+        // The staff phone gets a text (the email above went to the person in charge).
+        if (saved || emailError is null)
+            StaffAlert.Queue($"{(m.Urgent ? "URGENT " : "")}message from {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}"
+                             + $"{(c.Phone is null ? "" : $", {c.Phone}")}{(c.Email is null ? "" : $", {c.Email}")}: {m.Text}",
+                $"/chats/{id}", null, "", null, _logger);
+
         // A confirmation text, unless they are texting already (then the assistant's reply says it).
         if ((saved || emailError is null) && page != "sms" && c.Phone is not null)
             AutoTexts.Queue(c.Phone, AutoTexts.MessageTaken(c.Name, lang), _logger);

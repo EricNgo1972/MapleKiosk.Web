@@ -43,11 +43,12 @@
                         <input type="tel" @bind="_staffPhone" placeholder="418 555-0123" />
                         <small>When a guest asks for a person, @_savedName rings this number: a phone call is put through to it, and for the
                             chat or a text it gets a call and a text with the guest's number to call back. Only during opening hours (every
-                            day, 8:00–18:00); outside them, and when blank, @_savedName takes a message instead.@(_lineNumber == "" ? " Calls go out from MapleKiosk's Twilio number, learned from the first call or text it receives." : $" Calls go out from {_lineNumber}.")</small>
+                            day, 8:00–18:00); outside them, and when blank, @_savedName takes a message instead. It also gets a text for every request or message
+                            (demo, order, message, new contact, paid order, onboarding), at any hour.@(_lineNumber == "" ? " Calls go out from MapleKiosk's Twilio number, learned from the first call or text it receives." : $" Calls go out from {_lineNumber}.")</small>
                     </label>
                     <label>Email
                         <input type="email" @bind="_messageInbox" placeholder="@AssistantSettings.DefaultMessageInbox" />
-                        <small>Gets customers' messages, leads and @(_savedName)'s orders (demo requests go to sales@maplekiosk.ca). Blank uses the address shown.</small>
+                        <small>Gets an email for every request or message: customers' messages, contacts, demo and order requests (also sent to sales@maplekiosk.ca), paid orders and onboarding. Blank uses the address shown.</small>
                     </label>
                 </div>)
 
