@@ -1,6 +1,6 @@
 /* /admin/leads — an inbox: list on the left, the picked lead on the right; one column on a phone. */
 
-.ld { max-width: 1180px; }
+.ld { max-width: 1600px; }
 
 .ld-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 18px; }
 .ld-head__title { font-size: 30px; }
