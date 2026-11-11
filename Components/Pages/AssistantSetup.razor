@@ -6,6 +6,7 @@
 @inject AssistantLlm Llm
 @inject SiteKnowledge Knowledge
 @inject IVoiceAgentServiceFactory VoiceFactory
+@inject IJSRuntime JS
 
 @*
     The website assistant's whole setup on one page: 1. the chat model (LLM), 2. the voice model (Gemini Live),
@@ -190,12 +191,31 @@
 </main>
 
 @code {
-    // Collapsible sections: the day-to-day ones open, the one-time setup closed.
+    // Collapsible sections: the day-to-day ones open, the one-time setup closed. Which ones are open is kept in
+    // this browser (localStorage), so a reload comes back the same way; without storage, the defaults.
+    private const string OpenKey = "mk.assistantSetup.open";
+    private static readonly string[] SectionKeys = ["person", "phone", "facts", "llm", "voice", "twilio"];
     private readonly HashSet<string> _open = ["person", "phone", "facts"];
 
-    private void Toggle(string key)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            if (await JS.InvokeAsync<string?>("localStorage.getItem", OpenKey) is not { } saved) return;
+            _open.Clear();
+            foreach (var key in saved.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                if (SectionKeys.Contains(key)) _open.Add(key);
+            StateHasChanged();
+        }
+        catch (Exception) { /* storage blocked or the circuit gone: keep the defaults */ }
+    }
+
+    private async Task Toggle(string key)
     {
         if (!_open.Remove(key)) _open.Add(key);
+        try { await JS.InvokeVoidAsync("localStorage.setItem", OpenKey, string.Join(",", SectionKeys.Where(_open.Contains))); }
+        catch (Exception) { /* not remembered; the page still works */ }
     }
 
     private RenderFragment Section(string key, string title, string summary, RenderFragment body) => __builder =>
