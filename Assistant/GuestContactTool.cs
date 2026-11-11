@@ -50,7 +50,7 @@ public sealed class GuestContactTool
 
         try
         {
-            await _email.SendAsync(await AssistantSettings.MessageInboxAsync(), $"Website chat lead: {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}", Html(id, lang, page, c));
+            await _email.SendAsync(await AssistantSettings.MessageInboxAsync(), $"{ChatChannel.SubjectTag(page)}Assistant lead: {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}", Html(id, lang, page, c));
         }
         catch (Exception ex)
         {

@@ -104,3 +104,24 @@ public sealed class AgentToolsTests
         Assert.Equal("Pro 49 CAD/month, Setup 199.5 CAD one-time", OrderTool.Summary(items));
     }
 }
+
+public sealed class ChatChannelTests
+{
+    private static ChatConversation Conv(string? device) =>
+        new("id", default, default, "en", "/", "/", 1, "", null, device, null, []);
+
+    [Theory]
+    [InlineData("Phone call", "phone")]
+    [InlineData("SMS", "sms")]
+    [InlineData("Voice (browser)", "voice")]
+    // A chat records the visitor's device: a mobile chat is still a chat, not a phone call.
+    [InlineData("Phone", "chat")]
+    [InlineData("Computer", "chat")]
+    [InlineData(null, "chat")]
+    public void Channel_comes_from_how_it_was_recorded(string? device, string channel) =>
+        Assert.Equal(channel, ChatChannel.Of(Conv(device)));
+
+    [Fact]
+    public void Team_emails_are_tagged() =>
+        Assert.Equal("[SMS] ", ChatChannel.SubjectTag("sms"));
+}

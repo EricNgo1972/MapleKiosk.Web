@@ -152,7 +152,7 @@ public sealed class OrderTool
                 $"MapleKiosk — {trade.Name}: {summary}. Total today: {total}. Pay securely here: {result.StripeUrl}", _logger, ct);
 
         await Record(id, r, $"Order {result.OrderRef} ({trade.Name}): {summary}. First payment {total}. Payment link sent, awaiting payment.", ct);
-        await NotifySalesAsync($"Assistant order {result.OrderRef} — awaiting payment: {r.Business}",
+        await NotifySalesAsync($"[{channel switch { Channel.PhoneCall => "Phone call", Channel.Sms => "SMS", Channel.BrowserVoice => "Voice", _ => "Chat" }}] Assistant order {result.OrderRef} — awaiting payment: {r.Business}",
             $"Order {result.OrderRef} by {r.Name} ({r.Business}, {r.Email}, {r.Phone}): {trade.Name} — {summary}. " +
             $"First payment {total}. Payment link sent by the assistant; Stripe confirms when paid.", id, ct);
         _logger.LogInformation("Assistant: order {Ref} from conversation {Id}, payment link sent.", result.OrderRef, id);

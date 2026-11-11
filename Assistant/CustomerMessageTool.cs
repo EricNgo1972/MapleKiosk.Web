@@ -58,7 +58,7 @@ public sealed class CustomerMessageTool
         try
         {
             var inbox = await AssistantSettings.MessageInboxAsync();
-            var subject = $"{(m.Urgent ? "URGENT — " : "")}Customer message ({m.Topic}): {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}";
+            var subject = $"{ChatChannel.SubjectTag(page)}{(m.Urgent ? "URGENT — " : "")}Customer message ({m.Topic}): {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}";
             emailError = await _email.SendAsync(inbox, subject, Html(id, lang, page, c, m));
         }
         catch (Exception ex)

@@ -1412,6 +1412,11 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
 .cht-bar{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .cht-bar .adm-search{margin:0}
 .cht-avatar--lead{background:var(--red);color:#fff}
+.cht-tag{display:inline-block;margin-right:6px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap;vertical-align:2px;background:var(--surface-2);color:var(--muted)}
+.cht-tag--phone{background:#e8f0fe;color:#1a4fa0}
+.cht-tag--sms{background:#f3e8fd;color:#6b2fa0}
+.cht-tag--voice{background:#fff4e0;color:#8a5200}
+.cht-tag--chat{background:#eef6ee;color:#24502a}
 .cht-live{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;background:#e6f4ea;color:#1e5631;font-size:12px;font-weight:700}
 .cht-live::before{content:"";width:7px;height:7px;border-radius:50%;background:#1e8e3e;animation:cht-pulse 1.6s infinite}
 @keyframes cht-pulse{50%{opacity:.3}}

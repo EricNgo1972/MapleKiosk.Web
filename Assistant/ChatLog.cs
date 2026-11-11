@@ -15,6 +15,53 @@ public sealed record ChatConversation(
     int Messages, string Preview, string? Country, string? Device, GuestContact? Contact,
     IReadOnlyList<GuestMessage> TakenMessages);
 
+/// <summary>
+/// Where a conversation happened, for the tag on /chats: told apart by the device the recorder wrote
+/// (a browser chat records Phone/Tablet/Computer — the visitor's device, not a phone CALL).
+/// </summary>
+public static class ChatChannel
+{
+    public const string Phone = "phone", Sms = "sms", Voice = "voice", Chat = "chat";
+
+    public static readonly string[] All = [Phone, Sms, Chat, Voice];
+
+    public static string Of(ChatConversation c) => c.Device switch
+    {
+        "Phone call" => Phone,
+        "SMS" => Sms,
+        "Voice (browser)" => Voice,
+        _ => Chat,
+    };
+
+    public static string Label(string channel) => channel switch
+    {
+        Phone => "Phone call",
+        Sms => "SMS",
+        Voice => "Voice",
+        _ => "Chat",
+    };
+
+    /// <summary>The channel from the page a tool was given ("phone", "sms", "/voice-test", or a site path).</summary>
+    public static string FromPage(string? page) => page switch
+    {
+        "phone" => Phone,
+        "sms" => Sms,
+        "/voice-test" => Voice,
+        _ => Chat,
+    };
+
+    /// <summary>"[SMS] " — the tag in front of an email subject.</summary>
+    public static string SubjectTag(string? page) => $"[{Label(FromPage(page))}] ";
+
+    public static string Icon(string channel) => channel switch
+    {
+        Phone => "📞",
+        Sms => "💬",
+        Voice => "🎙",
+        _ => "⌨",
+    };
+}
+
 /// <summary>One message in a conversation.</summary>
 public sealed record ChatLine(string Role, string Text, DateTimeOffset At, string? Page);
 

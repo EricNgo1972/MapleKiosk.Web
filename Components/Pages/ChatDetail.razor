@@ -34,7 +34,7 @@
         }
         else
         {
-            <h1 style="font-size:24px;margin:0 0 6px">@(conv.Contact?.Name ?? "Guest")</h1>
+            <h1 style="font-size:24px;margin:0 0 6px"><span class="cht-tag cht-tag--@ChatChannel.Of(conv)" style="vertical-align:middle">@ChatChannel.Icon(ChatChannel.Of(conv)) @ChatChannel.Label(ChatChannel.Of(conv))</span> @(conv.Contact?.Name ?? "Guest")</h1>
             <p class="onb__muted" style="margin:0 0 16px">
                 Started @conv.StartedAt.ToLocalTime().ToString("MMM d, h:mm tt") · @Ago(conv.LastAt)
                 @if (IsLive(conv)) { <span class="cht-live" style="margin-left:6px">Live</span> }

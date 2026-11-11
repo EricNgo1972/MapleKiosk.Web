@@ -30,6 +30,12 @@
                 <button type="button" class="wb-chip @(_filter == "all" ? "is-on" : "")" @onclick="@(() => _filter = "all")">All (@_list.Count)</button>
                 <button type="button" class="wb-chip @(_filter == "leads" ? "is-on" : "")" @onclick="@(() => _filter = "leads")">With contact (@_list.Count(c => c.Contact is not null))</button>
                 <button type="button" class="wb-chip @(_filter == "live" ? "is-on" : "")" @onclick="@(() => _filter = "live")">Live now (@_list.Count(IsLive))</button>
+                @foreach (var ch in ChatChannel.All)
+                {
+                    var n = _list.Count(c => ChatChannel.Of(c) == ch);
+                    if (n == 0) continue;
+                    <button type="button" class="wb-chip @(_filter == ch ? "is-on" : "")" @onclick="@(() => _filter = ch)">@ChatChannel.Icon(ch) @ChatChannel.Label(ch) (@n)</button>
+                }
             </div>
         </div>
 
@@ -53,7 +59,10 @@
                         <a class="adm-row" href="/chats/@c.Id">
                             <span class="adm-avatar @(c.Contact is not null ? "cht-avatar--lead" : "")">@Initial(c)</span>
                             <span class="adm-row__main">
-                                <strong>@(c.Contact?.Name ?? "Guest")@(c.Contact?.Business is { } b ? $" · {b}" : "")</strong>
+                                <strong>
+                                    <span class="cht-tag cht-tag--@ChatChannel.Of(c)">@ChatChannel.Icon(ChatChannel.Of(c)) @ChatChannel.Label(ChatChannel.Of(c))</span>
+                                    @(c.Contact?.Name ?? "Guest")@(c.Contact?.Business is { } b ? $" · {b}" : "")
+                                </strong>
                                 <small>@c.Preview</small>
                             </span>
                             <span class="adm-row__side">
@@ -93,7 +102,7 @@
     private CancellationTokenSource _cts = new();
 
     private IEnumerable<ChatConversation> Filtered => _list
-        .Where(c => _filter switch { "leads" => c.Contact is not null, "live" => IsLive(c), _ => true })
+        .Where(c => _filter switch { "leads" => c.Contact is not null, "live" => IsLive(c), "all" => true, var ch => ChatChannel.Of(c) == ch })
         .Where(c => string.IsNullOrWhiteSpace(_query) || Matches(c, _query.Trim()));
 
     private static bool Matches(ChatConversation c, string q) =>
