@@ -193,7 +193,7 @@ public static class Translations
             ["contact.t.general"] = "Something else",
             ["contact.submit"] = "Send message",
             ["contact.fine"] = "We use your details only to answer you. See our Privacy Policy.",
-            ["contact.failed"] = "Your message could not be sent. Please email sales@maplekiosk.ca instead.",
+            ["contact.failed"] = "Your message could not be sent. Please email sales [at] maplekiosk.ca instead.",
             ["contact.done.title"] = "Message sent.",
             ["contact.done.body"] = "Thank you — the right person has it and will get back to you, usually within one business day.",
 
@@ -1367,7 +1367,7 @@ public static class Translations
             ["contact.t.general"] = "Autre chose",
             ["contact.submit"] = "Envoyer le message",
             ["contact.fine"] = "Vos coordonnées servent uniquement à vous répondre. Voir notre Politique de confidentialité.",
-            ["contact.failed"] = "Votre message n’a pas pu être envoyé. Écrivez-nous plutôt à sales@maplekiosk.ca.",
+            ["contact.failed"] = "Votre message n’a pas pu être envoyé. Écrivez-nous plutôt à sales [at] maplekiosk.ca.",
             ["contact.done.title"] = "Message envoyé.",
             ["contact.done.body"] = "Merci — la bonne personne l’a reçu et vous répondra, habituellement en un jour ouvrable.",
 
@@ -2534,7 +2534,7 @@ public static class Translations
             ["contact.t.general"] = "Việc khác",
             ["contact.submit"] = "Gửi tin nhắn",
             ["contact.fine"] = "Thông tin của bạn chỉ được dùng để trả lời bạn. Xem Chính sách quyền riêng tư.",
-            ["contact.failed"] = "Không gửi được tin nhắn. Vui lòng email cho sales@maplekiosk.ca.",
+            ["contact.failed"] = "Không gửi được tin nhắn. Vui lòng email cho sales [at] maplekiosk.ca.",
             ["contact.done.title"] = "Đã gửi tin nhắn.",
             ["contact.done.body"] = "Cảm ơn bạn — người phụ trách đã nhận được và sẽ trả lời bạn, thường trong vòng một ngày làm việc.",
 
@@ -3701,7 +3701,7 @@ public static class Translations
             ["contact.t.general"] = "Другое",
             ["contact.submit"] = "Отправить",
             ["contact.fine"] = "Ваши данные используются только для ответа вам. См. Политику конфиденциальности.",
-            ["contact.failed"] = "Не удалось отправить сообщение. Напишите нам на sales@maplekiosk.ca.",
+            ["contact.failed"] = "Не удалось отправить сообщение. Напишите нам на sales [at] maplekiosk.ca.",
             ["contact.done.title"] = "Сообщение отправлено.",
             ["contact.done.body"] = "Спасибо — нужный человек получил его и ответит вам, обычно в течение одного рабочего дня.",
 

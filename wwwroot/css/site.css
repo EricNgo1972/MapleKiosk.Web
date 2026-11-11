@@ -270,7 +270,8 @@ html.fade-ready .fade-in.visible{opacity:1;transform:none}
 
 /* ============ FOOTER ============ */
 .footer{padding:72px 0 32px;border-top:1px solid var(--border);background:var(--surface-glass);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.footer__top{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:48px;margin-bottom:56px}
+.footer__top{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr 1fr;gap:40px;margin-bottom:56px}
+.footer__contact li{line-height:1.5;overflow-wrap:anywhere}
 .footer__logo img{width:auto;height:44px;margin-bottom:20px}
 .footer__brand p{color:var(--muted);font-size:14px;max-width:280px}
 .footer__col h5{font-size:13px;letter-spacing:0.15em;text-transform:uppercase;color:var(--red);margin-bottom:18px}
@@ -1596,4 +1597,8 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
   .contact{grid-template-columns:1fr}
   .contact__form.legal-page__body{padding:24px 18px}
   .field textarea{font-size:16px}
+}
+@media (min-width:901px) and (max-width:1100px){
+  .footer__top{grid-template-columns:repeat(3,1fr)}
+  .footer__brand{grid-column:1/-1}
 }
