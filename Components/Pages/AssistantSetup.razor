@@ -78,7 +78,7 @@
                 @* ---- 2. Voice ---- *@
                 <hr class="cht-hr" />
                 <h2>2. Voice model (Gemini Live)</h2>
-                <p class="onb__muted">Speaks on <a href="/voice-test">/voice-test</a> and answers the phone line (step 3).</p>
+                <p class="onb__muted">Speaks on <a href="/voice-test" data-enhance-nav="false">/voice-test</a> and answers the phone line (step 3).</p>
                 <label>Gemini API key
                     <input type="password" autocomplete="new-password" @bind="_geminiKey" placeholder="@(_geminiKeyMask == "" ? "Not set" : $"Saved: {_geminiKeyMask} — leave blank to keep")" />
                     @if (_geminiKeyMask != "")
@@ -109,7 +109,7 @@
                     {
                         <span class="adm-banner @(_voiceTestOk ? "adm-banner--ok" : "")">@_voiceTestMessage</span>
                     }
-                    <a href="/voice-test" class="btn btn-ghost onb-small">Talk to it</a>
+                    <a href="/voice-test" class="btn btn-ghost onb-small" data-enhance-nav="false">Talk to it</a>
                     <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="TestVoice">Test connection</button>
                 </div>
                 <label>Phone greeting language
