@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -43,8 +42,6 @@ public static class WebsiteSmsEndpoints
         "START", "UNSTOP", "YES", "HELP", "INFO", "AIDE",
     };
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
-
     /// <summary>One reply at a time per sender, so two quick texts are answered in order with the thread intact.</summary>
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Senders = new();
 
@@ -75,6 +72,9 @@ public static class WebsiteSmsEndpoints
         }
 
         // Singletons, resolved now: the request scope is gone by the time the background work runs.
+        try { await PhoneHookup.LearnLineAsync(to); }
+        catch (Exception ex) { logger.LogWarning(ex, "Sms: could not remember the line number."); }
+
         var work = new SmsWork(
             services.GetRequiredService<AssistantLlm>(),
             services.GetRequiredService<IAssistantGrounding>(),
@@ -84,6 +84,8 @@ public static class WebsiteSmsEndpoints
             services.GetRequiredService<CustomerMessageTool>(),
             services.GetRequiredService<DemoRequestTool>(),
             services.GetRequiredService<OrderTool>(),
+            services.GetRequiredService<PersonCallTool>(),
+            services.GetRequiredService<ConversationSummarizer>(),
             logger);
         var stopping = services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
 
@@ -95,7 +97,7 @@ public static class WebsiteSmsEndpoints
     private sealed record SmsWork(
         AssistantLlm Llm, IAssistantGrounding Grounding, VisitorLimiter Limiter, ChatLog Chats,
         GuestContactTool ContactTool, CustomerMessageTool MessageTool, DemoRequestTool DemoTool,
-        OrderTool OrderTool, ILogger Logger)
+        OrderTool OrderTool, PersonCallTool PersonTool, ConversationSummarizer Summarizer, ILogger Logger)
     {
         public async Task AnswerAsync(string from, string to, string text, CancellationToken ct)
         {
@@ -121,6 +123,7 @@ public static class WebsiteSmsEndpoints
                     await Chats.SaveContactAsync(id, new GuestContact("SMS sender", from, null, null, null), ct);
 
                 await SendAsync(to, from, reply, Logger, ct);
+                Summarizer.Queue(id);
             }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
@@ -152,7 +155,7 @@ public static class WebsiteSmsEndpoints
                 + (history.Count == 0 ? "This is their first text. " : "")
                 + (conversation?.Contact is { Name: not "SMS sender" } c
                     ? $"They already left their contact ({c.Name}): do not ask for it again."
-                    : "They have not told you their name yet.")));
+                    : "They have not told you their name yet.") + " " + LocalClock.Note()));
             messages.Add(new ChatMessage(ChatRole.User, text));
 
             try
@@ -161,8 +164,11 @@ public static class WebsiteSmsEndpoints
                 var options = new ChatOptions { MaxOutputTokens = MaxReplyTokens };
                 if (client is not StubChatClient)
                 {
-                    options.Tools = [ContactTool.For(id, "fr", Page), MessageTool.For(id, "fr", Page), DemoTool.For(id, "qc", "SMS", from),
-                        OrderTool.For(id, "qc", OrderTool.Channel.Sms, from, to)];
+                    // A tool still working after a second and a half: tell them to hold on, by text, once.
+                    var held = new Func<Task>(() => SendAsync(to, from, HoldText, Logger, ct));
+                    AIFunction Hold(AIFunction f) => new HoldingFunction(f, held, HoldAfter);
+                    options.Tools = [ContactTool.For(id, "fr", Page), Hold(MessageTool.For(id, "fr", Page)), Hold(DemoTool.For(id, "qc", "SMS", from)),
+                        Hold(OrderTool.For(id, "qc", OrderTool.Channel.Sms, from, to)), Hold(PersonTool.For(id, OrderTool.Channel.Sms, from, to))];
                     client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 2).Build();
                 }
                 var response = await client.GetResponseAsync(messages, options, ct);
@@ -183,6 +189,11 @@ public static class WebsiteSmsEndpoints
         + "https://www.maplekiosk.ca/coffee/pricing (put /fr in front of the path for French). "
         + "MapleKiosk is in Quebec: reply in the language the person writes in; if you can't tell, use French. "
         + "Your French is Quebec (Canadian) French.";
+
+    /// <summary>The hold text: bilingual, the sender's language isn't known before the model answers.</summary>
+    internal const string HoldText = "Un instant s.v.p., j'envoie votre demande. One moment please, I'm sending your request now.";
+
+    private static readonly TimeSpan HoldAfter = TimeSpan.FromSeconds(1.5);
 
     internal const string Unavailable =
         "Désolé, l'assistant n'est pas disponible pour le moment. Sorry, the assistant is unavailable right now. "
@@ -205,44 +216,8 @@ public static class WebsiteSmsEndpoints
     }
 
     /// <summary>Sends one SMS from MapleKiosk's number over Twilio's Messages API; false (logged) when it didn't go.</summary>
-    internal static async Task<bool> SendAsync(string from, string to, string body, ILogger logger, CancellationToken ct)
-    {
-        if (await PhoneHookup.CredentialsAsync() is not { } creds)
-        {
-            logger.LogError("Sms: can't send — no Twilio/AccountSid or Twilio/AuthToken in the keyvalue table.");
-            return false;
-        }
-
-        using var request = new HttpRequestMessage(HttpMethod.Post,
-            $"https://api.twilio.com/2010-04-01/Accounts/{Uri.EscapeDataString(creds.Sid)}/Messages.json")
-        {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["From"] = from,
-                ["To"] = to,
-                ["Body"] = body,
-            }),
-        };
-        request.Headers.Authorization = new AuthenticationHeaderValue("Basic",
-            Convert.ToBase64String(Encoding.ASCII.GetBytes($"{creds.Sid}:{creds.Token}")));
-
-        try
-        {
-            using var response = await Http.SendAsync(request, ct);
-            if (response.IsSuccessStatusCode)
-            {
-                logger.LogInformation("Sms: sent to {To}.", to);
-                return true;
-            }
-            logger.LogError("Sms: Twilio refused the message to {To} ({Status}): {Body}", to, (int)response.StatusCode,
-                await response.Content.ReadAsStringAsync(ct));
-        }
-        catch (Exception ex) when (!ct.IsCancellationRequested)
-        {
-            logger.LogError(ex, "Sms: sending to {To} failed.", to);
-        }
-        return false;
-    }
+    internal static Task<bool> SendAsync(string from, string to, string body, ILogger logger, CancellationToken ct) =>
+        TwilioApi.SendSmsAsync(from, to, body, logger, ct);
 
     private static IResult Empty() => Results.Content(TwilioTwiml.Empty, TwilioTwiml.ContentType);
 }

@@ -193,6 +193,19 @@
                                 }
                             </ol>
                         </div>
+
+                        <div class="ld-block ld-delete">
+                            @if (_confirmDelete == lead.Id)
+                            {
+                                <span>Delete this request for good?</span>
+                                <button type="button" class="btn btn-primary ld-btn" disabled="@_busy" @onclick="() => DeleteAsync(lead)">Yes, delete</button>
+                                <button type="button" class="btn btn-ghost ld-btn" disabled="@_busy" @onclick="() => _confirmDelete = null">Cancel</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="adm-link ld-delete__open" disabled="@_busy" @onclick="() => _confirmDelete = lead.Id">Delete request</button>
+                            }
+                        </div>
                     </div>
                 }
             </section>
@@ -228,6 +241,7 @@
     private string? _savedNote;
     private bool _busy;
     private string? _message;
+    private string? _confirmDelete;
 
     private LeadRequest? Selected => _leads?.FirstOrDefault(l => l.Id == _picked);
 
@@ -280,6 +294,29 @@
             var by = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "staff";
             await Signups.Leads.SetStatusAsync(lead.Id, status, by);
             await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>Removes the lead (after the "Yes, delete" step) and moves to the next one in the list.</summary>
+    private async Task DeleteAsync(LeadRequest lead)
+    {
+        if (Signups.Leads is null) return;
+        _busy = true;
+        try
+        {
+            var shown = Shown.ToList();
+            var next = shown.SkipWhile(l => l.Id != lead.Id).Skip(1).FirstOrDefault()
+                       ?? shown.TakeWhile(l => l.Id != lead.Id).LastOrDefault();
+            await Signups.Leads.DeleteAsync(lead.Id);
+            await LoadAsync();
+            _confirmDelete = null;
+            _picked = next?.Id;
+            _opened = false;
+            _message = $"Deleted “{lead.Form.CompanyName}”.";
         }
         finally
         {

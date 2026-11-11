@@ -121,6 +121,16 @@
                     </select>
                     <small>The language a phone call opens in; the assistant follows the caller if they speak another.</small>
                 </label>
+                <label>Phone greeting
+                    <input type="text" @bind="_phoneGreeting" maxlength="400" placeholder="@PhoneHookup.DefaultGreeting" />
+                    <small>The first thing Lisa says when she answers the phone (also /voice-test “As a phone call”). Blank uses the greeting shown.</small>
+                </label>
+                <label>Staff phone (a real person)
+                    <input type="tel" @bind="_staffPhone" placeholder="418 555-0123" />
+                    <small>When a guest asks for a person, Lisa rings this number: a phone call is put through to it, and for the
+                        chat or a text it gets a call and a text with the guest's number to call back. Only during opening hours (every
+                        day, 8:00–18:00); outside them, and when blank, Lisa takes a message instead.@(_lineNumber == "" ? " Calls go out from MapleKiosk's Twilio number, learned from the first call or text it receives." : $" Calls go out from {_lineNumber}.")</small>
+                </label>
             </div>
 
             @if (_error is not null) { <p class="onb-error">@_error</p> }
@@ -166,7 +176,7 @@
     private string? _voiceTestMessage;
     private string _llmProvider = "", _llmEndpoint = "", _llmModel = "", _llmKey = "", _llmKeyMask = "", _inUse = "";
     private string _geminiKey = "", _geminiKeyMask = "", _geminiModel = "", _geminiVoice = "", _knowledge = "", _messageInbox = "";
-    private string _phoneLanguage = PhoneHookup.DefaultLanguage, _twilioSid = "";
+    private string _phoneLanguage = PhoneHookup.DefaultLanguage, _twilioSid = "", _phoneGreeting = "", _staffPhone = "", _lineNumber = "";
     private string? _error, _testMessage;
 
     protected override async Task OnInitializedAsync()
@@ -178,6 +188,10 @@
         var inbox = await AssistantSettings.MessageInboxAsync();
         _messageInbox = inbox == AssistantSettings.DefaultMessageInbox ? "" : inbox;
         _phoneLanguage = await PhoneHookup.LanguageAsync();
+        var greeting = await PhoneHookup.GreetingAsync();
+        _phoneGreeting = greeting == PhoneHookup.DefaultGreeting ? "" : greeting;
+        _staffPhone = await AssistantSettings.StaffPhoneAsync() ?? "";
+        _lineNumber = await PhoneHookup.LineNumberAsync() ?? "";
         _twilioSid = (await PhoneHookup.CredentialsAsync())?.Sid ?? "";
         await RefreshInUseAsync();
         _loading = false;
@@ -238,6 +252,10 @@
                 _knowledge.Trim(), _clearLlmKey, _clearGeminiKey);
             await AssistantSettings.SaveMessageInboxAsync(_messageInbox);
             await PhoneHookup.SaveLanguageAsync(_phoneLanguage);
+            await PhoneHookup.SaveGreetingAsync(_phoneGreeting);
+            if (!await AssistantSettings.SaveStaffPhoneAsync(_staffPhone))
+                throw new InvalidOperationException("The staff phone isn't a phone number: use 10 digits (418 555-0123) or +country code.");
+            _staffPhone = await AssistantSettings.StaffPhoneAsync() ?? "";
             Llm.Invalidate();
             Knowledge.Invalidate();
 

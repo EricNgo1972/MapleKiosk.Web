@@ -78,7 +78,8 @@ internal sealed class WebsiteVoiceToolBroker : IVoiceToolBroker
 }
 
 internal sealed class WebsiteVoiceToolBrokerFactory(
-    DemoRequestTool demo, OrderTool order, CustomerMessageTool message, GuestContactTool contact, ILoggerFactory loggers)
+    DemoRequestTool demo, OrderTool order, CustomerMessageTool message, GuestContactTool contact, PersonCallTool person,
+    ILoggerFactory loggers)
     : IVoiceToolBrokerFactory
 {
     public Task<IVoiceToolBroker> CreateAsync(VoiceSessionContext? context = null, CancellationToken ct = default)
@@ -98,6 +99,8 @@ internal sealed class WebsiteVoiceToolBrokerFactory(
                 context.Phone, context.Get(WebsiteVoiceToolBroker.LineKey)),
             message.For(id, lang, page),
             contact.For(id, lang, page),
+            person.For(id, phone ? OrderTool.Channel.PhoneCall : OrderTool.Channel.BrowserVoice, context.Phone,
+                context.Get(WebsiteVoiceToolBroker.LineKey), phone ? context.Get(VoiceSessionContext.CallSidKey) : null),
         ], logger));
     }
 }

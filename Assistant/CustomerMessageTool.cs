@@ -29,7 +29,7 @@ public sealed class CustomerMessageTool
     /// <summary>The tool for one conversation: it can only ever save to that conversation.</summary>
     public AIFunction For(string conversationId, string lang, string page) =>
         AIFunctionFactory.Create(
-            async ([Description("The message to pass on, in the customer's own words and language.")] string message,
+            async ([Description("The message to pass on, in the customer's own words and language — with any relative day (\"tomorrow\", \"Monday\") written as the real date.")] string message,
                    [Description("The customer's name, exactly as they wrote it.")] string name,
                    [Description("Their phone number, if they gave one.")] string? phone,
                    [Description("Their email address, if they gave one.")] string? email,

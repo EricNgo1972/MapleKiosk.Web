@@ -40,11 +40,19 @@
                 @if (IsLive(conv)) { <span class="cht-live" style="margin-left:6px">Live</span> }
             </p>
 
+            @if (conv.Summary is { Length: > 0 } summary)
+            {
+                <div class="cht-card">
+                    <p><strong>Summary</strong></p>
+                    <p>@summary</p>
+                </div>
+            }
+
             @if (conv.Contact is { } who)
             {
                 <div class="cht-card">
                     <p><strong>@who.Name</strong>@(who.Business is null ? "" : $" · {who.Business}")</p>
-                    @if (who.Phone is not null) { <p>📞 <a href="tel:@who.Phone">@who.Phone</a></p> }
+                    @if (who.Phone is not null) { <p>📞 <a href="tel:@who.Phone">@ChatChannel.PhoneLabel(who.Phone)</a></p> }
                     @if (who.Email is not null) { <p>✉️ <a href="mailto:@who.Email">@who.Email</a></p> }
                     @if (who.Interest is not null) { <p class="onb__muted">Interested in: @who.Interest</p> }
                 </div>

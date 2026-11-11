@@ -76,6 +76,9 @@ public static class WebsitePhoneEndpoints
             return Twiml(TwilioTwiml.SayAndHangUp(Unavailable));
         }
 
+        try { await PhoneHookup.LearnLineAsync(to); }
+        catch (Exception ex) { logger.LogWarning(ex, "Voice/phone: could not remember the line number."); }
+
         var caller = GuestNumber(form["From"].ToString(), to);
         var ticket = Mint(caller, callSid, to.StartsWith('+') ? to.Trim() : null);
         var request = context.Request;
@@ -148,8 +151,9 @@ public static class WebsitePhoneEndpoints
                 channel, logger,
                 new ChatLogVoiceConversationStore(
                     services.GetRequiredService<ChatLog>(), null, "phone",
-                    ChatLogVoiceConversationStore.PhoneDevice, call.Caller, conversationId),
-                new MapleKioskVoicePersona(language, phone: true),
+                    ChatLogVoiceConversationStore.PhoneDevice, call.Caller, conversationId,
+                    services.GetRequiredService<ConversationSummarizer>()),
+                new MapleKioskVoicePersona(language, phone: true, greeting: await PhoneHookup.GreetingAsync()),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
                 services.GetRequiredService<IVoiceToolBrokerFactory>(),

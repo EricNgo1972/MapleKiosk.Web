@@ -39,12 +39,59 @@ public static class PhoneHookup
     public static Task SaveLanguageAsync(string lang) =>
         KeyValueTable.WriteAsync(Partition, "PhoneLanguage", Languages.Contains(lang) ? lang : DefaultLanguage);
 
+    /// <summary>What a phone call opens with when /admin/assistant sets nothing: Quebec, French first.</summary>
+    public const string DefaultGreeting = "Bonjour, Hi. This is Lisa from MapleKiosk, how can I help you today?";
+
+    /// <summary>The phone greeting: row Assistant/PhoneGreeting (/admin/assistant), else <see cref="DefaultGreeting"/>.</summary>
+    public static async Task<string> GreetingAsync()
+    {
+        var own = (await KeyValueTable.ReadAsync(Partition, "PhoneGreeting")).Trim();
+        return own == "" ? DefaultGreeting : own;
+    }
+
+    /// <summary>Saves the phone greeting; blank (or the default itself) goes back to the default.</summary>
+    public static Task SaveGreetingAsync(string greeting)
+    {
+        var g = greeting.Trim();
+        return KeyValueTable.WriteAsync(Partition, "PhoneGreeting", g == DefaultGreeting ? "" : g.Length <= 400 ? g : g[..400]);
+    }
+
     /// <summary>The platform Twilio account, env var first — the same resolution as the phone-line shop's gateway.</summary>
     public static async Task<(string Sid, string Token)?> CredentialsAsync()
     {
         var sid = await KeyValueTable.ResolveAsync("TWILIO_ACCOUNT_SID", "Twilio", "AccountSid").ConfigureAwait(false);
         var token = await KeyValueTable.ResolveAsync("TWILIO_AUTH_TOKEN", "Twilio", "AuthToken").ConfigureAwait(false);
         return string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(token) ? null : (sid.Trim(), token.Trim());
+    }
+
+    /// <summary>
+    /// MapleKiosk's own Twilio number, learned from the webhooks (the "To" of the last call or text): what
+    /// call_person rings the staff phone from when the guest is on the chat. Row Assistant/LineNumber.
+    /// </summary>
+    public static async Task<string?> LineNumberAsync() =>
+        E164((await KeyValueTable.ReadAsync(Partition, "LineNumber")).Trim());
+
+    private static string? _knownLine;
+
+    /// <summary>Remembers the line a call or text came in on; writes only when it changes.</summary>
+    public static async Task LearnLineAsync(string? to)
+    {
+        if (E164(to) is not { } line || line == _knownLine) return;
+        _knownLine = line;
+        if (await LineNumberAsync() != line) await KeyValueTable.WriteAsync(Partition, "LineNumber", line);
+    }
+
+    /// <summary>"418 717-3979", "+1 (418) 717-3979" → "+14187173979"; null when it isn't a phone number.</summary>
+    public static string? E164(string? number)
+    {
+        var digits = Digits(number);
+        if ((number ?? "").TrimStart().StartsWith('+')) return digits.Length is >= 8 and <= 15 ? "+" + digits : null;
+        return digits.Length switch
+        {
+            10 => "+1" + digits,
+            11 when digits[0] == '1' => "+" + digits,
+            _ => null,
+        };
     }
 
     /// <summary>"+1 (604) 555-0123" style keys compared as digits only.</summary>

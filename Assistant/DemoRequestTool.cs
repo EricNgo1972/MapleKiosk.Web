@@ -43,7 +43,7 @@ public sealed class DemoRequestTool
                    [Description("Their phone number, if they gave one.")] string? phone,
                    [Description("Their email address, if they gave one.")] string? email,
                    [Description("Their city, if they said.")] string? city,
-                   [Description("When they would like the demo, in their words (e.g. \"Tuesday afternoon\"), if they said.")] string? preferredTime,
+                   [Description("When they would like the demo, as a real date (e.g. \"Thursday, November 12, afternoon\") — work out \"tomorrow\" or \"next week\" from today's date — if they said.")] string? preferredTime,
                    [Description("What they want to see or anything else useful for the demo, in a few words.")] string? notes,
                    CancellationToken ct) =>
                 await BookAsync(conversationId, lang, channel, new Request(
@@ -66,7 +66,8 @@ public sealed class DemoRequestTool
             return "Not booked: there is no phone number or email. Ask how the team should reach them.";
         if (r.Email is not null && !r.Email.Contains('@'))
             return "Not booked: that email address looks incomplete. Ask them to say it again.";
-        if (_booked.ContainsKey(id))
+        // Claimed before anything is saved: a model that fires the same call twice at once books one demo.
+        if (!_booked.TryAdd(id, "booking"))
             return "Already booked in this conversation. Do not call this again; tell them the team will call to set the time.";
 
         var notes = string.Join("\n", new[]
@@ -111,6 +112,7 @@ public sealed class DemoRequestTool
 
         var outcome = Outcome(created.LeadId is not null, created.SalesEmailError is null, r.Name, r.Email is not null);
         if (created.LeadId is not null || created.SalesEmailError is null) _booked[id] = created.LeadId ?? "emailed";
+        else _booked.TryRemove(id, out _); // nothing went through: they may try again
         _logger.LogInformation("Assistant: demo request from conversation {Id} — lead {Lead}, sales email {Email}.",
             id, created.LeadId ?? "not saved", created.SalesEmailError ?? "sent");
         return outcome;

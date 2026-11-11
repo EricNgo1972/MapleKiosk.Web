@@ -62,8 +62,9 @@
                                 <strong>
                                     <span class="cht-tag cht-tag--@ChatChannel.Of(c)">@ChatChannel.Icon(ChatChannel.Of(c)) @ChatChannel.Label(ChatChannel.Of(c))</span>
                                     @(c.Contact?.Name ?? "Guest")@(c.Contact?.Business is { } b ? $" · {b}" : "")
+                                    @if (c.Contact?.Phone is { Length: > 0 } ph) { <span class="cht-phone">@ChatChannel.PhoneLabel(ph)</span> }
                                 </strong>
-                                <small>@c.Preview</small>
+                                <small>@(c.Summary ?? c.Preview)</small>
                             </span>
                             <span class="adm-row__side">
                                 @if (IsLive(c))
@@ -106,7 +107,7 @@
         .Where(c => string.IsNullOrWhiteSpace(_query) || Matches(c, _query.Trim()));
 
     private static bool Matches(ChatConversation c, string q) =>
-        new[] { c.Preview, c.Contact?.Name, c.Contact?.Phone, c.Contact?.Email, c.Contact?.Business, c.Contact?.Interest, c.FirstPage }
+        new[] { c.Preview, c.Summary, c.Contact?.Name, c.Contact?.Phone, c.Contact?.Email, c.Contact?.Business, c.Contact?.Interest, c.FirstPage }
             .Any(v => v?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
 
     private static bool IsLive(ChatConversation c) => DateTimeOffset.UtcNow - c.LastAt < LiveWindow;

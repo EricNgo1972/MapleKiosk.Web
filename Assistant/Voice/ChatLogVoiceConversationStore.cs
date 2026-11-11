@@ -19,14 +19,17 @@ internal sealed class ChatLogVoiceConversationStore : IVoiceConversationStore
     private readonly string _device;
     private readonly string? _callerPhone;
     private readonly string? _conversationId;
+    private readonly ConversationSummarizer? _summarizer;
 
     /// <param name="callerPhone">A phone caller's number (E.164) when the carrier passed it: kept as the
     /// conversation's contact, so every call on /chats can be called back.</param>
     /// <param name="conversationId">The /chats id the conversation's tools already wrote to (the session
     /// context's <see cref="VoiceSessionContext.SessionIdKey"/>); the transcript joins them there.</param>
     public ChatLogVoiceConversationStore(ChatLog log, string? country, string page,
-        string device = Device, string? callerPhone = null, string? conversationId = null)
+        string device = Device, string? callerPhone = null, string? conversationId = null,
+        ConversationSummarizer? summarizer = null)
     {
+        _summarizer = summarizer;
         _conversationId = conversationId;
         _log = log;
         _country = country;
@@ -52,5 +55,7 @@ internal sealed class ChatLogVoiceConversationStore : IVoiceConversationStore
         // A contact a tool saved during the call (a name, a demo) is better than "Phone caller": keep it.
         if (lines.Count > 0 && !string.IsNullOrWhiteSpace(_callerPhone) && (await _log.GetAsync(id, ct))?.Contact is null)
             await _log.SaveContactAsync(id, new GuestContact("Phone caller", _callerPhone, null, null, null), ct);
+        // The summary and the name they said, for /chats — in the background, the call is over.
+        if (lines.Count > 0) _summarizer?.Queue(id);
     }
 }

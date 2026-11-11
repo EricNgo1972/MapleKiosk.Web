@@ -125,3 +125,124 @@ public sealed class ChatChannelTests
     public void Team_emails_are_tagged() =>
         Assert.Equal("[SMS] ", ChatChannel.SubjectTag("sms"));
 }
+
+/// <summary>call_person's helpers, the call summary's parsing, Lisa's phone greeting.</summary>
+public sealed class PersonAndSummaryTests
+{
+    [Theory]
+    [InlineData("4187173979", "+14187173979")]
+    [InlineData("418 717-3979", "+14187173979")]
+    [InlineData("+1 (418) 717-3979", "+14187173979")]
+    [InlineData("1-418-717-3979", "+14187173979")]
+    [InlineData("+33 1 23 45 67 89", "+33123456789")]
+    [InlineData("12345", null)]
+    [InlineData("", null)]
+    public void Phone_numbers_normalise_to_e164(string input, string? expected) =>
+        Assert.Equal(expected, PhoneHookup.E164(input));
+
+    [Fact]
+    public void A_number_is_read_digit_by_digit() =>
+        Assert.Equal("4 1 8, 7 1 7, 3 9 7 9", PersonCallTool.Spoken("+14187173979"));
+
+    [Fact]
+    public void Numbers_show_north_american_style() =>
+        Assert.Equal("(418) 717-3979", ChatChannel.PhoneLabel("+14187173979"));
+
+    [Fact]
+    public void The_transfer_dials_the_staff_phone_from_the_line()
+    {
+        var twiml = TwilioApi.DialTwiml("+14187173979", "+15145550000");
+        Assert.Contains("<Dial callerId=\"+15145550000\" timeout=\"25\">+14187173979</Dial>", twiml);
+        Assert.EndsWith("<Hangup/></Response>", twiml);
+    }
+
+    [Fact]
+    public void Summary_json_is_read_through_a_code_fence()
+    {
+        var found = ConversationSummarizer.Parse("```json\n{\"name\":\"Eric\",\"business\":null,\"email\":\"nope\",\"summary\":\"Asked about prices.\"}\n```");
+        Assert.NotNull(found);
+        Assert.Equal("Eric", found!.Name);
+        Assert.Null(found.Business);
+        Assert.Null(found.Email);
+        Assert.Equal("Asked about prices.", found.Summary);
+    }
+
+    [Fact]
+    public void No_json_no_summary() => Assert.Null(ConversationSummarizer.Parse("Sorry, I can't."));
+
+    [Theory]
+    [InlineData("Phone caller", true)]
+    [InlineData("SMS sender", true)]
+    [InlineData(null, true)]
+    [InlineData("Eric", false)]
+    public void Placeholder_names_are_replaced(string? name, bool placeholder) =>
+        Assert.Equal(placeholder, ConversationSummarizer.IsPlaceholder(name));
+
+    [Fact]
+    public void The_greeting_from_setup_wins()
+    {
+        var persona = new MapleKioskVoicePersona(MapleKioskVoicePersona.Bilingual, phone: true, greeting: PhoneHookup.DefaultGreeting);
+        Assert.Equal("Bonjour, Hi. This is Lisa from MapleKiosk, how can I help you today?",
+            persona.GreetingFor(VoiceToolAudience.Customer, "MapleKiosk"));
+    }
+
+    [Fact]
+    public void Lisa_is_her_name() =>
+        Assert.Contains("Lisa", new MapleKioskVoicePersona("en", phone: true).ForAudience(VoiceToolAudience.Customer));
+}
+
+public sealed class LocalClockTests
+{
+    [Fact]
+    public void The_note_gives_today_and_tomorrow_in_quebec_time()
+    {
+        // 2026-11-12 03:30 UTC is still Wednesday Nov 11 evening in Quebec (UTC-5).
+        var note = LocalClock.Note(new DateTimeOffset(2026, 11, 12, 3, 30, 0, TimeSpan.Zero));
+        Assert.Contains("Wednesday, November 11, 2026, 10:30 PM", note);
+        Assert.Contains("tomorrow is Thursday, November 12", note);
+    }
+
+    [Fact]
+    public void The_voice_prompt_knows_the_date() =>
+        Assert.Contains("in Quebec (Eastern time", new MapleKioskVoicePersona("qc", phone: true).ForAudience(VoiceToolAudience.Customer));
+}
+
+public sealed class HoldingFunctionTests
+{
+    private static AIFunction Slow(int ms) =>
+        AIFunctionFactory.Create(async () => { await Task.Delay(ms); return "done"; }, name: "slow");
+
+    [Fact]
+    public async Task A_slow_tool_says_hold_on_once()
+    {
+        var held = 0;
+        var tool = new HoldingFunction(Slow(300), () => { held++; return Task.CompletedTask; }, TimeSpan.FromMilliseconds(50));
+        Assert.Equal("done", WebsiteVoiceToolBroker.Text(await tool.InvokeAsync(new AIFunctionArguments())));
+        await tool.InvokeAsync(new AIFunctionArguments());
+        Assert.Equal(1, held);
+    }
+
+    [Fact]
+    public async Task A_quick_answer_sends_nothing()
+    {
+        var held = 0;
+        var tool = new HoldingFunction(Slow(0), () => { held++; return Task.CompletedTask; }, TimeSpan.FromSeconds(2));
+        await tool.InvokeAsync(new AIFunctionArguments());
+        Assert.Equal(0, held);
+    }
+}
+
+public sealed class OpeningHoursTests
+{
+    [Theory]
+    [InlineData(12, 59, false)]  // 7:59 AM Quebec (UTC-5 in November)
+    [InlineData(13, 0, true)]    // 8:00 AM
+    [InlineData(22, 59, true)]   // 5:59 PM
+    [InlineData(23, 0, false)]   // 6:00 PM
+    public void Open_every_day_8_to_6(int utcHour, int minute, bool open) =>
+        Assert.Equal(open, LocalClock.IsOpen(new DateTimeOffset(2026, 11, 15, utcHour, minute, 0, TimeSpan.Zero))); // a Sunday
+
+    [Fact]
+    public void Lisa_knows_the_hours() =>
+        Assert.Contains("Monday to Sunday, 8 AM to 6 PM", LocalClock.Note());
+}

@@ -40,6 +40,21 @@ public static class AssistantSettings
     public static Task SaveMessageInboxAsync(string inbox) =>
         KeyValueTable.WriteAsync(Partition, "MessageInbox", inbox.Trim());
 
+    /// <summary>The person a guest is put through to when they ask for one (call_person): row
+    /// Assistant/StaffPhone (/admin/assistant), E.164. Null when not set: the tool is then not offered.</summary>
+    public static async Task<string?> StaffPhoneAsync() =>
+        Voice.PhoneHookup.E164((await KeyValueTable.ReadAsync(Partition, "StaffPhone")).Trim());
+
+    /// <summary>Saves the staff phone, normalised to E.164 (a 10-digit number is North American); blank clears it.
+    /// False when it isn't a phone number.</summary>
+    public static async Task<bool> SaveStaffPhoneAsync(string phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone)) { await KeyValueTable.WriteAsync(Partition, "StaffPhone", null); return true; }
+        if (Voice.PhoneHookup.E164(phone) is not { } e164) return false;
+        await KeyValueTable.WriteAsync(Partition, "StaffPhone", e164);
+        return true;
+    }
+
     /// <summary>Only the admin's own rows — what the settings page shows and edits.</summary>
     public static async Task<(LlmSetup Llm, VoiceSetup Voice, string Knowledge)> ReadOwnAsync() =>
         (new LlmSetup(

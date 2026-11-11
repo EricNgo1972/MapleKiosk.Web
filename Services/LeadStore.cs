@@ -110,6 +110,9 @@ public sealed class LeadStore(SiteDb db)
         WHERE id = $id;
         """, ("$id", id), ("$status", status), ("$now", Text(DateTimeOffset.UtcNow)), ("$by", Db(by)));
 
+    /// <summary>Removes a lead for good (a test, a duplicate).</summary>
+    public Task DeleteAsync(string id) => ExecAsync("DELETE FROM leads WHERE id = $id;", ("$id", id));
+
     public Task SetNotesAsync(string id, string? notes) =>
         ExecAsync("UPDATE leads SET notes = $notes WHERE id = $id;", ("$id", id), ("$notes", Db(notes?.Trim())));
 

@@ -41,6 +41,8 @@ public static class AssistantEndpoints
         services.AddSingleton<CustomerMessageTool>();
         services.AddSingleton<DemoRequestTool>();
         services.AddSingleton<OrderTool>();
+        services.AddSingleton<PersonCallTool>();
+        services.AddSingleton<ConversationSummarizer>();
         return services;
     }
 
@@ -58,7 +60,7 @@ public static class AssistantEndpoints
     private static async Task<IResult> MessageAsync(
         MessageRequest req, HttpContext http, AssistantLlm llm, IAssistantGrounding grounding,
         VisitorLimiter limiter, ChatLog chats, GuestContactTool contactTool, CustomerMessageTool messageTool,
-        DemoRequestTool demoTool, OrderTool orderTool, ILoggerFactory loggers, CancellationToken ct)
+        DemoRequestTool demoTool, OrderTool orderTool, PersonCallTool personTool, ILoggerFactory loggers, CancellationToken ct)
     {
         var log = loggers.CreateLogger("Assistant");
 
@@ -100,7 +102,7 @@ public static class AssistantEndpoints
             (asked == 1 ? " (the chat window opened by greeting them and asking their name, so a bare name is their answer). " : ". ") +
             (conversation?.Contact is { } c
                 ? $"They already left their contact ({c.Name}): do not ask for it again."
-                : "They have not left a contact yet.")));
+                : "They have not left a contact yet.") + " " + LocalClock.Note()));
         messages.Add(new ChatMessage(ChatRole.User, text));
 
         string reply;
@@ -111,7 +113,7 @@ public static class AssistantEndpoints
             if (client is not StubChatClient)
             {
                 options.Tools = [contactTool.For(id, lang, page), messageTool.For(id, lang, page), demoTool.For(id, lang, "website chat"),
-                    orderTool.For(id, lang, OrderTool.Channel.Chat)];
+                    orderTool.For(id, lang, OrderTool.Channel.Chat), personTool.For(id, OrderTool.Channel.Chat)];
                 client = new ChatClientBuilder(client).UseFunctionInvocation(configure: f => f.MaximumIterationsPerRequest = 3).Build();
             }
             var response = await client.GetResponseAsync(messages, options, ct);

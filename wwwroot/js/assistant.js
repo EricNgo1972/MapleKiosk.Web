@@ -149,6 +149,15 @@
       starters.hidden = true;
       const typing = bubble('bot', '<span class="ast-typing" aria-label="…"><i></i><i></i><i></i></span>');
       bottom();
+      // A reply that takes a while is usually Lisa sending a request (a demo, an order, a message): say so.
+      const waitNote = setTimeout(function () {
+        if (!root.dataset.wait) return;
+        const p = document.createElement('p');
+        p.className = 'ast-wait';
+        p.textContent = root.dataset.wait;
+        typing.appendChild(p);
+        bottom();
+      }, 3000);
       let reply;
       try {
         const res = await fetch('/assistant/message', {
@@ -160,6 +169,7 @@
         reply = data && data.reply;
         if (data && data.conversationId) state.id = data.conversationId;
       } catch (e) { reply = null; }
+      clearTimeout(waitNote);
       typing.remove();
       if (reply) {
         state.turns.push({ role: 'assistant', text: reply });

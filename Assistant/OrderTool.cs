@@ -90,9 +90,27 @@ public sealed class OrderTool
             return "Not ordered: paying now needs their email (for the receipt). Ask for it, or offer to send the order to the sales team instead.";
         if (r.Email is null && r.Phone is null)
             return "Not ordered: there is no phone number or email. Ask how the team should reach them.";
-        if (_ordered.TryGetValue(id, out var done))
-            return $"Already ordered in this conversation ({done}). Do not call this again.";
+        // Claimed before anything is done: a model that fires the same call twice at once places one order.
+        if (!_ordered.TryAdd(id, Placing))
+            return $"Already ordered in this conversation ({_ordered.GetValueOrDefault(id)}). Do not call this again.";
+        try
+        {
+            var result = await PlaceClaimedAsync(id, lang, channel, callerPhone, lineNumber, r, trade, ct);
+            if (_ordered.TryGetValue(id, out var now) && now == Placing) _ordered.TryRemove(id, out _); // nothing placed
+            return result;
+        }
+        catch
+        {
+            _ordered.TryRemove(id, out _);
+            throw;
+        }
+    }
 
+    private const string Placing = "being placed";
+
+    private async Task<string> PlaceClaimedAsync(string id, string lang, Channel channel, string? callerPhone, string? lineNumber,
+        Request r, SiteProduct trade, CancellationToken ct)
+    {
         // Codes resolved against the catalog: what is unknown is said, with what exists.
         var quote = await _catalog.GetGroupsAsync(ct);
         var all = quote.SelectMany(g => g.Items).ToList();

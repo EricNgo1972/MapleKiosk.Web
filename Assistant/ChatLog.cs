@@ -13,7 +13,7 @@ public sealed record GuestMessage(string Topic, bool Urgent, string Text, DateTi
 public sealed record ChatConversation(
     string Id, DateTimeOffset StartedAt, DateTimeOffset LastAt, string Lang, string FirstPage, string LastPage,
     int Messages, string Preview, string? Country, string? Device, GuestContact? Contact,
-    IReadOnlyList<GuestMessage> TakenMessages);
+    IReadOnlyList<GuestMessage> TakenMessages, string? Summary = null);
 
 /// <summary>
 /// Where a conversation happened, for the tag on /chats: told apart by the device the recorder wrote
@@ -51,6 +51,14 @@ public static class ChatChannel
     };
 
     /// <summary>"[SMS] " — the tag in front of an email subject.</summary>
+    /// <summary>"+14187173979" → "(418) 717-3979"; anything else as given.</summary>
+    public static string PhoneLabel(string? phone)
+    {
+        var d = new string((phone ?? "").Where(char.IsAsciiDigit).ToArray());
+        if (d.Length == 11 && d[0] == '1') d = d[1..];
+        return d.Length == 10 ? $"({d[..3]}) {d[3..6]}-{d[6..]}" : phone ?? "";
+    }
+
     public static string SubjectTag(string? page) => $"[{Label(FromPage(page))}] ";
 
     public static string Icon(string channel) => channel switch
@@ -171,6 +179,10 @@ public sealed class ChatLog
             f.ContactAt = DateTimeOffset.UtcNow;
         }, "the contact", ct);
 
+    /// <summary>The model's short summary of the conversation (phone calls, voice, SMS), shown on /chats.</summary>
+    public Task SaveSummaryAsync(string id, string summary, CancellationToken ct = default) =>
+        UpdateAsync(id, f => f.Summary = summary, "the summary", ct);
+
     /// <summary>Keeps a message for the person in charge, with who left it. False when it couldn't be written.</summary>
     public Task<bool> SaveMessageAsync(string id, GuestContact contact, GuestMessage message, CancellationToken ct = default) =>
         UpdateAsync(id, f =>
@@ -204,6 +216,7 @@ public sealed class ChatLog
         public DateTimeOffset? ContactAt { get; set; }
         public List<ChatLine> Lines { get; set; } = new();
         public List<GuestMessage> TakenMessages { get; set; } = new();
+        public string? Summary { get; set; }
     }
 
     private string FileOf(string id) => Path.Combine(_dir!, id + ".json");
@@ -288,7 +301,8 @@ public sealed class ChatLog
             f.Country,
             f.Device,
             f.Contact,
-            f.TakenMessages);
+            f.TakenMessages,
+            f.Summary);
     }
 
     private static string Clip(string text, int max) => text.Length <= max ? text : text[..max] + "…";
