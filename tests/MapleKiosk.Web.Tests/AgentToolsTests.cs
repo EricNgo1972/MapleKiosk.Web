@@ -152,8 +152,35 @@ public sealed class PersonAndSummaryTests
     public void The_transfer_dials_the_staff_phone_from_the_line()
     {
         var twiml = TwilioApi.DialTwiml("+14187173979", "+15145550000");
-        Assert.Contains("<Dial callerId=\"+15145550000\" timeout=\"25\">+14187173979</Dial>", twiml);
+        Assert.Contains("<Dial callerId=\"+15145550000\" timeout=\"25\" ringTone=\"us\">+14187173979</Dial>", twiml);
         Assert.EndsWith("<Hangup/></Response>", twiml);
+    }
+
+    [Theory]
+    [InlineData("vi", "vi-VN")]
+    [InlineData("ru", "ru-RU")]
+    public void The_hold_message_follows_the_caller(string lang, string tag) =>
+        Assert.Contains($"language=\"{tag}\"", TwilioApi.DialTwiml("+14187173979", "+15145550000", lang));
+
+    [Theory]
+    [InlineData("Vietnamese", "vi")]
+    [InlineData(" VI ", "vi")]
+    [InlineData("fr", "fr")]
+    [InlineData("klingon", null)]
+    [InlineData(null, null)]
+    public void The_callers_language_is_read_from_the_tool(string? said, string? expected) =>
+        Assert.Equal(expected, PersonCallTool.LanguageOf(said));
+
+    [Theory]
+    [InlineData("en", false, true)]
+    [InlineData("fr", true, false)]
+    [InlineData(null, true, true)]
+    public void The_transfer_tells_the_caller_to_hold_first(string? lang, bool french, bool english)
+    {
+        var twiml = TwilioApi.DialTwiml("+14187173979", "+15145550000", lang);
+        var dial = twiml.IndexOf("<Dial", StringComparison.Ordinal);
+        Assert.Equal(french, twiml.IndexOf("Je transfère", StringComparison.Ordinal) is >= 0 and var f && f < dial);
+        Assert.Equal(english, twiml.IndexOf("transferring your call", StringComparison.Ordinal) is >= 0 and var e && e < dial);
     }
 
     [Fact]

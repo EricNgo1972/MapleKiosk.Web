@@ -100,7 +100,7 @@ internal sealed class WebsiteVoiceToolBrokerFactory(
             message.For(id, lang, page),
             contact.For(id, lang, page),
             person.For(id, phone ? OrderTool.Channel.PhoneCall : OrderTool.Channel.BrowserVoice, context.Phone,
-                context.Get(WebsiteVoiceToolBroker.LineKey), phone ? context.Get(VoiceSessionContext.CallSidKey) : null),
+                context.Get(WebsiteVoiceToolBroker.LineKey), phone ? context.Get(VoiceSessionContext.CallSidKey) : null, lang),
         ], logger));
     }
 }

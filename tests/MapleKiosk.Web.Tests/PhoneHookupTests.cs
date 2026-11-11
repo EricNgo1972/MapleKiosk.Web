@@ -73,7 +73,8 @@ public sealed class QuebecVoiceAndSmsTests
     public void Bilingual_prompt_follows_the_callers_language()
     {
         var note = MapleKioskVoicePersona.PhoneLanguageNote(MapleKioskVoicePersona.Bilingual);
-        Assert.Contains("language they answered in", note);
+        Assert.Contains("continue only in the language they speak", note);
+        Assert.Contains("Vietnamese", note);
         Assert.Contains("Quebec", note);
     }
 

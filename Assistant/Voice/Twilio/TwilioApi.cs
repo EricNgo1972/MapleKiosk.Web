@@ -31,15 +31,35 @@ internal static class TwilioApi
         await PostAsync($"Calls/{Uri.EscapeDataString(callSid)}.json", new() { ["Twiml"] = twiml }, $"redirect of call {callSid}", logger, ct) is null;
 
     /// <summary>
-    /// Put the caller through to <paramref name="person"/>; if nobody answers in 25 s, apologise (French and
-    /// English: MapleKiosk is in Quebec) and hang up. The person sees MapleKiosk's number, so they know it's a transfer.
+    /// Put the caller through to <paramref name="person"/>: first the line tells them to hold (in <paramref name="lang"/>;
+    /// French then English when it is unknown), then they hear ringing — never silence — while the person's
+    /// phone rings. If nobody answers in 25 s, apologise (French and English: MapleKiosk is in Quebec) and hang up.
+    /// The person sees MapleKiosk's number, so they know it's a transfer.
     /// </summary>
-    public static string DialTwiml(string person, string line) =>
+    public static string DialTwiml(string person, string line, string? lang = null) =>
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Response>"
-        + $"<Dial callerId=\"{SecurityElement.Escape(line)}\" timeout=\"25\">{SecurityElement.Escape(person)}</Dial>"
+        + HoldTwiml(lang)
+        + $"<Dial callerId=\"{SecurityElement.Escape(line)}\" timeout=\"25\" ringTone=\"us\">{SecurityElement.Escape(person)}</Dial>"
         + "<Say language=\"fr-CA\">Désolé, personne n'est disponible pour le moment. Nous vous rappellerons très bientôt.</Say>"
         + "<Say language=\"en-US\">Sorry, nobody is available right now. We will call you back very soon. Goodbye.</Say>"
         + "<Hangup/></Response>";
+
+    private const string HoldFr = "<Say language=\"fr-CA\">Un instant, s'il vous plaît. Je transfère votre appel.</Say>";
+    private const string HoldEn = "<Say language=\"en-US\">Please wait a moment. I'm transferring your call.</Say>";
+
+    // Polly has no Vietnamese: Google's voices do both.
+    private const string HoldVi = "<Say voice=\"Google.vi-VN-Standard-A\" language=\"vi-VN\">Anh chị vui lòng chờ một chút. Em đang chuyển cuộc gọi.</Say>";
+    private const string HoldRu = "<Say voice=\"Google.ru-RU-Standard-A\" language=\"ru-RU\">Пожалуйста, подождите. Я перевожу ваш звонок.</Say>";
+
+    /// <summary>"Please wait a moment, I'm transferring your call", in the caller's language (French then English when unknown).</summary>
+    internal static string HoldTwiml(string? lang) => lang switch
+    {
+        "en" => HoldEn,
+        "fr" => HoldFr,
+        "vi" => HoldVi,
+        "ru" => HoldRu,
+        _ => HoldFr + HoldEn,
+    };
 
     /// <summary>A message read out twice to the person who picks up, then hang up.</summary>
     public static string AnnounceTwiml(string text) =>

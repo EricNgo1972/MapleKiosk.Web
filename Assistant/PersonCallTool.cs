@@ -10,9 +10,9 @@ namespace MapleKiosk.Web.Assistant;
 /// <c>call_person</c>: the guest asks for a real person, and the staff phone (/admin/assistant, row
 /// Assistant/StaffPhone) rings.
 /// <list type="bullet">
-///   <item>On a phone call: the call itself is put through to the staff phone (Twilio redirect → &lt;Dial&gt;),
-///   a few seconds after the tool returns so the agent can say "one moment". No answer in 25 s: the line
-///   apologises, says the team will call back, and hangs up.</item>
+///   <item>On a phone call: the call itself is put through to the staff phone (Twilio redirect → &lt;Dial&gt;)
+///   a few seconds after the tool returns. The line tells the caller to hold, in their language, and they hear
+///   ringing until someone answers. No answer in 25 s: the line apologises, says the team will call back, and hangs up.</item>
 ///   <item>On the chat, SMS or browser voice: the staff phone is rung from MapleKiosk's number with a spoken
 ///   note (who, why, their number) and texted the same, so the person can call the guest straight back.</item>
 /// </list>
@@ -22,8 +22,8 @@ public sealed class PersonCallTool
 {
     public const string Name = "call_person";
 
-    /// <summary>How long the agent has to say "putting you through" before the call leaves it.</summary>
-    internal static readonly TimeSpan TransferDelay = TimeSpan.FromSeconds(6);
+    /// <summary>How long the agent has to finish what it is saying before the call leaves it (the line then says "please hold").</summary>
+    internal static readonly TimeSpan TransferDelay = TimeSpan.FromSeconds(3);
 
     private readonly ChatLog _chats;
     private readonly EmailService _email;
@@ -40,26 +40,28 @@ public sealed class PersonCallTool
     /// <param name="guestPhone">The number the guest is calling or texting from, when known.</param>
     /// <param name="lineNumber">MapleKiosk's number they called or texted; else the one learned from the webhooks.</param>
     /// <param name="callSid">The live call to put through — phone calls only.</param>
+    /// <param name="lang">The caller's language, for the "please hold" the line says on a transfer.</param>
     public AIFunction For(string conversationId, OrderTool.Channel channel, string? guestPhone = null,
-        string? lineNumber = null, string? callSid = null) =>
+        string? lineNumber = null, string? callSid = null, string? lang = null) =>
         AIFunctionFactory.Create(
             async ([Description("The guest's name, if they gave it.")] string? name,
                    [Description("The phone number where the person can call them back, if they gave one.")] string? phone,
                    [Description("Why they want a person, in a few words.")] string? reason,
+                   [Description("The language the guest is speaking: en, fr, vi (Vietnamese), ru, or other.")] string? language,
                    CancellationToken ct) =>
                 await CallAsync(conversationId, channel, Clean(name, 120), PhoneHookup.E164(phone) ?? PhoneHookup.E164(guestPhone),
-                    Clean(reason, 300), lineNumber, callSid, ct),
+                    Clean(reason, 300), lineNumber, callSid, ct, LanguageOf(language) ?? lang),
             name: Name,
             description: channel == OrderTool.Channel.PhoneCall
                 ? "Put this phone call through to a real person at MapleKiosk. Call it only when the caller asks to speak to a " +
-                  "person, a human, someone on the team or the owner. Then say one short sentence (you're putting them through, " +
-                  "please hold) and stop talking."
+                  "person, a human, someone on the team or the owner. The line itself then tells them to hold while it transfers " +
+                  "the call, so after calling it say nothing more."
                 : "Ring a real person at MapleKiosk so they call the guest back right away. Call it only when the guest asks to " +
                   "speak to a person, a human, someone on the team or the owner, and once you have the phone number to call " +
                   "them back on.");
 
     internal async Task<string> CallAsync(string id, OrderTool.Channel channel, string? name, string? guestPhone,
-        string? reason, string? lineNumber, string? callSid, CancellationToken ct)
+        string? reason, string? lineNumber, string? callSid, CancellationToken ct, string? lang = null)
     {
         if (await AssistantSettings.StaffPhoneAsync() is not { } staff)
             return "Not available: nobody can be reached by phone right now. Offer to take a message for the team (take_message).";
@@ -103,11 +105,11 @@ public sealed class PersonCallTool
             _ = Task.Run(async () =>
             {
                 await Task.Delay(TransferDelay);
-                await TwilioApi.RedirectAsync(sid, TwilioApi.DialTwiml(staff, line), _logger, CancellationToken.None);
+                await TwilioApi.RedirectAsync(sid, TwilioApi.DialTwiml(staff, line, lang), _logger, CancellationToken.None);
             });
             _logger.LogInformation("Assistant: putting call {CallSid} (conversation {Id}) through to the staff phone.", sid, id);
-            return "Putting them through now. Say only, in one short sentence, that you're connecting them to someone and to " +
-                   "please hold — then stop talking. If nobody answers, the line itself tells them the team will call back.";
+            return "Putting them through now. The line itself tells them to hold while it transfers the call, so say nothing " +
+                   "more — stop talking now. If nobody answers, the line tells them the team will call back.";
         }
 
         var spoken = $"Hello, this is the MapleKiosk assistant. {who} on the {where} wants to talk to a person"
@@ -143,6 +145,16 @@ public sealed class PersonCallTool
             _logger.LogWarning(ex, "Assistant: the call_person request for conversation {Id} could not be kept.", id);
         }
     }
+
+    /// <summary>The language the model says the guest speaks, when it is one the line can say "please hold" in.</summary>
+    internal static string? LanguageOf(string? language) => language?.Trim().ToLowerInvariant() switch
+    {
+        "en" or "english" => "en",
+        "fr" or "french" or "français" => "fr",
+        "vi" or "vietnamese" or "tiếng việt" => "vi",
+        "ru" or "russian" => "ru",
+        _ => null,
+    };
 
     /// <summary>"+14187173979" → "4 1 8, 7 1 7, 3 9 7 9": a phone number the way a voice should read it.</summary>
     internal static string Spoken(string e164)
