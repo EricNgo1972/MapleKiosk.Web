@@ -42,18 +42,22 @@ public static class PhoneHookup
     /// <summary>What a phone call opens with when /admin/assistant sets nothing: Quebec, French first.</summary>
     public const string DefaultGreeting = "Bonjour, Hi. This is Lisa from MapleKiosk, how can I help you today?";
 
-    /// <summary>The phone greeting: row Assistant/PhoneGreeting (/admin/assistant), else <see cref="DefaultGreeting"/>.</summary>
+    /// <summary>The default greeting with the assistant's name in it.</summary>
+    public static string DefaultGreetingFor(string agentName) => AssistantSettings.Named(DefaultGreeting, agentName);
+
+    /// <summary>The phone greeting: row Assistant/PhoneGreeting (/admin/assistant), else the default with the assistant's name.</summary>
     public static async Task<string> GreetingAsync()
     {
         var own = (await KeyValueTable.ReadAsync(Partition, "PhoneGreeting")).Trim();
-        return own == "" ? DefaultGreeting : own;
+        return own == "" ? DefaultGreetingFor(await AssistantSettings.AgentNameAsync()) : own;
     }
 
-    /// <summary>Saves the phone greeting; blank (or the default itself) goes back to the default.</summary>
-    public static Task SaveGreetingAsync(string greeting)
+    /// <summary>Saves the phone greeting; blank (or the default itself) goes back to the default, which follows the name.</summary>
+    public static Task SaveGreetingAsync(string greeting, string agentName)
     {
         var g = greeting.Trim();
-        return KeyValueTable.WriteAsync(Partition, "PhoneGreeting", g == DefaultGreeting ? "" : g.Length <= 400 ? g : g[..400]);
+        return KeyValueTable.WriteAsync(Partition, "PhoneGreeting",
+            g == DefaultGreeting || g == DefaultGreetingFor(agentName) ? "" : g.Length <= 400 ? g : g[..400]);
     }
 
     /// <summary>The platform Twilio account, env var first — the same resolution as the phone-line shop's gateway.</summary>

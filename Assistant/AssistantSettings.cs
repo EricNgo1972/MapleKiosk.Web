@@ -40,6 +40,35 @@ public static class AssistantSettings
     public static Task SaveMessageInboxAsync(string inbox) =>
         KeyValueTable.WriteAsync(Partition, "MessageInbox", inbox.Trim());
 
+    /// <summary>The assistant's name when /admin/assistant sets none.</summary>
+    public const string DefaultAgentName = "Lisa";
+
+    private static string? _agentName;
+    private static DateTime _agentNameAtUtc;
+
+    /// <summary>The assistant's name: row Assistant/AgentName (/admin/assistant), else <see cref="DefaultAgentName"/>.
+    /// Kept for a minute: the chat bubble on every page asks for it.</summary>
+    public static async Task<string> AgentNameAsync()
+    {
+        if (_agentName is { } cached && DateTime.UtcNow - _agentNameAtUtc < TimeSpan.FromMinutes(1)) return cached;
+        var own = (await KeyValueTable.ReadAsync(Partition, "AgentName")).Trim();
+        _agentNameAtUtc = DateTime.UtcNow;
+        return _agentName = own == "" ? DefaultAgentName : own;
+    }
+
+    /// <summary>Saves the assistant's name; blank (or the default) goes back to the default.</summary>
+    public static async Task SaveAgentNameAsync(string name)
+    {
+        var n = name.Trim();
+        if (n.Length > 40) n = n[..40];
+        await KeyValueTable.WriteAsync(Partition, "AgentName", n == DefaultAgentName ? "" : n);
+        _agentName = null;
+    }
+
+    /// <summary>Text written for "Lisa" (and the Russian "Лиза"), with the assistant's actual name.</summary>
+    public static string Named(string text, string name) =>
+        name == DefaultAgentName ? text : text.Replace("Лиза", name).Replace(DefaultAgentName, name);
+
     /// <summary>The person a guest is put through to when they ask for one (call_person): row
     /// Assistant/StaffPhone (/admin/assistant), E.164. Null when not set: the tool is then not offered.</summary>
     public static async Task<string?> StaffPhoneAsync() =>

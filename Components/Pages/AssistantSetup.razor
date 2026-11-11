@@ -33,7 +33,7 @@
         else
         {
             <div class="ast-intro">
-                <h1>Lisa, the assistant</h1>
+                <h1>@_savedName, the assistant</h1>
                 <p class="onb__muted">Who she reaches, what she says on the phone, what she knows, and the models and phone line behind her. Open a section to change it, then Save.</p>
             </div>
 
@@ -41,20 +41,24 @@
                 @Section("person", "Person in charge", PersonSummary, @<div class="ast-grid">
                     <label>Phone
                         <input type="tel" @bind="_staffPhone" placeholder="418 555-0123" />
-                        <small>When a guest asks for a person, Lisa rings this number: a phone call is put through to it, and for the
+                        <small>When a guest asks for a person, @_savedName rings this number: a phone call is put through to it, and for the
                             chat or a text it gets a call and a text with the guest's number to call back. Only during opening hours (every
-                            day, 8:00–18:00); outside them, and when blank, Lisa takes a message instead.@(_lineNumber == "" ? " Calls go out from MapleKiosk's Twilio number, learned from the first call or text it receives." : $" Calls go out from {_lineNumber}.")</small>
+                            day, 8:00–18:00); outside them, and when blank, @_savedName takes a message instead.@(_lineNumber == "" ? " Calls go out from MapleKiosk's Twilio number, learned from the first call or text it receives." : $" Calls go out from {_lineNumber}.")</small>
                     </label>
                     <label>Email
                         <input type="email" @bind="_messageInbox" placeholder="@AssistantSettings.DefaultMessageInbox" />
-                        <small>Gets customers' messages, leads and Lisa's orders (demo requests go to sales@maplekiosk.ca). Blank uses the address shown.</small>
+                        <small>Gets customers' messages, leads and @(_savedName)'s orders (demo requests go to sales@maplekiosk.ca). Blank uses the address shown.</small>
                     </label>
                 </div>)
 
-                @Section("phone", "On the phone", PhoneSummary, @<div class="ast-grid">
-                    <label class="ast-grid__wide">Greeting
-                        <input type="text" @bind="_phoneGreeting" maxlength="400" placeholder="@PhoneHookup.DefaultGreeting" />
-                        <small>The first thing Lisa says when she answers the phone (also /voice-test “As a phone call”). Blank uses the greeting shown.</small>
+                @Section("phone", "Name and phone greeting", PhoneSummary, @<div class="ast-grid">
+                    <label>Name
+                        <input type="text" @bind="_agentName" maxlength="40" placeholder="@AssistantSettings.DefaultAgentName" />
+                        <small>What the assistant calls herself on the chat, SMS, voice and the phone. Blank uses @AssistantSettings.DefaultAgentName.</small>
+                    </label>
+                    <label class="ast-grid__wide">Phone greeting
+                        <input type="text" @bind="_phoneGreeting" maxlength="400" placeholder="@PhoneHookup.DefaultGreetingFor(NameOrDefault)" />
+                        <small>The first thing @_savedName says when she answers the phone (also /voice-test “As a phone call”). Blank uses the greeting shown, with her name.</small>
                     </label>
                     <label>Language
                         <select @bind="_phoneLanguage">
@@ -63,11 +67,19 @@
                                 <option value="@lang">@MapleKioskVoicePersona.Language(lang)</option>
                             }
                         </select>
-                        <small>The language a call opens in; Lisa follows the caller if they speak another.</small>
+                        <small>The language a call opens in; @_savedName follows the caller if they speak another.</small>
                     </label>
                 </div>)
 
-                @Section("facts", "What Lisa knows", FactsSummary, @<label>Extra facts
+                @Section("sms", "Text messages (SMS)", SmsSummary, @<div class="ast-stack">
+                    <label class="adm-switch"><input type="checkbox" @bind="_autoTexts" /> Send automatic confirmation texts</label>
+                    <p class="onb__muted ast-lead">From the Twilio number@(_lineNumber == "" ? "" : $" ({ChatChannel.PhoneLabel(_lineNumber)})"), to the guest's
+                        phone (Canada/US) when: a demo is requested (website form or @_savedName), an order is sent for the team to confirm,
+                        a message is taken, or someone will call them back. Not to people already texting — @_savedName's reply says it there.
+                        Every text in and out is on <a href="/admin/sms">the SMS page</a>.</p>
+                </div>)
+
+                @Section("facts", $"What {_savedName} knows", FactsSummary, @<label>Extra facts
                     <textarea rows="7" @bind="_knowledge" placeholder="Promotions, anything the website doesn't say yet."></textarea>
                     <small>Added to what the website says, and wins over it. Used on the chat, SMS, voice and the phone. She already knows the date, the time and the opening hours (every day, 8:00–18:00).</small>
                 </label>)
@@ -170,12 +182,12 @@
                             <div class="ast-hooks">
                                 <div><span>A message comes in — Webhook, HTTP POST</span><code>@WebsiteSmsEndpoints.IncomingUrl</code></div>
                             </div>
-                            Lisa answers by SMS from the same number (plain text, in the sender's language, French when unsure). Each
+                            @_savedName answers by SMS from the same number (plain text, in the sender's language, French when unsure). Each
                             sender is one conversation on <a href="/chats">/chats</a> as “SMS”. Texting US numbers from a Canadian or US
                             number may need Twilio's A2P 10DLC registration; Canadian numbers don't.
                         </li>
                         <li>Press <strong>Save configuration</strong>, then call the number. The call shows on <a href="/chats">/chats</a> as “Phone call”, with the caller's number.</li>
-                        <li><strong>To turn Lisa off on the phone:</strong> in the Twilio console, delete the address in “A call comes in” (or put
+                        <li><strong>To turn @_savedName off on the phone:</strong> in the Twilio console, delete the address in “A call comes in” (or put
                             another one there) and save. Calls then no longer reach her.</li>
                         <li><strong>When she can't answer:</strong> the caller hears a short apology in French and English (“write to
                             sales@maplekiosk.ca”) and the call ends. That happens when no Gemini key is saved (section “Voice model”),
@@ -198,7 +210,7 @@
     // Collapsible sections: the day-to-day ones open, the one-time setup closed. Which ones are open is kept in
     // this browser (localStorage), so a reload comes back the same way; without storage, the defaults.
     private const string OpenKey = "mk.assistantSetup.open";
-    private static readonly string[] SectionKeys = ["person", "phone", "facts", "llm", "voice", "twilio"];
+    private static readonly string[] SectionKeys = ["person", "phone", "sms", "facts", "llm", "voice", "twilio"];
     private readonly HashSet<string> _open = ["person", "phone", "facts"];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -239,10 +251,14 @@
     };
 
     private string PersonSummary =>
-        $"{(_staffPhone == "" ? "No phone — Lisa takes messages" : ChatChannel.PhoneLabel(_staffPhone))} · {(_messageInbox == "" ? AssistantSettings.DefaultMessageInbox : _messageInbox)}";
+        $"{(_staffPhone == "" ? $"No phone — {_savedName} takes messages" : ChatChannel.PhoneLabel(_staffPhone))} · {(_messageInbox == "" ? AssistantSettings.DefaultMessageInbox : _messageInbox)}";
+
+    private string SmsSummary => $"Automatic texts {(_autoTexts ? "on" : "off")} · inbox on /admin/sms";
+
+    private string NameOrDefault => _agentName.Trim() is { Length: > 0 } n ? (n.Length <= 40 ? n : n[..40]) : AssistantSettings.DefaultAgentName;
 
     private string PhoneSummary =>
-        $"“{(_phoneGreeting == "" ? PhoneHookup.DefaultGreeting : _phoneGreeting)}”";
+        $"{NameOrDefault} · “{(_phoneGreeting == "" ? PhoneHookup.DefaultGreetingFor(NameOrDefault) : _phoneGreeting)}”";
 
     private string FactsSummary
     {
@@ -263,7 +279,9 @@
     private string? _voiceTestMessage;
     private string _llmProvider = "", _llmEndpoint = "", _llmModel = "", _llmKey = "", _llmKeyMask = "", _inUse = "";
     private string _geminiKey = "", _geminiKeyMask = "", _geminiModel = "", _geminiVoice = "", _knowledge = "", _messageInbox = "";
-    private string _phoneLanguage = PhoneHookup.DefaultLanguage, _twilioSid = "", _phoneGreeting = "", _staffPhone = "", _lineNumber = "";
+    private string _phoneLanguage = PhoneHookup.DefaultLanguage, _twilioSid = "", _phoneGreeting = "", _staffPhone = "", _lineNumber = "",
+        _agentName = "", _savedName = AssistantSettings.DefaultAgentName;
+    private bool _autoTexts = true;
     private string? _error, _testMessage;
 
     protected override async Task OnInitializedAsync()
@@ -275,8 +293,11 @@
         var inbox = await AssistantSettings.MessageInboxAsync();
         _messageInbox = inbox == AssistantSettings.DefaultMessageInbox ? "" : inbox;
         _phoneLanguage = await PhoneHookup.LanguageAsync();
+        _savedName = await AssistantSettings.AgentNameAsync();
+        _autoTexts = await AutoTexts.EnabledAsync();
+        _agentName = _savedName == AssistantSettings.DefaultAgentName ? "" : _savedName;
         var greeting = await PhoneHookup.GreetingAsync();
-        _phoneGreeting = greeting == PhoneHookup.DefaultGreeting ? "" : greeting;
+        _phoneGreeting = greeting == PhoneHookup.DefaultGreetingFor(_savedName) ? "" : greeting;
         _staffPhone = await AssistantSettings.StaffPhoneAsync() ?? "";
         _lineNumber = await PhoneHookup.LineNumberAsync() ?? "";
         _twilioSid = (await PhoneHookup.CredentialsAsync())?.Sid ?? "";
@@ -339,7 +360,10 @@
                 _knowledge.Trim(), _clearLlmKey, _clearGeminiKey);
             await AssistantSettings.SaveMessageInboxAsync(_messageInbox);
             await PhoneHookup.SaveLanguageAsync(_phoneLanguage);
-            await PhoneHookup.SaveGreetingAsync(_phoneGreeting);
+            await AssistantSettings.SaveAgentNameAsync(_agentName);
+            await AutoTexts.SaveEnabledAsync(_autoTexts);
+            await PhoneHookup.SaveGreetingAsync(_phoneGreeting, NameOrDefault);
+            _savedName = NameOrDefault;
             if (!await AssistantSettings.SaveStaffPhoneAsync(_staffPhone))
                 throw new InvalidOperationException("The staff phone isn't a phone number: use 10 digits (418 555-0123) or +country code.");
             _staffPhone = await AssistantSettings.StaffPhoneAsync() ?? "";

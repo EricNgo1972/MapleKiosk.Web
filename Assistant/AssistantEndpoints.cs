@@ -43,11 +43,20 @@ public static class AssistantEndpoints
         services.AddSingleton<OrderTool>();
         services.AddSingleton<PersonCallTool>();
         services.AddSingleton<ConversationSummarizer>();
+        services.AddSingleton<SmsStore>();
         return services;
     }
 
     public static IEndpointRouteBuilder MapWebsiteAssistant(this IEndpointRouteBuilder app)
     {
+        // The SMS log, opened now: the webhook and the Twilio helper write to it from static code.
+        try { app.ServiceProvider.GetRequiredService<SmsStore>(); }
+        catch (Exception ex)
+        {
+            app.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("MapleKiosk.Sms")
+                .LogError(ex, "Sms: the site database can't be opened — texts are sent but not kept for /admin/sms.");
+        }
+
         app.MapPost("/assistant/message", MessageAsync).AllowAnonymous().DisableAntiforgery();
 
         app.MapGet("/assistant/knowledge.md", async (IAssistantGrounding grounding, CancellationToken ct) =>
@@ -86,7 +95,7 @@ public static class AssistantEndpoints
         try { knowledge = await grounding.ForCustomerAsync(ConversationChannel.Chat, ct); }
         catch (Exception ex) { log.LogWarning(ex, "Assistant: the grounding could not be read; answering without it."); }
 
-        var messages = new List<ChatMessage> { new(ChatRole.System, AssistantPrompt.For(knowledge, ConversationChannel.Chat)) };
+        var messages = new List<ChatMessage> { new(ChatRole.System, AssistantPrompt.For(knowledge, ConversationChannel.Chat, await AssistantSettings.AgentNameAsync())) };
         foreach (var turn in history)
             messages.Add(new ChatMessage(turn.Role == "assistant" ? ChatRole.Assistant : ChatRole.User, Clip(turn.Text)));
         // Server-supplied context sits right before the message it explains (as the gateway does): where the

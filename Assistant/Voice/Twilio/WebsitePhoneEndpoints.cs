@@ -162,7 +162,8 @@ public static class WebsitePhoneEndpoints
                     services.GetRequiredService<ChatLog>(), null, "phone",
                     ChatLogVoiceConversationStore.PhoneDevice, call.Caller, conversationId,
                     services.GetRequiredService<ConversationSummarizer>()),
-                new MapleKioskVoicePersona(language, phone: true, greeting: await PhoneHookup.GreetingAsync()),
+                new MapleKioskVoicePersona(language, phone: true, greeting: await PhoneHookup.GreetingAsync(),
+                    agentName: await AssistantSettings.AgentNameAsync()),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
                 services.GetRequiredService<IVoiceToolBrokerFactory>(),

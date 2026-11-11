@@ -91,7 +91,7 @@ public sealed class PersonCallTool
         _done[id] = true;
 
         // The details by text first: on a transfer they arrive before the phone rings.
-        var texted = await TwilioApi.SendSmsAsync(line, staff, text, _logger, ct);
+        var texted = await TwilioApi.SendSmsAsync(line, staff, text, _logger, ct, Services.SmsKind.Alert);
 
         if (live)
         {
@@ -110,6 +110,8 @@ public sealed class PersonCallTool
                      + (reason is null ? ". " : $", about {reason}. ")
                      + $"Please call them back at {Spoken(guestPhone!)}. The details are in your texts.";
         var rang = await TwilioApi.CallAsync(line, staff, TwilioApi.AnnounceTwiml(spoken), _logger, ct);
+        if ((rang || texted) && channel != OrderTool.Channel.Sms)
+            AutoTexts.Queue(guestPhone, AutoTexts.Callback(name, "qc"), _logger);
         _logger.LogInformation("Assistant: call_person for conversation {Id} — rang {Rang}, texted {Texted}.", id, rang, texted);
 
         return rang || texted

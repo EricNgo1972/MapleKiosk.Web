@@ -167,7 +167,7 @@ public sealed class OrderTool
         var texted = false;
         if (channel == Channel.PhoneCall && callerPhone is not null && lineNumber is not null)
             texted = await WebsiteSmsEndpoints.SendAsync(lineNumber, callerPhone,
-                $"MapleKiosk — {trade.Name}: {summary}. Total today: {total}. Pay securely here: {result.StripeUrl}", _logger, ct);
+                $"MapleKiosk — {trade.Name}: {summary}. Total today: {total}. Pay securely here: {result.StripeUrl}", _logger, ct, Services.SmsKind.Link);
 
         await Record(id, r, $"Order {result.OrderRef} ({trade.Name}): {summary}. First payment {total}. Payment link sent, awaiting payment.", ct);
         await NotifySalesAsync($"[{channel switch { Channel.PhoneCall => "Phone call", Channel.Sms => "SMS", Channel.BrowserVoice => "Voice", _ => "Chat" }}] Assistant order {result.OrderRef} — awaiting payment: {r.Business}",
@@ -212,7 +212,7 @@ public sealed class OrderTool
                 Email = r.Email ?? "",
                 Product = trade.Name,
                 Culture = lang == "qc" ? "fr" : lang is "fr" or "vi" or "ru" ? lang : "en",
-            }, notes, kind: "order request", clientEmail: false);
+            }, notes, kind: "order request", clientEmail: false, clientText: channel != Channel.Sms);
         }
         catch (Exception ex)
         {

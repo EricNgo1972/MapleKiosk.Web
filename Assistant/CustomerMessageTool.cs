@@ -71,6 +71,10 @@ public sealed class CustomerMessageTool
         else
             _logger.LogInformation("Assistant: a customer left a message (conversation {Id}).", id);
 
+        // A confirmation text, unless they are texting already (then the assistant's reply says it).
+        if ((saved || emailError is null) && page != "sms" && c.Phone is not null)
+            AutoTexts.Queue(c.Phone, AutoTexts.MessageTaken(c.Name, lang), _logger);
+
         return Outcome(saved, emailError is null, c.Name);
     }
 

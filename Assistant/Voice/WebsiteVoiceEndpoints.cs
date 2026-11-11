@@ -94,7 +94,8 @@ public static class WebsiteVoiceEndpoints
                     context.Request.Headers["CF-IPCountry"].FirstOrDefault(),
                     "/voice-test", conversationId: conversationId,
                     summarizer: services.GetRequiredService<ConversationSummarizer>()),
-                new MapleKioskVoicePersona(lang, phone: asPhone, greeting: asPhone ? await PhoneHookup.GreetingAsync() : null),
+                new MapleKioskVoicePersona(lang, phone: asPhone, greeting: asPhone ? await PhoneHookup.GreetingAsync() : null,
+                    agentName: await AssistantSettings.AgentNameAsync()),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
                 services.GetRequiredService<IVoiceToolBrokerFactory>(),

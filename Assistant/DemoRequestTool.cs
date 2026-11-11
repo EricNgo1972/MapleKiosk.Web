@@ -92,7 +92,7 @@ public sealed class DemoRequestTool
         TrialSignupService.Created created;
         try
         {
-            created = await _signups.CreateAsync(signup, notes);
+            created = await _signups.CreateAsync(signup, notes, clientText: channel != "SMS");
         }
         catch (Exception ex)
         {

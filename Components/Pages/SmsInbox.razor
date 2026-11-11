@@ -1,0 +1,220 @@
+@page "/admin/sms"
+@attribute [Authorize(Roles = AppAuthValidator.AdminRole)]
+@rendermode InteractiveServer
+@implements IDisposable
+@using MapleKiosk.Web.Assistant
+@using MapleKiosk.Web.Assistant.Voice
+@inject SmsStore Sms
+@inject ChatLog Log
+@inject TrialSignupService Signups
+
+@* Every text on MapleKiosk's Twilio number, in and out, one thread per number like a phone's messages app:
+   what guests sent, the assistant's replies, the "one moment" notes, automatic confirmations, payment links and
+   the staff-phone alerts. Read-only: texts go out from the assistant and the site, not from here. Refreshes
+   every few seconds while open. *@
+
+<PageTitle>SMS — MapleKiosk</PageTitle>
+
+<header class="onb-top">
+    <div class="container onb-top__inner">
+        <a href="/" class="onb-top__logo"><img src="/MapleKiosk_rectangle.png" alt="MapleKiosk" /></a>
+        <span class="adm-title"><a href="/admin" style="color:inherit;text-decoration:none">Admin</a> / SMS</span>
+        <a href="/chats" class="btn btn-ghost onb-small adm-top__action">Chats</a>
+    </div>
+</header>
+
+<main class="adm">
+    <div class="container sms">
+        <div class="sms-head">
+            <div>
+                <h1>Text messages</h1>
+                <p class="onb__muted">
+                    @(_line is null ? "MapleKiosk's Twilio number" : ChatChannel.PhoneLabel(_line)) ·
+                    @_threads.Count conversation@(_threads.Count == 1 ? "" : "s") in the last 90 days · automatic texts
+                    <a href="/admin/assistant">@(_autoOn ? "on" : "off")</a>
+                </p>
+            </div>
+            <input class="adm-search sms-search" type="search" placeholder="Search name, number or words" @bind="_query" @bind:event="oninput" />
+        </div>
+
+        @if (_loading)
+        {
+            <p class="onb__muted">Loading…</p>
+        }
+        else if (_threads.Count == 0)
+        {
+            <div class="adm-empty">
+                <p><strong>No texts yet.</strong></p>
+                <p class="onb__muted">Texts to and from the Twilio number show here: guests' messages, @_agent's replies, automatic confirmations.</p>
+            </div>
+        }
+        else
+        {
+            <div class="sms-split @(_opened ? "is-open" : "")">
+                <ul class="sms-list" aria-label="Conversations">
+                    @foreach (var t in Shown)
+                    {
+                        <li>
+                            <button type="button" class="sms-row @(t.Number == _picked ? "is-on" : "")" @onclick="() => OpenAsync(t.Number)">
+                                <span class="adm-avatar">@Initial(t.Number)</span>
+                                <span class="sms-row__main">
+                                    <span class="sms-row__top">
+                                        <strong>@Who(t.Number)</strong>
+                                        <small>@Ago(t.LastAt)</small>
+                                    </span>
+                                    <span class="sms-row__sub">@ChatChannel.PhoneLabel(t.Number) · @t.Count text@(t.Count == 1 ? "" : "s")@if (t.Failed > 0) { <b class="sms-bad"> · @t.Failed failed</b> }</span>
+                                    <small class="sms-row__last">@(t.LastIncoming ? "" : "↩ ")@t.LastBody</small>
+                                </span>
+                            </button>
+                        </li>
+                    }
+                </ul>
+
+                <section class="sms-thread" aria-label="Messages">
+                    @if (_picked is null)
+                    {
+                        <p class="onb__muted sms-pick">Pick a conversation.</p>
+                    }
+                    else
+                    {
+                        <div class="sms-thread__head">
+                            <button type="button" class="sms-back" @onclick="() => _opened = false">← All texts</button>
+                            <div>
+                                <h2>@Who(_picked)</h2>
+                                <p class="onb__muted">
+                                    <a href="tel:@_picked">@ChatChannel.PhoneLabel(_picked)</a>
+                                    @if (_chatId is not null) { <span> · <a href="/chats/@_chatId">Open the conversation</a></span> }
+                                </p>
+                            </div>
+                        </div>
+                        <div class="sms-msgs">
+                            @foreach (var m in _messages)
+                            {
+                                <div class="sms-msg @(m.Incoming ? "sms-msg--in" : "sms-msg--out") sms-msg--@m.Kind @(m.Ok ? "" : "is-failed")">
+                                    <div class="sms-b">@m.Body</div>
+                                    <small>
+                                        @SmsKind.Label(m.Kind, _agent) · @LocalClock.Now(m.At).ToString("MMM d, h:mm tt")
+                                        @if (!m.Ok) { <b class="sms-bad"> · not sent: @m.Error</b> }
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                    }
+                </section>
+            </div>
+        }
+    </div>
+</main>
+
+@code {
+    private static readonly TimeSpan Refresh = TimeSpan.FromSeconds(5);
+
+    private List<SmsThread> _threads = [];
+    private List<SmsMessage> _messages = [];
+    private readonly Dictionary<string, string> _names = new();
+    private string? _picked, _chatId, _line, _staff;
+    private string _query = "", _agent = AssistantSettings.DefaultAgentName;
+    private bool _loading = true, _opened, _autoOn = true;
+
+    private PeriodicTimer? _timer;
+    private readonly CancellationTokenSource _cts = new();
+
+    private IEnumerable<SmsThread> Shown => string.IsNullOrWhiteSpace(_query)
+        ? _threads
+        : _threads.Where(t => Who(t.Number).Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase)
+                              || PhoneHookup.Digits(t.Number).Contains(PhoneHookup.Digits(_query) is { Length: > 2 } d ? d : "\u0000")
+                              || t.LastBody.Contains(_query.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _agent = await AssistantSettings.AgentNameAsync();
+        _line = await PhoneHookup.LineNumberAsync();
+        _staff = await AssistantSettings.StaffPhoneAsync();
+        _autoOn = await AutoTexts.EnabledAsync();
+        await LoadNamesAsync();
+        await LoadAsync();
+        if (_picked is null && _threads.FirstOrDefault() is { } first) await ShowAsync(first.Number);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender) return;
+        _timer = new PeriodicTimer(Refresh);
+        _ = TickAsync(_cts.Token);
+    }
+
+    private async Task TickAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (_timer is not null && await _timer.WaitForNextTickAsync(ct))
+            {
+                await LoadAsync();
+                if (_picked is not null) await ShowAsync(_picked);
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async Task LoadAsync()
+    {
+        try { _threads = await Sms.ThreadsAsync(90); }
+        catch { /* keep the last list */ }
+        _loading = false;
+    }
+
+    private async Task OpenAsync(string number)
+    {
+        _opened = true;
+        await ShowAsync(number);
+    }
+
+    private async Task ShowAsync(string number)
+    {
+        _picked = number;
+        try { _messages = await Sms.MessagesAsync(number); }
+        catch { /* keep what is shown */ }
+        var id = WebsiteSmsEndpoints.ConversationId(number);
+        _chatId = await Log.GetAsync(id) is not null ? id : null;
+    }
+
+    /// <summary>Names for numbers, from the conversations on /chats and the lead requests.</summary>
+    private async Task LoadNamesAsync()
+    {
+        try
+        {
+            if (Signups.Leads is not null)
+                foreach (var lead in await Signups.Leads.ListAsync())
+                    if (PhoneHookup.E164(lead.Form.Phone) is { } n && !string.IsNullOrWhiteSpace(lead.Form.ContactName))
+                        _names[n] = lead.Form.ContactName;
+            foreach (var c in (await Log.ListAsync(90)).OrderBy(c => c.LastAt))
+                if (c.Contact is { } who && PhoneHookup.E164(who.Phone) is { } n && !ConversationSummarizer.IsPlaceholder(who.Name))
+                    _names[n] = who.Name + (who.Business is null ? "" : $" · {who.Business}");
+        }
+        catch { /* numbers only */ }
+    }
+
+    private string Who(string number) =>
+        number == _staff ? "Staff phone (you)" : _names.TryGetValue(number, out var name) ? name : ChatChannel.PhoneLabel(number);
+
+    private string Initial(string number) =>
+        number == _staff ? "★" : _names.TryGetValue(number, out var name) && name.Length > 0 ? name[..1].ToUpperInvariant() : "#";
+
+    private static string Ago(DateTimeOffset at)
+    {
+        var d = DateTimeOffset.UtcNow - at;
+        return d.TotalMinutes < 1 ? "just now"
+             : d.TotalHours < 1 ? $"{(int)d.TotalMinutes} min"
+             : d.TotalDays < 1 ? $"{(int)d.TotalHours} h"
+             : LocalClock.Now(at).ToString("MMM d");
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _timer?.Dispose();
+        _cts.Dispose();
+    }
+}

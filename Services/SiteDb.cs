@@ -10,7 +10,7 @@ namespace MapleKiosk.Web.Services;
 /// </summary>
 public sealed class SiteDb
 {
-    private const int SchemaVersion = 1;
+    private const int SchemaVersion = 2;
 
     private readonly string _connection;
 
@@ -46,6 +46,25 @@ public sealed class SiteDb
                     email_error    TEXT
                 );
                 CREATE INDEX IF NOT EXISTS ix_leads_submitted ON leads(submitted_at);
+                """);
+        }
+        if (version < 2)
+        {
+            // Every text on MapleKiosk's Twilio number, in and out (/admin/sms).
+            Exec(db, """
+                CREATE TABLE IF NOT EXISTS sms (
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    at         TEXT NOT NULL,
+                    direction  TEXT NOT NULL,
+                    number     TEXT NOT NULL,
+                    line       TEXT NOT NULL,
+                    body       TEXT NOT NULL,
+                    kind       TEXT NOT NULL,
+                    ok         INTEGER NOT NULL DEFAULT 1,
+                    error      TEXT
+                );
+                CREATE INDEX IF NOT EXISTS ix_sms_number ON sms(number, at);
+                CREATE INDEX IF NOT EXISTS ix_sms_at ON sms(at);
                 """);
         }
         if (version < SchemaVersion) Exec(db, $"PRAGMA user_version={SchemaVersion};");

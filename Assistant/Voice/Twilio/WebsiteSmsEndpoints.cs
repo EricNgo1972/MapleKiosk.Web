@@ -65,6 +65,10 @@ public static class WebsiteSmsEndpoints
         var body = form["Body"].ToString().Trim();
         var sid = form["MessageSid"].ToString();
 
+        // Every text in goes to the SMS inbox (/admin/sms), keywords included.
+        if (from.StartsWith('+') && to.StartsWith('+') && body.Length > 0 && SmsStore.Current is { } log)
+            await log.AddAsync(true, from, to, body, SmsKind.Guest);
+
         if (!from.StartsWith('+') || !to.StartsWith('+') || body.Length == 0 || CarrierKeywords.Contains(body))
         {
             logger.LogInformation("Sms: {Sid} from {From} not answered (empty, a keyword, or no number).", sid, from);
@@ -146,7 +150,7 @@ public static class WebsiteSmsEndpoints
 
             var messages = new List<ChatMessage>
             {
-                new(ChatRole.System, AssistantPrompt.For(knowledge, ConversationChannel.Phone) + "\n\n" + SmsNote),
+                new(ChatRole.System, AssistantPrompt.For(knowledge, ConversationChannel.Phone, await AssistantSettings.AgentNameAsync()) + "\n\n" + SmsNote),
             };
             foreach (var line in history)
                 messages.Add(new ChatMessage(line.Role == "assistant" ? ChatRole.Assistant : ChatRole.User, line.Text));
@@ -165,7 +169,7 @@ public static class WebsiteSmsEndpoints
                 if (client is not StubChatClient)
                 {
                     // A tool still working after a second and a half: tell them to hold on, by text, once.
-                    var held = new Func<Task>(() => SendAsync(to, from, HoldText, Logger, ct));
+                    var held = new Func<Task>(() => SendAsync(to, from, HoldText, Logger, ct, SmsKind.Hold));
                     AIFunction Hold(AIFunction f) => new HoldingFunction(f, held, HoldAfter);
                     options.Tools = [ContactTool.For(id, "fr", Page), Hold(MessageTool.For(id, "fr", Page)), Hold(DemoTool.For(id, "qc", "SMS", from)),
                         Hold(OrderTool.For(id, "qc", OrderTool.Channel.Sms, from, to)), Hold(PersonTool.For(id, OrderTool.Channel.Sms, from, to))];
@@ -216,8 +220,9 @@ public static class WebsiteSmsEndpoints
     }
 
     /// <summary>Sends one SMS from MapleKiosk's number over Twilio's Messages API; false (logged) when it didn't go.</summary>
-    internal static Task<bool> SendAsync(string from, string to, string body, ILogger logger, CancellationToken ct) =>
-        TwilioApi.SendSmsAsync(from, to, body, logger, ct);
+    internal static Task<bool> SendAsync(string from, string to, string body, ILogger logger, CancellationToken ct,
+        string kind = SmsKind.Reply) =>
+        TwilioApi.SendSmsAsync(from, to, body, logger, ct, kind);
 
     private static IResult Empty() => Results.Content(TwilioTwiml.Empty, TwilioTwiml.ContentType);
 }

@@ -1,3 +1,4 @@
+@using MapleKiosk.Web.Assistant
 @inject LocalizationService L
 @inject NavigationManager Nav
 
@@ -28,7 +29,7 @@
             </header>
 
             <div class="ast-log" data-ast-log aria-live="polite">
-                <div class="ast-msg ast-msg--bot" data-ast-greeting><div class="ast-b"><p>@L["ast.greeting"]</p></div></div>
+                <div class="ast-msg ast-msg--bot" data-ast-greeting><div class="ast-b"><p>@AssistantSettings.Named(L["ast.greeting"], _agentName)</p></div></div>
             </div>
 
             <div class="ast-chips" data-ast-starters>
@@ -51,6 +52,14 @@
 }
 
 @code {
+    private string _agentName = AssistantSettings.DefaultAgentName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _agentName = await AssistantSettings.AgentNameAsync(); }
+        catch (Exception) { /* the greeting keeps the default name */ }
+    }
+
     private static readonly HashSet<string> Hidden = new(StringComparer.OrdinalIgnoreCase)
         { "onboarding", "shop", "signin", "access-denied", "error", "not-found", "chats", "voice-test" };
 

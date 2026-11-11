@@ -13,17 +13,22 @@ internal static class TwilioApi
 {
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
-    /// <summary>One SMS from MapleKiosk's number.</summary>
-    public static Task<bool> SendSmsAsync(string from, string to, string body, ILogger logger, CancellationToken ct) =>
-        PostAsync("Messages.json", new() { ["From"] = from, ["To"] = to, ["Body"] = body }, $"text to {to}", logger, ct);
+    /// <summary>One SMS from MapleKiosk's number, recorded for the SMS inbox (/admin/sms) as <paramref name="kind"/>.</summary>
+    public static async Task<bool> SendSmsAsync(string from, string to, string body, ILogger logger, CancellationToken ct,
+        string kind = Services.SmsKind.Reply)
+    {
+        var error = await PostAsync("Messages.json", new() { ["From"] = from, ["To"] = to, ["Body"] = body }, $"text to {to}", logger, ct);
+        if (Services.SmsStore.Current is { } log) await log.AddAsync(false, to, from, body, kind, error is null, error);
+        return error is null;
+    }
 
     /// <summary>Rings <paramref name="to"/> from <paramref name="from"/> and says <paramref name="twiml"/>.</summary>
-    public static Task<bool> CallAsync(string from, string to, string twiml, ILogger logger, CancellationToken ct) =>
-        PostAsync("Calls.json", new() { ["From"] = from, ["To"] = to, ["Twiml"] = twiml }, $"call to {to}", logger, ct);
+    public static async Task<bool> CallAsync(string from, string to, string twiml, ILogger logger, CancellationToken ct) =>
+        await PostAsync("Calls.json", new() { ["From"] = from, ["To"] = to, ["Twiml"] = twiml }, $"call to {to}", logger, ct) is null;
 
     /// <summary>Replaces what a live call is doing with <paramref name="twiml"/> — the media stream ends, the TwiML runs.</summary>
-    public static Task<bool> RedirectAsync(string callSid, string twiml, ILogger logger, CancellationToken ct) =>
-        PostAsync($"Calls/{Uri.EscapeDataString(callSid)}.json", new() { ["Twiml"] = twiml }, $"redirect of call {callSid}", logger, ct);
+    public static async Task<bool> RedirectAsync(string callSid, string twiml, ILogger logger, CancellationToken ct) =>
+        await PostAsync($"Calls/{Uri.EscapeDataString(callSid)}.json", new() { ["Twiml"] = twiml }, $"redirect of call {callSid}", logger, ct) is null;
 
     /// <summary>
     /// Put the caller through to <paramref name="person"/>; if nobody answers in 25 s, apologise (French and
@@ -42,13 +47,14 @@ internal static class TwilioApi
         + $"<Say language=\"en-US\">{SecurityElement.Escape(text)}</Say><Pause length=\"1\"/>"
         + $"<Say language=\"en-US\">Again: {SecurityElement.Escape(text)}</Say><Hangup/></Response>";
 
-    private static async Task<bool> PostAsync(string path, Dictionary<string, string> form, string what, ILogger logger,
+    /// <summary>Null when Twilio accepted it; otherwise why not (also logged).</summary>
+    private static async Task<string?> PostAsync(string path, Dictionary<string, string> form, string what, ILogger logger,
         CancellationToken ct)
     {
         if (await PhoneHookup.CredentialsAsync() is not { } creds)
         {
             logger.LogError("Twilio: no {What} — no Twilio/AccountSid or Twilio/AuthToken in the keyvalue table.", what);
-            return false;
+            return "Twilio account not set";
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post,
@@ -65,15 +71,16 @@ internal static class TwilioApi
             if (response.IsSuccessStatusCode)
             {
                 logger.LogInformation("Twilio: {What} accepted.", what);
-                return true;
+                return null;
             }
-            logger.LogError("Twilio: refused the {What} ({Status}): {Body}", what, (int)response.StatusCode,
-                await response.Content.ReadAsStringAsync(ct));
+            var body = await response.Content.ReadAsStringAsync(ct);
+            logger.LogError("Twilio: refused the {What} ({Status}): {Body}", what, (int)response.StatusCode, body);
+            return $"Twilio refused it ({(int)response.StatusCode}): {(body.Length <= 300 ? body : body[..300])}";
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
         {
             logger.LogError(ex, "Twilio: the {What} failed.", what);
+            return ex.Message;
         }
-        return false;
     }
 }

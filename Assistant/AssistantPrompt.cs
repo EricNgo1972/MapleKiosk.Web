@@ -85,8 +85,8 @@ public static class AssistantPrompt
         "take_message. You don't set the time: the sales team calls back to confirm it, so never promise a date or time. " +
         "Do what the tool's result says.";
 
-    public static string For(string? grounding, ConversationChannel channel) =>
-        CustomerText + "\n\n" + MapleKiosk
+    public static string For(string? grounding, ConversationChannel channel, string agentName = AssistantSettings.DefaultAgentName) =>
+        CustomerText + "\n\n" + AssistantSettings.Named(MapleKiosk, agentName)
         + (channel == ConversationChannel.Chat ? "\n\n" + WebNote : "")
         + (string.IsNullOrWhiteSpace(grounding) ? "" : "\n\n" + grounding.Trim());
 }

@@ -261,3 +261,31 @@ public sealed class TransferLoopTests
     [Fact]
     public void They_are_refused_as_busy() => Assert.Contains("<Reject reason=\"busy\"/>", TwilioTwiml.Reject);
 }
+
+public sealed class AgentNameTests
+{
+    [Fact]
+    public void The_default_name_leaves_text_alone() =>
+        Assert.Equal("Я Лиза, this is Lisa", AssistantSettings.Named("Я Лиза, this is Lisa", "Lisa"));
+
+    [Fact]
+    public void Another_name_replaces_lisa_everywhere() =>
+        Assert.Equal("Я Emma, this is Emma", AssistantSettings.Named("Я Лиза, this is Lisa", "Emma"));
+
+    [Fact]
+    public void The_default_phone_greeting_follows_the_name() =>
+        Assert.Equal("Bonjour, Hi. This is Emma from MapleKiosk, how can I help you today?", PhoneHookup.DefaultGreetingFor("Emma"));
+
+    [Fact]
+    public void The_voice_agent_uses_the_name()
+    {
+        var persona = new MapleKioskVoicePersona("en", phone: true, agentName: "Emma");
+        Assert.Contains("You are Emma", persona.ForAudience(VoiceToolAudience.Customer));
+        Assert.DoesNotContain("Lisa", persona.ForAudience(VoiceToolAudience.Customer));
+        Assert.Contains("Emma", persona.GreetingFor(VoiceToolAudience.Customer, "MapleKiosk"));
+    }
+
+    [Fact]
+    public void The_chat_prompt_uses_the_name() =>
+        Assert.Contains("you are Emma", AssistantPrompt.For(null, ConversationChannel.Chat, "Emma"));
+}

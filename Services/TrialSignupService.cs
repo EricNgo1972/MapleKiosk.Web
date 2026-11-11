@@ -135,7 +135,9 @@ public class TrialSignupService
     /// </summary>
     /// <param name="kind">What it is, for the sales email: "demo request" or "order request".</param>
     /// <param name="clientEmail">False to skip the client's demo confirmation (an order request isn't a demo).</param>
-    public async Task<Created> CreateAsync(TrialSignup signup, string? notes, string kind = "demo request", bool clientEmail = true)
+    /// <param name="clientText">False to skip the automatic confirmation text (they are texting already).</param>
+    public async Task<Created> CreateAsync(TrialSignup signup, string? notes, string kind = "demo request", bool clientEmail = true,
+        bool clientText = true)
     {
         signup.SubmittedAt = DateTimeOffset.UtcNow;
         var spam = !string.IsNullOrWhiteSpace(signup.Website);
@@ -150,6 +152,12 @@ public class TrialSignupService
         if (spam) return new Created(saved ? id : null, null);
 
         if (_table is not null) await SaveAsync(signup);
+
+        // A confirmation text when they gave a phone number (Assistant/AutoTexts.cs: on/off, +1 numbers only).
+        if (clientText && !string.IsNullOrWhiteSpace(signup.Phone))
+            Assistant.AutoTexts.Queue(signup.Phone, kind == "order request"
+                ? Assistant.AutoTexts.OrderRequest(signup.ContactName, signup.Culture)
+                : Assistant.AutoTexts.Demo(signup.ContactName, signup.Culture), _logger);
 
         var error = await SendNotificationEmailsAsync(signup, notes, kind, clientEmail);
         if (saved) await TryAsync("record the sales email", () => Leads!.MarkEmailedAsync(id, error));
