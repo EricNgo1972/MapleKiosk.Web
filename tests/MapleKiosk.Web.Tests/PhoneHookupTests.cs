@@ -49,3 +49,61 @@ public sealed class PhoneHookupTests
         Assert.False(TwilioSignature.IsValid("other-token", url, form, signature));
     }
 }
+
+/// <summary>The Quebec greeting and the SMS line on the same number.</summary>
+public sealed class QuebecVoiceAndSmsTests
+{
+    [Fact]
+    public void Phone_line_opens_bilingual_by_default() =>
+        Assert.Equal(MapleKioskVoicePersona.Bilingual, PhoneHookup.DefaultLanguage);
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Bilingual_greeting_is_bonjour_hi_french_first(bool phone)
+    {
+        var greeting = new MapleKioskVoicePersona(MapleKioskVoicePersona.Bilingual, phone)
+            .GreetingFor(VoiceToolAudience.Customer, "MapleKiosk");
+        Assert.StartsWith("Bonjour, hi!", greeting);
+        Assert.Contains("Comment puis-je vous aider?", greeting);
+        Assert.Contains("How can I help you?", greeting);
+    }
+
+    [Fact]
+    public void Bilingual_prompt_follows_the_callers_language()
+    {
+        var note = MapleKioskVoicePersona.PhoneLanguageNote(MapleKioskVoicePersona.Bilingual);
+        Assert.Contains("language they answered in", note);
+        Assert.Contains("Quebec", note);
+    }
+
+    [Fact]
+    public void Phone_test_profile_carries_the_bilingual_note()
+    {
+        var profile = WebsitePhoneEndpoints.PhoneProfile(new MapleKiosk.Web.Assistant.VoiceSetup("k", "m", "v"), "qc");
+        Assert.Equal(MapleKioskVoicePersona.PhoneLanguageNote("qc"), profile.PromptAddendum);
+        Assert.Equal("m", profile.Model);
+    }
+
+    [Fact]
+    public void Sms_webhook_is_the_public_sites() =>
+        Assert.Equal("https://www.maplekiosk.ca/twilio/sms/incoming", WebsiteSmsEndpoints.IncomingUrl);
+
+    [Fact]
+    public void One_sms_conversation_per_sender_whatever_the_formatting()
+    {
+        var id = WebsiteSmsEndpoints.ConversationId("+15145550123");
+        Assert.Equal(32, id.Length);
+        Assert.Equal(id, MapleKiosk.Web.Assistant.ChatLog.IdFor(id));
+        Assert.Equal(id, WebsiteSmsEndpoints.ConversationId("+1 (514) 555-0123"));
+        Assert.NotEqual(id, WebsiteSmsEndpoints.ConversationId("+15145550124"));
+    }
+
+    [Fact]
+    public void Sms_replies_are_plain_text()
+    {
+        var plain = WebsiteSmsEndpoints.Plain(
+            "**Prix:** voir [la page des prix](/fr/coffee/pricing).\n* Un\n* Deux\n[[Café]]\n[[Salon]]");
+        Assert.Equal("Prix: voir la page des prix: https://www.maplekiosk.ca/fr/coffee/pricing.\n- Un\n- Deux", plain);
+    }
+}

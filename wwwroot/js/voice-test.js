@@ -384,6 +384,7 @@
     const log = root.querySelector('[data-vt-log]');
     const errorEl = root.querySelector('[data-vt-error]');
     const langs = Array.from(root.querySelectorAll('[data-vt-lang]'));
+    const phoneBox = root.querySelector('[data-vt-phone]');
     const configured = root.dataset.ready === 'true';
 
     const LABELS = {
@@ -407,6 +408,7 @@
       // Not cancellable while connecting: start() hands back its handle only once the session is open.
       button.disabled = !configured || next === 'connecting';
       langs.forEach((b) => { b.disabled = live; });
+      if (phoneBox) phoneBox.disabled = live;
     }
 
     function showError(message) {
@@ -487,7 +489,8 @@
       setState('connecting');
 
       const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-      const url = `${scheme}://${location.host}/assistant/voice/ws?lang=${encodeURIComponent(lang)}`;
+      const phone = phoneBox && phoneBox.checked ? '&phone=1' : '';
+      const url = `${scheme}://${location.host}/assistant/voice/ws?lang=${encodeURIComponent(lang)}${phone}`;
       handle = await start(ui, { url: url });
       // start() already reported and tore down a session that failed to open.
       if (handle && handle.closed) { handle = null; if (state === 'connecting') setState('idle'); }

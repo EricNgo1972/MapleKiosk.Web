@@ -20,7 +20,7 @@
 
 <main class="adm">
     <div class="container adm__wrap">
-        <section class="vt" data-voice-test data-ready="@(_configured ? "true" : "false")" data-lang="en" data-state="idle">
+        <section class="vt" data-voice-test data-ready="@(_configured ? "true" : "false")" data-lang="qc" data-state="idle">
             @if (!_configured)
             {
                 <p class="adm-banner">No Gemini API key yet. Set the Gemini API key in <a href="/admin/assistant">/admin/assistant</a>, then reload this page.</p>
@@ -29,9 +29,13 @@
             <div class="vt-langs" role="group" aria-label="Language">
                 @foreach (var (lang, label) in Languages)
                 {
-                    <button type="button" class="wb-chip @(lang == "en" ? "is-on" : "")" data-vt-lang="@lang">@label</button>
+                    <button type="button" class="wb-chip @(lang == "qc" ? "is-on" : "")" data-vt-lang="@lang">@label</button>
                 }
             </div>
+            <label class="adm-switch vt-phone">
+                <input type="checkbox" data-vt-phone checked />
+                As a phone call: the phone line's greeting and rules, as a caller hears them
+            </label>
 
             <div class="vt-stage">
                 <button type="button" class="vt-mic" data-vt-start disabled="@(!_configured)">Start talking</button>
@@ -53,11 +57,11 @@
     </div>
 </main>
 
-<script src="js/voice-test.js?v=1"></script>
+<script src="js/voice-test.js?v=2"></script>
 
 @code {
     private static readonly (string Code, string Label)[] Languages =
-        { ("en", "English"), ("fr", "Français"), ("vi", "Tiếng Việt"), ("ru", "Русский") };
+        { ("qc", "Bonjour / Hi"), ("en", "English"), ("fr", "Français"), ("vi", "Tiếng Việt"), ("ru", "Русский") };
 
     private bool _configured;
     private string _model = "";

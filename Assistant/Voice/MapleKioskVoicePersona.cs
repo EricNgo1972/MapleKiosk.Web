@@ -74,6 +74,10 @@ public sealed class MapleKioskVoicePersona : IVoicePersona
 
     public string GreetingFor(VoiceToolAudience audience, string businessName) => _lang switch
     {
+        // Quebec: answer in both languages, French first, and let the caller pick by answering.
+        Bilingual => _phone
+            ? "Bonjour, hi! Merci d'appeler MapleKiosk, thanks for calling MapleKiosk. Comment puis-je vous aider? How can I help you?"
+            : "Bonjour, hi! Ici l'assistant de MapleKiosk, this is MapleKiosk's assistant. Comment puis-je vous aider? How can I help you?",
         "fr" => "Bonjour, ici l'assistant de MapleKiosk. Que voulez-vous savoir ?",
         "vi" => "Xin chào, tôi là trợ lý của MapleKiosk. Bạn muốn biết điều gì?",
         "ru" => "Здравствуйте, это ассистент MapleKiosk. Что бы вы хотели узнать?",
@@ -84,23 +88,33 @@ public sealed class MapleKioskVoicePersona : IVoicePersona
 
     public string StillThereFor(VoiceToolAudience audience) => _lang switch
     {
+        Bilingual => "Allô, vous êtes toujours là? Are you still there?",
         "fr" => "Vous êtes toujours là ?",
         "vi" => "Bạn vẫn còn đó chứ?",
         "ru" => "Вы ещё здесь?",
         _ => "Are you still there?",
     };
 
+    /// <summary>French and English together, the Quebec way: "Bonjour, hi!".</summary>
+    public const string Bilingual = "qc";
+
+    private const string BilingualNote =
+        "You opened in both French and English, the way Quebec businesses answer. From the person's first words, "
+        + "continue only in the language they answered in. If you can't tell, use French. Your French is Quebec "
+        + "(Canadian) French: natural, polite, \"vous\" by default.";
+
     /// <summary>The visitor's chosen language, as the operator-addendum layer of the prompt.</summary>
-    public static string LanguageNote(string lang) =>
+    public static string LanguageNote(string lang) => lang == Bilingual ? BilingualNote :
         $"The visitor chose {Language(lang)} on the website. Speak {Language(lang)} until they speak another "
         + "language, then follow them.";
 
     /// <summary>The phone line's language, as the operator-addendum layer of the prompt.</summary>
-    public static string PhoneLanguageNote(string lang) =>
+    public static string PhoneLanguageNote(string lang) => lang == Bilingual ? BilingualNote :
         $"Open the call in {Language(lang)}. If the caller speaks another language, switch to it.";
 
     public static string Language(string lang) => lang switch
     {
+        Bilingual => "Bilingual French + English (Bonjour, hi — Quebec)",
         "fr" => "French",
         "vi" => "Vietnamese",
         "ru" => "Russian",

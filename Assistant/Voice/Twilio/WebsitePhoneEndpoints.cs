@@ -22,10 +22,11 @@ public static class WebsitePhoneEndpoints
 {
     private static readonly (string Text, string? LanguageTag)[] Unavailable =
     [
-        ("Sorry, we can't take your call right now. Please write to sales at maplekiosk dot C A, "
-         + "or book a demo on maplekiosk dot C A.", "en-US"),
+        // French first: MapleKiosk is in Quebec.
         ("Désolé, nous ne pouvons pas prendre votre appel pour le moment. "
          + "Écrivez-nous à sales arobase maplekiosk point C A.", "fr-CA"),
+        ("Sorry, we can't take your call right now. Please write to sales at maplekiosk dot C A, "
+         + "or book a demo on maplekiosk dot C A.", "en-US"),
     ];
 
     /// <summary>Tickets the webhook minted, redeemable once by the media socket.</summary>
@@ -44,6 +45,8 @@ public static class WebsitePhoneEndpoints
             .AllowAnonymous().DisableAntiforgery();
         endpoints.Map($"{PhoneHookup.StreamRoute}/{{ticket}}", (Func<HttpContext, string, Task<IResult>>)StreamAsync)
             .AllowAnonymous();
+        // Texts to the same number: answered by the chat assistant (WebsiteSmsEndpoints.cs).
+        endpoints.MapWebsiteSms();
         return endpoints;
     }
 
@@ -203,7 +206,7 @@ public static class WebsitePhoneEndpoints
     /// Null when the request is genuinely Twilio's; otherwise the response to send instead. Refuses closed
     /// when no auth token is configured.
     /// </summary>
-    private static async Task<IResult?> VerifySignatureAsync(HttpContext context, ILogger logger)
+    internal static async Task<IResult?> VerifySignatureAsync(HttpContext context, ILogger logger)
     {
         if (await PhoneHookup.CredentialsAsync() is not { } creds)
         {

@@ -25,16 +25,19 @@ public static class PhoneHookup
     public static string FallbackUrl => SiteHost.Root.TrimEnd('/') + FallbackRoute;
     public static string StatusUrl => SiteHost.Root.TrimEnd('/') + StatusRoute;
 
-    public static readonly string[] Languages = { "en", "fr", "vi", "ru" };
+    /// <summary>Bilingual first: MapleKiosk is in Quebec, so a call opens "Bonjour, hi!" unless set otherwise.</summary>
+    public static readonly string[] Languages = { MapleKioskVoicePersona.Bilingual, "fr", "en", "vi", "ru" };
+
+    public const string DefaultLanguage = MapleKioskVoicePersona.Bilingual;
 
     public static async Task<string> LanguageAsync()
     {
         var lang = (await KeyValueTable.ReadAsync(Partition, "PhoneLanguage")).Trim();
-        return Languages.Contains(lang) ? lang : "en";
+        return Languages.Contains(lang) ? lang : DefaultLanguage;
     }
 
     public static Task SaveLanguageAsync(string lang) =>
-        KeyValueTable.WriteAsync(Partition, "PhoneLanguage", Languages.Contains(lang) ? lang : "en");
+        KeyValueTable.WriteAsync(Partition, "PhoneLanguage", Languages.Contains(lang) ? lang : DefaultLanguage);
 
     /// <summary>The platform Twilio account, env var first — the same resolution as the phone-line shop's gateway.</summary>
     public static async Task<(string Sid, string Token)?> CredentialsAsync()

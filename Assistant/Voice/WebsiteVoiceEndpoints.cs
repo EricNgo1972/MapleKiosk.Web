@@ -67,8 +67,12 @@ public static class WebsiteVoiceEndpoints
         }
 
         var requested = context.Request.Query["lang"].ToString();
-        var lang = requested is "fr" or "vi" or "ru" ? requested : "en";
-        var profile = ProfileFor(await AssistantSettings.ResolveVoiceAsync(), lang);
+        var lang = requested is "fr" or "vi" or "ru" or MapleKioskVoicePersona.Bilingual ? requested : "en";
+        // ?phone=1: the phone line's agent exactly as a caller gets it (persona, greeting, prompt) — a way to
+        // hear the phone greeting before any Twilio number is pointed here.
+        var asPhone = context.Request.Query["phone"] == "1";
+        var setup = await AssistantSettings.ResolveVoiceAsync();
+        var profile = asPhone ? WebsitePhoneEndpoints.PhoneProfile(setup, lang) : ProfileFor(setup, lang);
 
         if (!VoiceSessionLimiter.TryAcquire(profile.MaxConcurrentSessions))
         {
@@ -79,7 +83,7 @@ public static class WebsiteVoiceEndpoints
         try
         {
             using var socket = await context.WebSockets.AcceptWebSocketAsync();
-            logger.LogInformation("Voice: conversation open (website, {Language}).", lang);
+            logger.LogInformation("Voice: conversation open ({Mode}, {Language}).", asPhone ? "phone test" : "website", lang);
 
             await new VoiceRelay(
                 new BrowserVoiceChannel(socket, logger), logger,
@@ -87,7 +91,7 @@ public static class WebsiteVoiceEndpoints
                     services.GetRequiredService<ChatLog>(),
                     context.Request.Headers["CF-IPCountry"].FirstOrDefault(),
                     "/voice-test"),
-                new MapleKioskVoicePersona(lang),
+                new MapleKioskVoicePersona(lang, phone: asPhone),
                 new NullVoiceOutcomeReader()).RunAsync(
                 services.GetRequiredService<IVoiceAgentServiceFactory>(),
                 services.GetRequiredService<IVoiceToolBrokerFactory>(),
@@ -97,7 +101,8 @@ public static class WebsiteVoiceEndpoints
                 VoiceSessionContext.Empty,
                 lang,
                 BusinessName,
-                await GroundingAsync(services, logger, ConversationChannel.DesktopVoice, context.RequestAborted),
+                await GroundingAsync(services, logger,
+                    asPhone ? ConversationChannel.Phone : ConversationChannel.DesktopVoice, context.RequestAborted),
                 context.RequestAborted);
         }
         catch (Exception ex)

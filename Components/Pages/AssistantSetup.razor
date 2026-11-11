@@ -5,6 +5,7 @@
 @using MapleKiosk.Web.Assistant.Voice
 @inject AssistantLlm Llm
 @inject SiteKnowledge Knowledge
+@inject IVoiceAgentServiceFactory VoiceFactory
 
 @*
     The website assistant's whole setup on one page: 1. the chat model (LLM), 2. the voice model (Gemini Live),
@@ -103,6 +104,14 @@
                         }
                     </select>
                 </label>
+                <div class="adm-sheet__actions cht-test">
+                    @if (_voiceTestMessage is not null)
+                    {
+                        <span class="adm-banner @(_voiceTestOk ? "adm-banner--ok" : "")">@_voiceTestMessage</span>
+                    }
+                    <a href="/voice-test" class="btn btn-ghost onb-small">Talk to it</a>
+                    <button type="button" class="btn btn-ghost onb-small" disabled="@_busy" @onclick="TestVoice">Test connection</button>
+                </div>
                 <label>Phone greeting language
                     <select @bind="_phoneLanguage">
                         @foreach (var lang in PhoneHookup.Languages)
@@ -139,6 +148,12 @@
                     <div class="adm-field"><span>Primary handler fails — Webhook, HTTP POST</span><code>@PhoneHookup.FallbackUrl</code></div>
                     <div class="adm-field"><span>Call status changes — HTTP POST</span><code>@PhoneHookup.StatusUrl</code></div>
                 </li>
+                <li>For texts, under <strong>Messaging Configuration</strong>, set <em>A message comes in</em> to Webhook, HTTP POST:
+                    <div class="adm-field"><span>A message comes in — Webhook, HTTP POST</span><code>@WebsiteSmsEndpoints.IncomingUrl</code></div>
+                    The chat assistant answers by SMS from the same number (plain text, in the sender's language, French
+                    when unsure). Each sender is one conversation on <a href="/chats">/chats</a> as “SMS”. Texting US numbers
+                    from a Canadian or US number may need Twilio's A2P 10DLC registration; Canadian numbers don't.
+                </li>
                 <li>Press <strong>Save configuration</strong>, then call the number. The call shows on <a href="/chats">/chats</a> as “Phone call”, with the caller's number.</li>
                 <li>To stop it, clear “A call comes in” on the number (or point it elsewhere). Calls are also refused politely when no Gemini key is set or two conversations are already open.</li>
             </ol>
@@ -147,10 +162,11 @@
 </main>
 
 @code {
-    private bool _loading = true, _busy, _saved, _clearLlmKey, _clearGeminiKey, _testOk;
+    private bool _loading = true, _busy, _saved, _clearLlmKey, _clearGeminiKey, _testOk, _voiceTestOk;
+    private string? _voiceTestMessage;
     private string _llmProvider = "", _llmEndpoint = "", _llmModel = "", _llmKey = "", _llmKeyMask = "", _inUse = "";
     private string _geminiKey = "", _geminiKeyMask = "", _geminiModel = "", _geminiVoice = "", _knowledge = "", _messageInbox = "";
-    private string _phoneLanguage = "en", _twilioSid = "";
+    private string _phoneLanguage = PhoneHookup.DefaultLanguage, _twilioSid = "";
     private string? _error, _testMessage;
 
     protected override async Task OnInitializedAsync()
@@ -184,6 +200,28 @@
             ? await AssistantSettings.ResolveLlmAsync()
             : new LlmSetup(_llmProvider, _llmEndpoint.Trim(), _llmModel.Trim(), _llmKey.Trim() is { Length: > 0 } k ? k : _clearLlmKey ? "" : stored.ApiKey);
         (_testOk, _testMessage) = await AssistantLlm.TestAsync(setup, CancellationToken.None);
+        _busy = false;
+    }
+
+    /// <summary>Opens a Gemini Live session with what would be saved (key, model, voice) and closes it: proves
+    /// the key and the model id without speaking. To hear it, /voice-test.</summary>
+    private async Task TestVoice()
+    {
+        _busy = true;
+        _voiceTestMessage = null;
+        StateHasChanged();
+        var stored = await AssistantSettings.ResolveVoiceAsync();
+        var setup = new VoiceSetup(
+            _geminiKey.Trim() is { Length: > 0 } k ? k : _clearGeminiKey ? "" : stored.GeminiApiKey,
+            _geminiModel.Trim() is { Length: > 0 } m ? m : stored.Model,
+            _geminiVoice.Trim() is { Length: > 0 } v ? v : stored.Voice);
+        if (string.IsNullOrWhiteSpace(setup.GeminiApiKey))
+            (_voiceTestOk, _voiceTestMessage) = (false, "No Gemini API key: enter one above.");
+        else
+        {
+            var result = await VoiceFactory.TestAsync(WebsitePhoneEndpoints.PhoneProfile(setup, _phoneLanguage));
+            (_voiceTestOk, _voiceTestMessage) = (result.Ok, result.Ok ? $"{result.Message} ({setup.Model}, voice {setup.Voice})" : result.Message);
+        }
         _busy = false;
     }
 
