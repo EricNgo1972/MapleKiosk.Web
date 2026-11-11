@@ -1575,3 +1575,25 @@ button.sh-item__info[aria-expanded="true"] .sh-item__chev{transform:translateY(1
 .pl .btn:disabled{opacity:.5;cursor:default;transform:none}
 .pl-adm__actions{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:0 18px 14px}
 .pl-adm__err{color:var(--red-2)!important;white-space:normal!important}
+
+/* Contact page: ways to reach us beside the message form */
+.contact{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:32px;align-items:start;max-width:1100px}
+.contact__ways{display:flex;flex-direction:column;gap:14px}
+.contact__way{background:var(--surface-glass);border:1px solid var(--border);border-radius:14px;padding:20px 22px}
+.contact__way h2{font-family:'DM Sans',system-ui,sans-serif;font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px}
+.contact__way p,.contact__way address{color:var(--muted);font-size:14px;font-style:normal;line-height:1.55}
+.contact__way a{display:inline-block;margin-top:8px;color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.contact__way a:hover{color:var(--text)}
+.contact__form.legal-page__body{max-width:none}
+.contact__form h2{font-size:20px;margin-bottom:20px}
+.field textarea{width:100%;max-width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-family:inherit;font-size:15px;resize:vertical;min-height:140px;transition:border-color .2s}
+.field textarea:focus{outline:none;border-color:var(--red)}
+.field textarea::placeholder{color:var(--muted);opacity:.55}
+.contact__error{margin-top:14px;color:var(--red);font-size:14px}
+.contact__done{text-align:center;padding:24px 0}
+.contact__done h2{font-size:24px;margin-bottom:8px}
+@media (max-width:860px){
+  .contact{grid-template-columns:1fr}
+  .contact__form.legal-page__body{padding:24px 18px}
+  .field textarea{font-size:16px}
+}

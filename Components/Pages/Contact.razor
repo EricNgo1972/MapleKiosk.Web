@@ -1,0 +1,194 @@
+@page "/contact"
+@page "/fr/contact"
+@page "/vi/contact"
+@page "/ru/contact"
+@using System.ComponentModel.DataAnnotations
+@using MapleKiosk.Web.Assistant
+@using MapleKiosk.Web.Assistant.Voice
+@inject LocalizationService L
+@inject NavigationManager Nav
+@inject ChatLog Chats
+@inject CustomerMessageTool Messages
+
+@* Static form (no Blazor circuit), like the demo form: posts as an enhanced form. A message goes the same way
+   as one the assistant takes: kept on /chats, emailed to the person in charge, texted to the staff phone. *@
+
+<PageTitle>@L["contact.title"] — MapleKiosk</PageTitle>
+<HeadContent>
+    <meta name="description" content="@L["contact.meta"]" />
+</HeadContent>
+
+<NavBar />
+
+<main class="legal-page contact-page">
+    <Breadcrumbs Current="@L["foot.contact"]" />
+    <div class="container">
+        <div class="legal-page__head">
+            <span class="eyebrow">@L["foot.contact"]</span>
+            <h1>@L["contact.title"]</h1>
+            <p>@L["contact.sub"]</p>
+        </div>
+
+        <div class="contact">
+            <aside class="contact__ways">
+                <div class="contact__way">
+                    <h2>@L["contact.sales"]</h2>
+                    <p>@L["contact.sales.sub"]</p>
+                    <a href="mailto:sales@maplekiosk.ca">sales@maplekiosk.ca</a>
+                </div>
+                <div class="contact__way">
+                    <h2>@L["contact.support"]</h2>
+                    <p>@L["contact.support.sub"]</p>
+                    <a href="mailto:support@maplekiosk.ca">support@maplekiosk.ca</a>
+                </div>
+                @if (_line is not null)
+                {
+                    <div class="contact__way">
+                        <h2>@L["contact.phone"]</h2>
+                        <p>@L["contact.phone.sub"]</p>
+                        <a href="tel:@_line">@ChatChannel.PhoneLabel(_line)</a>
+                    </div>
+                }
+                <div class="contact__way">
+                    <h2>@L["contact.office"]</h2>
+                    <address>Kiosque &Eacute;rable Inc. (MapleKiosk)<br />507 Rue Montcalm<br />Longueuil, QC J4J 2L3<br />Canada</address>
+                </div>
+            </aside>
+
+            <div class="contact__form legal-page__body">
+                @if (_sent)
+                {
+                    <div class="contact__done" role="status">
+                        <div class="trial__success-icon">✓</div>
+                        <h2>@L["contact.done.title"]</h2>
+                        <p>@L["contact.done.body"]</p>
+                    </div>
+                }
+                else
+                {
+                    <h2>@L["contact.form.title"]</h2>
+                    <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="contact" Enhance>
+                        <DataAnnotationsValidator />
+                        @* Honeypot: off-screen and skipped by keyboard and autofill, so only bots fill it. *@
+                        <div style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+                            <label>Website <InputText @bind-Value="Model.Website" tabindex="-1" autocomplete="off" /></label>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="c-name">@L["contact.f.name"]</label>
+                                <InputText id="c-name" @bind-Value="Model.Name" autocomplete="name" placeholder="@L["trial.f.ph.contact"]" />
+                                <ValidationMessage For="() => Model.Name" />
+                            </div>
+                            <div class="field">
+                                <label for="c-biz">@L["contact.f.business"]</label>
+                                <InputText id="c-biz" @bind-Value="Model.Business" autocomplete="organization" placeholder="@L["trial.f.ph.company"]" />
+                                <ValidationMessage For="() => Model.Business" />
+                            </div>
+                        </div>
+
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="c-email">@L["trial.f.email"]</label>
+                                <InputText id="c-email" type="email" @bind-Value="Model.Email" autocomplete="email" placeholder="@L["trial.f.ph.email"]" />
+                                <ValidationMessage For="() => Model.Email" />
+                            </div>
+                            <div class="field">
+                                <label for="c-phone">@L["contact.f.phone"]</label>
+                                <InputText id="c-phone" type="tel" @bind-Value="Model.Phone" autocomplete="tel" placeholder="@L["trial.f.ph.phone"]" />
+                                <ValidationMessage For="() => Model.Phone" />
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="c-topic">@L["contact.f.topic"]</label>
+                            <InputSelect id="c-topic" @bind-Value="Model.Topic">
+                                <option value="sales">@L["contact.t.sales"]</option>
+                                <option value="support">@L["contact.t.support"]</option>
+                                <option value="billing">@L["contact.t.billing"]</option>
+                                <option value="general">@L["contact.t.general"]</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="field">
+                            <label for="c-msg">@L["contact.f.message"]</label>
+                            <InputTextArea id="c-msg" @bind-Value="Model.Message" rows="6" placeholder="@L["contact.f.ph.message"]" />
+                            <ValidationMessage For="() => Model.Message" />
+                        </div>
+
+                        <button type="submit" class="btn btn-primary trial__submit" data-busy-label="@L["trial.submitting"]">@L["contact.submit"]</button>
+                        @if (_failed)
+                        {
+                            <p class="contact__error" role="alert">@L["contact.failed"]</p>
+                        }
+                        <p class="trial__fine">@L["contact.fine"]</p>
+                    </EditForm>
+                }
+            </div>
+        </div>
+    </div>
+</main>
+
+<Footer />
+
+@code {
+    [SupplyParameterFromForm(FormName = "contact")]
+    private ContactMessage? Model { get; set; }
+
+    private string? _line;
+    private bool _sent;
+    private bool _failed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var seg = new Uri(Nav.Uri).AbsolutePath.Trim('/').Split('/').FirstOrDefault() ?? "";
+        L.SetCulture(seg);
+        ValidationCulture.Current.Value = L.Culture;
+        Model ??= new();
+        try { _line = await PhoneHookup.LineNumberAsync(); }
+        catch { _line = null; } // no line known (or storage down): the page just leaves the phone out
+    }
+
+    private async Task HandleSubmit()
+    {
+        // A bot filled the honeypot: act as if it went through, keep nothing.
+        if (!string.IsNullOrWhiteSpace(Model!.Website)) { _sent = true; return; }
+
+        var id = ChatLog.IdFor(null);
+        var now = DateTimeOffset.UtcNow;
+        var contact = new GuestContact(Model.Name.Trim(), Blank(Model.Phone), Model.Email.Trim(), Blank(Model.Business), null);
+        var message = new GuestMessage(CustomerMessageTool.Topic(Model.Topic), false, Model.Message.Trim(), now);
+
+        // The message as the conversation's only line, so /chats shows what they wrote.
+        await Chats.RecordTranscriptAsync(id, [new ChatLine("user", message.Text, now, CustomerMessageTool.ContactPage)],
+            L.Culture, null, "Contact form");
+        var (saved, emailed) = await Messages.PassOnAsync(id, L.Culture, CustomerMessageTool.ContactPage, contact, message);
+
+        _sent = saved || emailed;
+        _failed = !_sent;
+    }
+
+    private static string? Blank(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+    public sealed class ContactMessage
+    {
+        [Required, StringLength(80)]
+        public string Name { get; set; } = "";
+
+        [StringLength(120)]
+        public string? Business { get; set; }
+
+        [Required, EmailAddress, StringLength(120)]
+        public string Email { get; set; } = "";
+
+        [Phone, StringLength(40)]
+        public string? Phone { get; set; }
+
+        public string Topic { get; set; } = "sales";
+
+        [Required, StringLength(2000, MinimumLength = 5)]
+        public string Message { get; set; } = "";
+
+        public string? Website { get; set; }
+    }
+}

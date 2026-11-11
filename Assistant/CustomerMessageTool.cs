@@ -15,6 +15,9 @@ public sealed class CustomerMessageTool
 {
     private static readonly string[] Topics = ["sales", "setup", "billing", "support"];
 
+    /// <summary>The page a /contact form message is saved with.</summary>
+    public const string ContactPage = "/contact";
+
     private readonly ChatLog _chats;
     private readonly EmailService _email;
     private readonly ILogger<CustomerMessageTool> _logger;
@@ -52,13 +55,24 @@ public sealed class CustomerMessageTool
         if (c.Phone is null && c.Email is null)
             return "Not passed on: there is no phone number or email yet. Ask how they would like to be reached.";
 
+        var (saved, emailed) = await PassOnAsync(id, lang, page, c, m, ct);
+        return Outcome(saved, emailed, c.Name);
+    }
+
+    /// <summary>
+    /// Keeps the message on conversation <paramref name="id"/> (/chats), emails the person in charge, texts the staff
+    /// phone, and sends the customer a confirmation text. Shared by the assistant and the /contact form.
+    /// </summary>
+    public async Task<(bool Saved, bool Emailed)> PassOnAsync(string id, string lang, string page, GuestContact c,
+        GuestMessage m, CancellationToken ct = default)
+    {
         var saved = await _chats.SaveMessageAsync(id, c, m, ct);
 
         string? emailError;
         try
         {
             var inbox = await AssistantSettings.MessageInboxAsync();
-            var subject = $"{ChatChannel.SubjectTag(page)}{(m.Urgent ? "URGENT — " : "")}Customer message ({m.Topic}): {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}";
+            var subject = $"{(page == ContactPage ? "[Contact form] " : ChatChannel.SubjectTag(page))}{(m.Urgent ? "URGENT — " : "")}Customer message ({m.Topic}): {c.Name}{(c.Business is null ? "" : $" ({c.Business})")}";
             emailError = await _email.SendAsync(inbox, subject, Html(id, lang, page, c, m));
         }
         catch (Exception ex)
@@ -81,7 +95,7 @@ public sealed class CustomerMessageTool
         if ((saved || emailError is null) && page != "sms" && c.Phone is not null)
             AutoTexts.Queue(c.Phone, AutoTexts.MessageTaken(c.Name, lang), _logger);
 
-        return Outcome(saved, emailError is null, c.Name);
+        return (saved, emailError is null);
     }
 
     /// <summary>What the model is told. The customer is only ever told what actually happened.</summary>
@@ -95,7 +109,7 @@ public sealed class CustomerMessageTool
              "back, do not call this again for this message, and do not ask for their contact again.",
     };
 
-    private static string Topic(string? topic)
+    public static string Topic(string? topic)
     {
         var t = topic?.Trim().ToLowerInvariant();
         return Topics.Contains(t) ? t! : "general";
